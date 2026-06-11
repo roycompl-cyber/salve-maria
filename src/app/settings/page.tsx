@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
-import { CheckCircle2, Loader2, User, Phone, MapPin, Mail } from "lucide-react";
+import { CheckCircle2, Loader2, User, Phone, MapPin, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 interface FieldProps {
   label: string;
@@ -61,6 +62,13 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+
+  // Zmiana hasła
+  const [pwdForm, setPwdForm] = useState({ current: "", next: "", confirm: "" });
+  const [pwdSaving, setPwdSaving] = useState(false);
+  const [pwdError, setPwdError] = useState("");
+  const [pwdSaved, setPwdSaved] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
 
   const isFirstTime = !profile?.profile_complete;
 
@@ -121,6 +129,21 @@ export default function SettingsPage() {
     if (isFirstTime) {
       router.push("/");
     }
+  }
+
+  async function handlePasswordChange(e: React.FormEvent) {
+    e.preventDefault();
+    setPwdError(""); setPwdSaved(false);
+    if (pwdForm.next.length < 8) { setPwdError("Hasło musi mieć co najmniej 8 znaków."); return; }
+    if (pwdForm.next !== pwdForm.confirm) { setPwdError("Hasła nie są identyczne."); return; }
+    setPwdSaving(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.updateUser({ password: pwdForm.next });
+    setPwdSaving(false);
+    if (error) { setPwdError(error.message); return; }
+    setPwdSaved(true);
+    setPwdForm({ current: "", next: "", confirm: "" });
+    setTimeout(() => setPwdSaved(false), 3000);
   }
 
   return (
@@ -259,6 +282,64 @@ export default function SettingsPage() {
             )}
           </button>
         </form>
+
+        {/* Zmiana hasła */}
+        {!isFirstTime && (
+          <form onSubmit={handlePasswordChange} className="space-y-4 pt-2">
+            <div className="bg-slate-800/50 rounded-2xl p-4 space-y-4">
+              <p className="text-slate-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5">
+                <Lock size={12} /> Zmiana hasła
+              </p>
+
+              {["next", "confirm"].map((field) => (
+                <div key={field}>
+                  <label className="block text-slate-300 text-xs font-medium mb-1.5" style={{ fontFamily: "Georgia, serif" }}>
+                    {field === "next" ? "Nowe hasło" : "Powtórz nowe hasło"}
+                    <span className="text-red-400 ml-0.5">*</span>
+                  </label>
+                  <div className="relative">
+                    <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      type={showPwd ? "text" : "password"}
+                      value={pwdForm[field as "next" | "confirm"]}
+                      onChange={e => setPwdForm(prev => ({ ...prev, [field]: e.target.value }))}
+                      placeholder={field === "next" ? "Min. 8 znaków" : "Powtórz hasło"}
+                      required
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl py-3 pl-10 pr-10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-yellow-600 transition-colors"
+                    />
+                    {field === "confirm" && (
+                      <button
+                        type="button"
+                        onClick={() => setShowPwd(p => !p)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                      >
+                        {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {pwdError && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">{pwdError}</div>
+              )}
+              {pwdSaved && (
+                <div className="bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3 text-green-400 text-sm flex items-center gap-2">
+                  <CheckCircle2 size={16} /> Hasło zostało zmienione.
+                </div>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={pwdSaving}
+              className="w-full py-3.5 rounded-2xl font-bold text-sm text-white transition-all flex items-center justify-center gap-2 shadow-lg"
+              style={{ background: pwdSaving ? "#334155" : "linear-gradient(135deg, #1e3a5f, #1e40af)" }}
+            >
+              {pwdSaving ? <><Loader2 size={18} className="animate-spin" /> Zmiana hasła…</> : <><Lock size={18} /> Zmień hasło</>}
+            </button>
+          </form>
+        )}
       </div>
     </AppShell>
   );

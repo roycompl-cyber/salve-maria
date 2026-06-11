@@ -5,9 +5,15 @@ import { LogOut, Settings, UserCircle } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
+const DAYS_PL = ["Niedziela","Poniedziałek","Wtorek","Środa","Czwartek","Piątek","Sobota"];
+const MONTHS_PL = ["stycznia","lutego","marca","kwietnia","maja","czerwca","lipca","sierpnia","września","października","listopada","grudnia"];
+
 export default function TopBar() {
   const { user, signOut } = useAuth();
   const { profile } = useProfile();
+
+  const now = new Date();
+  const dateStr = `${DAYS_PL[now.getDay()]}, ${now.getDate()} ${MONTHS_PL[now.getMonth()]} ${now.getFullYear()}`;
 
   return (
     <header className="sticky top-0 z-40 bg-red-950/95 backdrop-blur-md border-b border-red-900 safe-area-top">
@@ -28,17 +34,18 @@ export default function TopBar() {
             <p className="text-yellow-200 font-bold text-sm leading-tight tracking-wide" style={{ fontFamily: "Georgia, serif" }}>
               Salve Maria
             </p>
-            {profile?.first_name ? (
-              <p className="text-red-300 text-[9px] leading-none truncate">
-                {profile.first_name} {profile.last_name ?? ""}
-              </p>
-            ) : (
-              <p className="text-red-300 text-[9px] leading-none truncate hidden sm:block">
-                Instytut Ks. Piotra Skargi
-              </p>
-            )}
+            <p className="text-red-300 text-[9px] leading-none truncate">
+              {profile?.first_name
+                ? `${profile.first_name} ${profile.last_name ?? ""}`.trim()
+                : dateStr}
+            </p>
           </div>
         </div>
+
+        {/* Data — widoczna gdy jest imię */}
+        {profile?.first_name && (
+          <p className="text-red-400 text-[9px] hidden sm:block truncate mx-2">{dateStr}</p>
+        )}
 
         <div className="flex items-center gap-1">
           {user && (
