@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
-import { CheckCircle2, Loader2, User, Phone, MapPin, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { CheckCircle2, Loader2, User, Phone, MapPin, Mail, Lock, Eye, EyeOff, Bell } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { urlBase64ToUint8Array } from "@/lib/utils";
 
 interface FieldProps {
   label: string;
@@ -70,7 +71,19 @@ export default function SettingsPage() {
   const [pwdSaved, setPwdSaved] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
 
+  // Powiadomienia push
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+
   const isFirstTime = !profile?.profile_complete;
+
+  // Sprawdź stan subskrypcji push
+  useEffect(() => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    navigator.serviceWorker.ready.then(reg =>
+      reg.pushManager.getSubscription().then(sub => setPushEnabled(!!sub))
+    );
+  }, []);
 
   useEffect(() => {
     if (user) fetch(user.id);
@@ -129,6 +142,40 @@ export default function SettingsPage() {
     if (isFirstTime) {
       router.push("/");
     }
+  }
+
+  async function handleTogglePush() {
+    setPushLoading(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) {
+        await existing.unsubscribe();
+        await fetch("/api/push/subscribe", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: existing.endpoint }),
+        });
+        setPushEnabled(false);
+      } else {
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") { setPushLoading(false); return; }
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+        });
+        await fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subscription: sub,
+            settings: { news_notifications: true, action_notifications: true, prayer_reminder_enabled: false, prayer_reminder_time: "07:00" },
+          }),
+        });
+        setPushEnabled(true);
+      }
+    } catch { /* brak wsparcia */ }
+    setPushLoading(false);
   }
 
   async function handlePasswordChange(e: React.FormEvent) {
@@ -282,6 +329,32 @@ export default function SettingsPage() {
             )}
           </button>
         </form>
+
+        {/* Powiadomienia push */}
+        {!isFirstTime && (
+          <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700">
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5 mb-3">
+              <Bell size={12} /> Powiadomienia push
+            </p>
+            <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <div>
+                <p className="text-white text-sm font-medium">Otrzymuj powiadomienia od Fundacji</p>
+                <p className="text-slate-400 text-xs mt-0.5">Aktualności, petycje, przypomnienia o modlitwie</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {pushLoading && <Loader2 size={14} className="text-slate-400 animate-spin" />}
+                <button
+                  type="button"
+                  onClick={handleTogglePush}
+                  disabled={pushLoading}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${pushEnabled ? "bg-red-700" : "bg-slate-600"}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${pushEnabled ? "translate-x-6" : "translate-x-0.5"}`} />
+                </button>
+              </div>
+            </label>
+          </div>
+        )}
 
         {/* Zmiana hasła */}
         {!isFirstTime && (

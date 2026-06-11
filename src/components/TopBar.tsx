@@ -57,13 +57,15 @@ export default function TopBar() {
               >
                 <UserCircle size={18} />
               </Link>
-              <Link
-                href="/admin"
-                className="text-red-300 hover:text-yellow-200 p-1.5 rounded-lg hover:bg-red-900 transition-colors"
-                title="Admin"
-              >
-                <Settings size={18} />
-              </Link>
+              {profile?.role === "admin" && (
+                <Link
+                  href="/admin"
+                  className="text-red-300 hover:text-yellow-200 p-1.5 rounded-lg hover:bg-red-900 transition-colors"
+                  title="Admin"
+                >
+                  <Settings size={18} />
+                </Link>
+              )}
               <button
                 onClick={signOut}
                 title="Wyloguj"
