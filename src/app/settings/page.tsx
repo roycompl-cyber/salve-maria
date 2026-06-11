@@ -74,15 +74,20 @@ export default function SettingsPage() {
   // Powiadomienia push
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [pushSupported, setPushSupported] = useState(false);
 
   const isFirstTime = !profile?.profile_complete;
 
   // Sprawdź stan subskrypcji push
   useEffect(() => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-    navigator.serviceWorker.ready.then(reg =>
-      reg.pushManager.getSubscription().then(sub => setPushEnabled(!!sub))
-    );
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
+    setPushSupported(true);
+    // Timeout 3s — jeśli SW nie odpowie, rezygnujemy
+    const timer = setTimeout(() => setPushLoading(false), 3000);
+    navigator.serviceWorker.ready.then(reg => {
+      clearTimeout(timer);
+      reg.pushManager.getSubscription().then(sub => setPushEnabled(!!sub));
+    }).catch(() => clearTimeout(timer));
   }, []);
 
   useEffect(() => {
@@ -336,23 +341,30 @@ export default function SettingsPage() {
             <p className="text-slate-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5 mb-3">
               <Bell size={12} /> Powiadomienia push
             </p>
-            <label className="flex items-center justify-between gap-3 cursor-pointer">
-              <div>
-                <p className="text-white text-sm font-medium">Otrzymuj powiadomienia od Fundacji</p>
-                <p className="text-slate-400 text-xs mt-0.5">Aktualności, petycje, przypomnienia o modlitwie</p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {pushLoading && <Loader2 size={14} className="text-slate-400 animate-spin" />}
-                <button
-                  type="button"
-                  onClick={handleTogglePush}
-                  disabled={pushLoading}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${pushEnabled ? "bg-red-700" : "bg-slate-600"}`}
-                >
-                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${pushEnabled ? "translate-x-6" : "translate-x-0.5"}`} />
-                </button>
-              </div>
-            </label>
+            {!pushSupported ? (
+              <p className="text-slate-400 text-sm">
+                Powiadomienia push działają tylko po zainstalowaniu aplikacji na ekranie głównym telefonu.{" "}
+                <span className="text-yellow-500">Dodaj aplikację do ekranu głównego i wróć tutaj.</span>
+              </p>
+            ) : (
+              <label className="flex items-center justify-between gap-3 cursor-pointer">
+                <div>
+                  <p className="text-white text-sm font-medium">Otrzymuj powiadomienia od Fundacji</p>
+                  <p className="text-slate-400 text-xs mt-0.5">Aktualności, petycje, przypomnienia o modlitwie</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {pushLoading && <Loader2 size={14} className="text-slate-400 animate-spin" />}
+                  <button
+                    type="button"
+                    onClick={handleTogglePush}
+                    disabled={pushLoading}
+                    className={`relative w-12 h-6 rounded-full transition-colors ${pushEnabled ? "bg-red-700" : "bg-slate-600"}`}
+                  >
+                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${pushEnabled ? "translate-x-6" : "translate-x-0.5"}`} />
+                  </button>
+                </div>
+              </label>
+            )}
           </div>
         )}
 
