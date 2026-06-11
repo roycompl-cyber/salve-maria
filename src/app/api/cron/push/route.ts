@@ -2,15 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import webpush from "web-push";
 
-webpush.setVapidDetails(
-  "mailto:kontakt@skargi.pl",
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+export const dynamic = "force-dynamic";
 
 const DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 export async function GET(req: NextRequest) {
+  webpush.setVapidDetails(
+    "mailto:kontakt@skargi.pl",
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  );
+
   // Vercel Cron wywołuje GET z nagłówkiem Authorization
   const auth = req.headers.get("authorization");
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
