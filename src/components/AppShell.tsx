@@ -21,6 +21,17 @@ export default function AppShell({ children, skipProfileGuard = false }: Props) 
 
   useEffect(() => { init(); }, [init]);
 
+  // Rejestruj service worker ręcznie jeśli jeszcze nie jest zarejestrowany
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        if (regs.length === 0) {
+          navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
+        }
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (user) fetch(user.id);
   }, [user, fetch]);
