@@ -152,7 +152,10 @@ export default function SettingsPage() {
   async function handleTogglePush() {
     setPushLoading(true);
     try {
-      const reg = await navigator.serviceWorker.ready;
+      const reg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000)),
+      ]) as ServiceWorkerRegistration;
       const existing = await reg.pushManager.getSubscription();
       if (existing) {
         await existing.unsubscribe();
@@ -179,7 +182,10 @@ export default function SettingsPage() {
         });
         setPushEnabled(true);
       }
-    } catch { /* brak wsparcia */ }
+    } catch {
+      // SW niedostępny lub timeout — ukryj toggle
+      setPushSupported(false);
+    }
     setPushLoading(false);
   }
 
