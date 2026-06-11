@@ -151,7 +151,7 @@ export default function SettingsPage() {
       const existing = await reg.pushManager.getSubscription();
       if (existing) {
         await existing.unsubscribe();
-        await fetch("/api/push/subscribe", {
+        await window.fetch("/api/push/subscribe", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint: existing.endpoint }),
@@ -164,7 +164,7 @@ export default function SettingsPage() {
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
         });
-        await fetch("/api/push/subscribe", {
+        await window.fetch("/api/push/subscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
