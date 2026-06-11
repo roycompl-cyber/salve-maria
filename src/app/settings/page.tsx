@@ -82,7 +82,8 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
     setPushSupported(true);
-    navigator.serviceWorker.getRegistration("/").then(reg => {
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      const reg = regs[0];
       if (!reg) return;
       reg.pushManager.getSubscription().then(sub => setPushEnabled(!!sub));
     }).catch(() => {});
@@ -150,10 +151,18 @@ export default function SettingsPage() {
   async function handleTogglePush() {
     setPushLoading(true);
     try {
-      const reg = await navigator.serviceWorker.getRegistration("/");
-      if (!reg) { setPushSupported(false); setPushLoading(false); return; }
+      const regs = await navigator.serviceWorker.getRegistrations();
+      const reg = regs[0];
+      if (!reg) {
+        setPushSupported(false);
+        setPushLoading(false);
+        return;
+      }
+
       const existing = await reg.pushManager.getSubscription();
+
       if (existing) {
+        // Wyłącz
         await existing.unsubscribe();
         await window.fetch("/api/push/subscribe", {
           method: "DELETE",
@@ -162,8 +171,14 @@ export default function SettingsPage() {
         });
         setPushEnabled(false);
       } else {
-        const perm = await Notification.requestPermission();
-        if (perm !== "granted") { setPushLoading(false); return; }
+        // Włącz — poproś o zgodę
+        const perm = Notification.permission === "granted"
+          ? "granted"
+          : await Notification.requestPermission();
+        if (perm !== "granted") {
+          setPushLoading(false);
+          return;
+        }
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
@@ -173,13 +188,18 @@ export default function SettingsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             subscription: sub,
-            settings: { news_notifications: true, action_notifications: true, prayer_reminder_enabled: false, prayer_reminder_time: "07:00" },
+            settings: {
+              news_notifications: true,
+              action_notifications: true,
+              prayer_reminder_enabled: false,
+              prayer_reminder_time: "07:00",
+            },
           }),
         });
         setPushEnabled(true);
       }
-    } catch {
-      // SW niedostępny lub timeout — ukryj toggle
+    } catch (e) {
+      console.error("Push toggle error:", e);
       setPushSupported(false);
     }
     setPushLoading(false);

@@ -6,7 +6,6 @@ import { useProfile } from "@/hooks/useProfile";
 import BottomNav from "./BottomNav";
 import TopBar from "./TopBar";
 import InstallPrompt from "./InstallPrompt";
-import { usePushAutoSubscribe } from "@/hooks/usePushAutoSubscribe";
 
 interface Props {
   children: React.ReactNode;
@@ -21,7 +20,6 @@ export default function AppShell({ children, skipProfileGuard = false }: Props) 
   const pathname = usePathname();
 
   useEffect(() => { init(); }, [init]);
-  usePushAutoSubscribe(user?.id);
 
   useEffect(() => {
     if (user) fetch(user.id);
