@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -13,11 +14,36 @@ export async function GET() {
   const supabase = await requireAdmin();
   if (!supabase) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 });
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, email, first_name, last_name, phone, city, role, profile_complete, created_at")
-    .order("created_at", { ascending: false });
+  // Pobierz wszystkich userów przez admin API (service role)
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  const { data: authData, error: authError } = await adminClient.auth.admin.listUsers();
+  if (authError) return NextResponse.json({ error: authError.message }, { status: 500 });
+
+  // Pobierz profile
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, phone, city, role, profile_complete, created_at");
+
+  const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]));
+
+  const users = authData.users.map(u => {
+    const p = profileMap[u.id] ?? {};
+    return {
+      id: u.id,
+      email: u.email,
+      first_name: p.first_name ?? null,
+      last_name: p.last_name ?? null,
+      phone: p.phone ?? null,
+      city: p.city ?? null,
+      role: p.role ?? "user",
+      profile_complete: p.profile_complete ?? false,
+      created_at: u.created_at,
+    };
+  });
+
+  return NextResponse.json(users);
 }
