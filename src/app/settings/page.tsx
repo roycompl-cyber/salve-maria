@@ -82,12 +82,10 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
     setPushSupported(true);
-    // Timeout 3s — jeśli SW nie odpowie, rezygnujemy
-    const timer = setTimeout(() => setPushLoading(false), 3000);
-    navigator.serviceWorker.ready.then(reg => {
-      clearTimeout(timer);
+    navigator.serviceWorker.getRegistration("/").then(reg => {
+      if (!reg) return;
       reg.pushManager.getSubscription().then(sub => setPushEnabled(!!sub));
-    }).catch(() => clearTimeout(timer));
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -152,10 +150,8 @@ export default function SettingsPage() {
   async function handleTogglePush() {
     setPushLoading(true);
     try {
-      const reg = await Promise.race([
-        navigator.serviceWorker.ready,
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000)),
-      ]) as ServiceWorkerRegistration;
+      const reg = await navigator.serviceWorker.getRegistration("/");
+      if (!reg) { setPushSupported(false); setPushLoading(false); return; }
       const existing = await reg.pushManager.getSubscription();
       if (existing) {
         await existing.unsubscribe();
