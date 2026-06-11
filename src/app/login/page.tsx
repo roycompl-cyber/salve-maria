@@ -9,7 +9,7 @@ export default function LoginPage() {
   const { t } = useLocale();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"password" | "magic">("password");
+  const [mode, setMode] = useState<"password" | "magic" | "reset">("password");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -26,6 +26,16 @@ export default function LoginPage() {
       setLoading(false);
       if (error) setError(error.message);
       else setMessage(t("auth.magic_sent"));
+      return;
+    }
+
+    if (mode === "reset") {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/settings`,
+      });
+      setLoading(false);
+      if (error) setError(error.message);
+      else setMessage("Wysłaliśmy link do resetowania hasła na Twój adres e-mail.");
       return;
     }
 
@@ -92,17 +102,25 @@ export default function LoginPage() {
           </div>
 
           {mode === "password" && (
-            <div className="relative">
-              <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="password"
-                placeholder={t("auth.password")}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
-              />
-            </div>
+            <>
+              <div className="relative">
+                <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="password"
+                  placeholder={t("auth.password")}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                />
+              </div>
+              <div className="text-right">
+                <button type="button" onClick={() => { setMode("reset"); setError(""); setMessage(""); }}
+                  className="text-xs text-slate-500 hover:text-yellow-400 transition-colors">
+                  Zapomniałem hasła
+                </button>
+              </div>
+            </>
           )}
 
           {error && (
@@ -123,8 +141,15 @@ export default function LoginPage() {
             className="w-full bg-red-800 hover:bg-red-700 disabled:bg-slate-700 text-yellow-100 font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-            {mode === "magic" ? t("auth.magic_link") : t("auth.sign_in")}
+            {mode === "magic" ? t("auth.magic_link") : mode === "reset" ? "Wyślij link do resetu" : t("auth.sign_in")}
           </button>
+
+          {mode === "reset" && (
+            <button type="button" onClick={() => { setMode("password"); setError(""); setMessage(""); }}
+              className="w-full text-slate-500 hover:text-slate-300 text-sm transition-colors py-1">
+              ← Wróć do logowania
+            </button>
+          )}
         </form>
 
         <p className="text-center text-slate-500 text-xs mt-8 leading-relaxed">
