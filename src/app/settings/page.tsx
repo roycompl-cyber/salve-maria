@@ -75,6 +75,7 @@ export default function SettingsPage() {
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [pushSupported, setPushSupported] = useState(false);
+  const [pushError, setPushError] = useState("");
 
   const isFirstTime = !profile?.profile_complete;
 
@@ -199,8 +200,7 @@ export default function SettingsPage() {
         setPushEnabled(true);
       }
     } catch (e) {
-      console.error("Push toggle error:", e);
-      setPushSupported(false);
+      setPushError(e instanceof Error ? e.message : String(e));
     }
     setPushLoading(false);
   }
@@ -363,6 +363,9 @@ export default function SettingsPage() {
             <p className="text-slate-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5 mb-3">
               <Bell size={12} /> Powiadomienia push
             </p>
+            {pushError && (
+              <p className="text-red-400 text-xs mb-2 break-all">{pushError}</p>
+            )}
             {!pushSupported ? (
               <p className="text-slate-400 text-sm">
                 Powiadomienia push działają tylko po zainstalowaniu aplikacji na ekranie głównym telefonu.{" "}
