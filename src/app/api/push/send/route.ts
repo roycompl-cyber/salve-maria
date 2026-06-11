@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import webpush from "web-push";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +24,13 @@ export async function POST(req: NextRequest) {
 
   const { title, body, type, url } = await req.json();
 
-  // Fetch subscriptions based on type
-  let query = supabase.from("push_subscriptions").select("*");
+  // Admin client omija RLS — widzi subskrypcje wszystkich użytkowników
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  let query = adminClient.from("push_subscriptions").select("*");
   if (type === "news") query = query.eq("news_notifications", true);
   if (type === "action") query = query.eq("action_notifications", true);
 
