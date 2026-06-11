@@ -79,25 +79,15 @@ export default function SettingsPage() {
 
   const isFirstTime = !profile?.profile_complete;
 
-  const [pushDiag, setPushDiag] = useState("");
-
   // Sprawdź stan subskrypcji push
   useEffect(() => {
-    const sw = "serviceWorker" in navigator;
-    const pm = "PushManager" in window;
-    const notif = "Notification" in window;
-    setPushDiag(`SW:${sw} PM:${pm} N:${notif} perm:${notif ? Notification.permission : "?"}`);
-    if (!sw || !pm || !notif) return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return;
     setPushSupported(true);
     navigator.serviceWorker.getRegistrations().then(regs => {
-      setPushDiag(d => d + ` regs:${regs.length}`);
       const reg = regs[0];
       if (!reg) return;
-      reg.pushManager.getSubscription().then(sub => {
-        setPushDiag(d => d + ` sub:${!!sub}`);
-        setPushEnabled(!!sub);
-      });
-    }).catch(e => setPushDiag(d => d + ` err:${e}`));
+      reg.pushManager.getSubscription().then(sub => setPushEnabled(!!sub));
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -373,9 +363,6 @@ export default function SettingsPage() {
             <p className="text-slate-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5 mb-3">
               <Bell size={12} /> Powiadomienia push
             </p>
-            {pushDiag && (
-              <p className="text-slate-500 text-xs mb-2 break-all font-mono">{pushDiag}</p>
-            )}
             {pushError && (
               <p className="text-red-400 text-xs mb-2 break-all">{pushError}</p>
             )}
