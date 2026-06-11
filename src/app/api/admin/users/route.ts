@@ -23,8 +23,8 @@ export async function GET() {
   const { data: authData, error: authError } = await adminClient.auth.admin.listUsers();
   if (authError) return NextResponse.json({ error: authError.message }, { status: 500 });
 
-  // Pobierz profile
-  const { data: profiles } = await supabase
+  // Pobierz profile (adminClient omija RLS)
+  const { data: profiles } = await adminClient
     .from("profiles")
     .select("id, first_name, last_name, phone, city, role, profile_complete, created_at");
 
