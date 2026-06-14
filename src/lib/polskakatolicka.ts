@@ -20,6 +20,7 @@ export interface PKPetition {
   title: string;
   excerpt: string;
   content: string;
+  content_html?: string;
   image_url: string;
   signature_count: number;
   source_url: string;
@@ -347,6 +348,7 @@ export async function fetchPetition(slug: string): Promise<PKPetition | null> {
                        extractDivContent(html, "petition-content") ||
                        extractDivContent(html, "petition-body");
     const content = rawContent ? stripTags(rawContent) : "";
+    const content_html = rawContent ? sanitizeArticleHtml(rawContent) : "";
 
     const ogDesc = html.match(/property=["']og:description["'][^>]+content=["']([^"']+)["']/);
     const excerpt = ogDesc?.[1]?.trim() || content.slice(0, 220);
@@ -364,6 +366,7 @@ export async function fetchPetition(slug: string): Promise<PKPetition | null> {
       title,
       excerpt,
       content,
+      content_html,
       image_url,
       signature_count,
       source_url: `${BASE_URL}/pl/petycje/${slug}`,

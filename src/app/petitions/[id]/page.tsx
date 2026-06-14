@@ -252,6 +252,13 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
                 </div>
               )}
 
+              {petition.content_html && (
+                <div className="pt-5 border-t border-slate-700/50">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">Powiązane treści</p>
+                  <div className="article-html-content" dangerouslySetInnerHTML={{ __html: petition.content_html }} />
+                </div>
+              )}
+
               <a href={petition.source_url} target="_blank" rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 text-slate-500 hover:text-amber-400 text-xs transition-colors pt-2 pb-4">
                 Źródło: polskakatolicka.org <ExternalLink size={12} />
