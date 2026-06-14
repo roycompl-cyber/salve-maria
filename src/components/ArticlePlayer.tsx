@@ -9,21 +9,30 @@ interface Props {
   onParagraphChange?: (idx: number) => void;
 }
 
-/** Zamienia skróty i wyrażenia trudne dla syntezatora na pełne formy. */
+/** Zamienia skróty i wyrażenia trudne dla syntezatora na pełne formy.
+ *  Przypadek "ks." zależy od następującego imienia:
+ *  jeśli imię kończy się na -a (Jana, Piotra…) → dopełniacz, inaczej → mianownik. */
 function normalizeTTS(text: string): string {
   return text
+    // Specyficzne wyrażenie stałe z dopełniaczem
     .replace(/im\.\s*ks\.\s*Piotra\s*Skargi/gi, "imienia księdza Piotra Skargi")
     .replace(/im\.\s*ks\./gi, "imienia księdza")
-    .replace(/\bks\.\s*([A-ZŁŚŻŹĆŃÓ])/g, "księdza $1")
-    .replace(/\bkard\./gi, "kardynała")
-    .replace(/\bbp\./gi, "biskupa")
-    .replace(/\babp\./gi, "arcybiskupa")
-    .replace(/\bśw\./gi, "świętego")
-    .replace(/\bbl\./gi, "błogosławionego")
-    .replace(/\bdr\./gi, "doktora")
-    .replace(/\bprof\./gi, "profesora")
-    .replace(/\bpl\./gi, "placu")
-    .replace(/\bul\./gi, "ulicy")
+    // ks. + imię — dopełniacz gdy imię kończy się na -a (Jana, Piotra, Pawła…)
+    .replace(/\bks\.\s*([A-ZŁŚŻŹĆŃÓ][a-złśżźćńóą]*a\b)/g, "księdza $1")
+    // ks. + imię w mianowniku (Jan, Piotr, Paweł…)
+    .replace(/\bks\.\s*([A-ZŁŚŻŹĆŃÓ])/g, "ksiądz $1")
+    // Tytuły kościelne — mianownik domyślny
+    .replace(/\bkard\./gi, "kardynał")
+    .replace(/\bbp\./gi, "biskup")
+    .replace(/\babp\./gi, "arcybiskup")
+    .replace(/\bśw\./gi, "święty")
+    .replace(/\bbł\./gi, "błogosławiony")
+    .replace(/\bbl\./gi, "błogosławiony")
+    // Inne skróty
+    .replace(/\bdr\./gi, "doktor")
+    .replace(/\bprof\./gi, "profesor")
+    .replace(/\bpl\./gi, "plac")
+    .replace(/\bul\./gi, "ulica")
     .replace(/\bnr\s+(\d)/gi, "numer $1")
     .replace(/(\d+)\s*r\./gi, "$1 roku");
 }
