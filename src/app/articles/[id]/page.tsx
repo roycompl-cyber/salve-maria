@@ -149,31 +149,32 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
               />
             </div>
 
-            {/* Content */}
-            {article.content_html ? (
-              <div
-                className="mt-4 article-html-content"
-                dangerouslySetInnerHTML={{ __html: article.content_html }}
-              />
-            ) : (
-              <div className="mt-2 space-y-3">
-                {paragraphs.slice(1).map((para, i) => {
-                  const absIdx = i + 1;
-                  return (
-                    <p
-                      key={absIdx}
-                      id={`para-${absIdx}`}
-                      className="text-slate-300 text-sm leading-relaxed rounded-xl transition-all duration-300"
-                      style={
-                        currentPara === absIdx
-                          ? { backgroundColor: "rgba(59,130,246,0.12)", padding: "8px 10px", color: "#e2e8f0" }
-                          : {}
-                      }
-                    >
-                      {para}
-                    </p>
-                  );
-                })}
+            {/* Content — akapity z podświetlaniem TTS */}
+            <div className="mt-2 space-y-3">
+              {paragraphs.slice(1).map((para, i) => {
+                const absIdx = i + 1;
+                return (
+                  <p
+                    key={absIdx}
+                    id={`para-${absIdx}`}
+                    className="text-slate-300 text-sm leading-relaxed rounded-xl transition-all duration-300"
+                    style={
+                      currentPara === absIdx
+                        ? { backgroundColor: "rgba(59,130,246,0.12)", padding: "8px 10px", color: "#e2e8f0" }
+                        : {}
+                    }
+                  >
+                    {para}
+                  </p>
+                );
+              })}
+            </div>
+
+            {/* Bannery i linki z oryginalnej strony */}
+            {article.content_html && (
+              <div className="mt-6 pt-5 border-t border-slate-700/50">
+                <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">Powiązane treści</p>
+                <div className="article-html-content" dangerouslySetInnerHTML={{ __html: article.content_html }} />
               </div>
             )}
 
