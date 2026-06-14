@@ -6,7 +6,8 @@ import { PKArticle } from "@/lib/polskakatolicka";
 import { formatDate } from "@/lib/utils";
 import ArticlePlayer from "@/components/ArticlePlayer";
 import Link from "next/link";
-import { ArrowLeft, Share2, Calendar, User, ExternalLink, Loader2 } from "lucide-react";
+import { ArrowLeft, Share2, Calendar, User, ExternalLink, Loader2, WifiOff } from "lucide-react";
+import { getArticleFromCache } from "@/hooks/useOfflineArticles";
 
 export default function ArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -14,13 +15,25 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
   const [article, setArticle] = useState<PKArticle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [offline, setOffline] = useState(false);
   const [currentPara, setCurrentPara] = useState(-1);
 
   useEffect(() => {
+    // Natychmiast pokaż z cache jeśli dostępny
+    const cached = getArticleFromCache(id);
+    if (cached) {
+      setArticle(cached);
+      setLoading(false);
+    }
+
+    // W tle pobierz świeżą wersję
     fetch(`/api/articles/slug?slug=${encodeURIComponent(id)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject("not found")))
-      .then((data) => setArticle(data))
-      .catch(() => setError("Nie udało się załadować artykułu"))
+      .then((data: PKArticle) => { setArticle(data); setOffline(false); })
+      .catch(() => {
+        if (!cached) setError("Nie udało się załadować artykułu");
+        setOffline(true);
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -37,7 +50,7 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
 
   return (
     <AppShell>
-      <div className="max-w-lg mx-auto animate-fade-in">
+      <div className="max-w-lg md:max-w-3xl mx-auto animate-fade-in">
         {/* Back bar */}
         <div className="flex items-center justify-between px-4 py-3">
           <Link
@@ -68,10 +81,16 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
           </div>
         </div>
 
-        {loading && (
+        {loading && !article && (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <Loader2 size={28} className="text-blue-400 animate-spin" />
             <p className="text-slate-400 text-sm">Ładowanie artykułu...</p>
+          </div>
+        )}
+
+        {offline && article && (
+          <div className="mx-4 mb-2 flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 text-amber-400 text-xs">
+            <WifiOff size={13} /> Tryb offline — artykuł z lokalnego cache
           </div>
         )}
 
@@ -130,30 +149,33 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
               />
             </div>
 
-            {/* Content with highlighted paragraphs */}
-            <div className="mt-2 space-y-3">
-              {paragraphs.slice(1).map((para, i) => {
-                const absIdx = i + 1;
-                return (
-                  <p
-                    key={absIdx}
-                    id={`para-${absIdx}`}
-                    className="text-slate-300 text-sm leading-relaxed rounded-xl transition-all duration-300"
-                    style={
-                      currentPara === absIdx
-                        ? {
-                            backgroundColor: "rgba(59,130,246,0.12)",
-                            padding: "8px 10px",
-                            color: "#e2e8f0",
-                          }
-                        : {}
-                    }
-                  >
-                    {para}
-                  </p>
-                );
-              })}
-            </div>
+            {/* Content */}
+            {article.content_html ? (
+              <div
+                className="mt-4 article-html-content"
+                dangerouslySetInnerHTML={{ __html: article.content_html }}
+              />
+            ) : (
+              <div className="mt-2 space-y-3">
+                {paragraphs.slice(1).map((para, i) => {
+                  const absIdx = i + 1;
+                  return (
+                    <p
+                      key={absIdx}
+                      id={`para-${absIdx}`}
+                      className="text-slate-300 text-sm leading-relaxed rounded-xl transition-all duration-300"
+                      style={
+                        currentPara === absIdx
+                          ? { backgroundColor: "rgba(59,130,246,0.12)", padding: "8px 10px", color: "#e2e8f0" }
+                          : {}
+                      }
+                    >
+                      {para}
+                    </p>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Source link */}
             <a

@@ -5,7 +5,8 @@ export interface PKArticle {
   slug: string;
   title: string;
   excerpt: string;
-  content: string;
+  content: string;       // plain text (for TTS)
+  content_html?: string; // sanitized HTML (for rendering with links/banners)
   image_url: string;
   author: string;
   published_at: string;
@@ -25,6 +26,31 @@ export interface PKPetition {
   active: boolean;
   donation_url: string;   // full wplata-na-kampanie URL, empty if not found
   donation_amounts: number[]; // e.g. [60, 90, 120, 250, 500, 1200]
+}
+
+function sanitizeArticleHtml(html: string): string {
+  return html
+    // Remove dangerous tags with their content
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, "")
+    .replace(/<form[\s\S]*?<\/form>/gi, "")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
+    // Remove event handlers
+    .replace(/\s+on\w+="[^"]*"/gi, "")
+    .replace(/\s+on\w+='[^']*'/gi, "")
+    // Rewrite internal article/petition links to app routes
+    .replace(/href="\/pl\/artykuly\/([^"?#]+)[^"]*"/g, 'href="/articles/$1"')
+    .replace(/href="\/pl\/petycje\/([^"?#]+)[^"]*"/g, 'href="/petitions/$1"')
+    // Fix remaining relative hrefs to absolute
+    .replace(/href="\/([^"]+)"/g, `href="${BASE_URL}/$1" target="_blank" rel="noopener noreferrer"`)
+    // Fix relative image src
+    .replace(/src="\/([^"]+)"/g, `src="${BASE_URL}/$1"`)
+    // Add loading=lazy to images
+    .replace(/<img /g, '<img loading="lazy" ')
+    // Remove width/height inline styles that break responsive layout
+    .replace(/\s+width="\d+"/gi, "")
+    .replace(/\s+height="\d+"/gi, "");
 }
 
 function stripTags(html: string): string {
@@ -115,21 +141,52 @@ export async function fetchArticleList(): Promise<PKArticle[]> {
   });
   const html = await res.text();
 
-  // Extract article slugs from links
-  const slugMatches = html.matchAll(/href=["']\/pl\/artykuly\/([^"'?#]+)["']/g);
-  const slugs = [...new Set([...slugMatches].map((m) => m[1]))].filter(Boolean).slice(0, 20);
-
-  // For list view, extract title + og:description per article from the list page directly
-  // Faster: parse card-level HTML from the listing page
+  // Parse all article cards directly from the listing page — no per-article requests needed
   const articles: PKArticle[] = [];
+  const seen = new Set<string>();
 
-  for (const slug of slugs.slice(0, 12)) {
-    try {
-      const article = await fetchArticle(slug);
-      if (article) articles.push(article);
-    } catch {
-      // skip failed
-    }
+  // Each article link appears as <a href="/pl/artykuly/SLUG" ...>...</a>
+  // We find each unique slug and extract surrounding context (image, title, excerpt)
+  const linkRe = /href=["']\/pl\/artykuly\/([^"'?#\s]+)["'][^>]*>([\s\S]{0,1200}?)<\/a>/g;
+  let m: RegExpExecArray | null;
+  while ((m = linkRe.exec(html)) !== null) {
+    const slug = m[1];
+    if (seen.has(slug)) continue;
+    seen.add(slug);
+
+    const block = m[2];
+
+    // Title: from <h2>, <h3>, <strong>, or link title="..." attribute
+    const titleAttr = html.slice(Math.max(0, m.index - 20), m.index + 60).match(/title=["']([^"']{4,})["']/);
+    const hTag = block.match(/<h[23][^>]*>([\s\S]*?)<\/h[23]>/i);
+    const strongTag = block.match(/<strong[^>]*>([\s\S]*?)<\/strong>/i);
+    const rawTitle = hTag ? stripTags(hTag[1]) : strongTag ? stripTags(strongTag[1]) : titleAttr?.[1] ?? slug.replace(/-/g, " ");
+    const title = rawTitle.replace(/&[a-z]+;/g, " ").replace(/&#\d+;/g, "").trim();
+    if (!title || title.length < 4) continue;
+
+    // Image
+    const imgM = block.match(/src=["']([^"']+(?:jpg|jpeg|png|webp)[^"']*?)["']/i);
+    const raw_img = imgM?.[1] ?? "";
+    const image_url = raw_img.startsWith("http") ? raw_img : raw_img ? `${BASE_URL}${raw_img}` : "";
+
+    // Excerpt: from <div><span>, <p>, or any text content
+    const spanM = block.match(/<span[^>]*>([\s\S]*?)<\/span>/i);
+    const pM = block.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+    const rawExcerpt = spanM?.[1] ?? pM?.[1] ?? "";
+    const excerpt = stripTags(rawExcerpt).replace(/\s+/g, " ").trim().slice(0, 220);
+
+    articles.push({
+      id: slug,
+      slug,
+      title,
+      excerpt,
+      content: "",
+      image_url,
+      author: "Redakcja",
+      published_at: new Date().toISOString(),
+      category: "Artykuły",
+      source_url: `${BASE_URL}/pl/artykuly/${slug}`,
+    });
   }
 
   return articles;
@@ -179,6 +236,9 @@ export async function fetchArticle(slug: string): Promise<PKArticle | null> {
 
     const content = contentLines.slice(contentStart).join("\n\n");
 
+    // Sanitized HTML for rich rendering (links, banners preserved)
+    const content_html = rawContent ? sanitizeArticleHtml(rawContent) : "";
+
     // Excerpt — og:description or first 200 chars of content
     const ogDesc = html.match(/property=["']og:description["'][^>]+content=["']([^"']+)["']/);
     const excerpt = ogDesc?.at(1)?.trim() || content.slice(0, 200);
@@ -189,6 +249,7 @@ export async function fetchArticle(slug: string): Promise<PKArticle | null> {
       title,
       excerpt,
       content,
+      content_html,
       image_url,
       author,
       published_at,
@@ -256,7 +317,7 @@ export async function fetchPetitionList(): Promise<PKPetition[]> {
 
   // Fallback: use slugs if card parsing yielded nothing
   if (items.length === 0) {
-    for (const slug of slugs.slice(0, 12)) {
+    for (const slug of slugs) {
       const p = await fetchPetition(slug);
       if (p) items.push(p);
     }

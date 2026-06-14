@@ -2,7 +2,7 @@
 
 :root {
   --background: #0f172a;
-  --foreground: #f1f5f9;
+  --foreground: #f5f0e8;
 }
 
 body {
@@ -38,8 +38,269 @@ button, input, textarea, select, a {
 .prose-dark li { margin-bottom: 0.375rem; }
 .prose-dark strong { color: #f1f5f9; }
 
+/* Przyciski/linki z gradientem zawsze mają biały tekst (niezależnie od motywu) */
+.theme-light button[style*="linear-gradient"],
+.theme-light a[style*="linear-gradient"] {
+  color: #ffffff !important;
+}
+
+/* ── Jasny motyw ──────────────────────────────────────────────────────── */
+.theme-light {
+  --background: #f5f4f0;
+  --foreground: #1a1a1a;
+}
+.theme-light body {
+  background-color: #f5f4f0 !important;
+  color: #1a1a1a !important;
+  filter: none !important;
+}
+
+/* Tła */
+.theme-light .bg-slate-900,
+.theme-light .bg-slate-900\/97 { background-color: #ffffff !important; }
+.theme-light .bg-slate-800,
+.theme-light .bg-slate-800\/50,
+.theme-light .bg-slate-800\/60,
+.theme-light .bg-slate-800\/95 { background-color: #edecea !important; }
+.theme-light .bg-slate-700 { background-color: #e2e0db !important; }
+.theme-light .bg-red-950\/95 { background-color: #7f1d1d !important; }
+.theme-light .bg-slate-900\/97 { background-color: #ffffff !important; }
+
+/* Tekst — tryb jasny: wszystko w kierunku czerni */
+.theme-light .text-white  { color: #000000 !important; }
+.theme-light .text-slate-100 { color: #0a0a0a !important; }
+.theme-light .text-slate-200 { color: #111111 !important; }
+.theme-light .text-slate-300 { color: #1c1c1c !important; }
+.theme-light .text-slate-400 { color: #374151 !important; }
+.theme-light .text-slate-500 { color: #4b5563 !important; }
+.theme-light .text-slate-600 { color: #6b7280 !important; }
+.theme-light .placeholder-slate-500::placeholder { color: #9ca3af !important; }
+
+
+/* Obramowania */
+.theme-light .border-slate-700 { border-color: #d1cfc9 !important; }
+.theme-light .border-slate-800 { border-color: #e2e0db !important; }
+
+/* Nawigacja dolna i TopBar zostają z własnym tłem (czerwień) */
+.theme-light nav.fixed { background-color: #ffffff !important; border-color: #d1cfc9 !important; }
+.theme-light nav.fixed .text-slate-500 { color: #9ca3af !important; }
+.theme-light nav.fixed .text-yellow-400 { color: #b45309 !important; }
+
+/* Inputy */
+.theme-light input:not([type=checkbox]):not([type=radio]),
+.theme-light textarea,
+.theme-light select {
+  background-color: #ffffff !important;
+  border-color: #d1cfc9 !important;
+  color: #1a1a1a !important;
+}
+.theme-light input::placeholder,
+.theme-light textarea::placeholder { color: #9ca3af !important; }
+
+/* Scrollbar */
+.theme-light ::-webkit-scrollbar-thumb { background: #c4c2bc; }
+
+/* ── Belki petycji — tryb jasny ─────────────────────────────────────────── */
+.theme-light .text-yellow-400 { color: #92400e !important; }
+.theme-light .text-amber-400  { color: #92400e !important; }
+.theme-light .petition-signed-strip  { background: #d1fae5 !important; border-color: #6ee7b7 !important; }
+.theme-light .petition-signed-strip span { color: #065f46 !important; }
+.theme-light .petition-sign-strip    { background: #fef3c7 !important; border-color: #fcd34d !important; }
+.theme-light .petition-sign-strip span { color: #78350f !important; }
+.theme-light .petition-sign-strip svg { color: #92400e !important; }
+
+/* ── Hero banner — tryb jasny ───────────────────────────────────────────── */
+.theme-light .home-hero {
+  background: linear-gradient(160deg,#f5ece0,#ede0d0,#e8d8c8) !important;
+  border: 1px solid #d4a96a44 !important;
+}
+.theme-light .home-hero p:first-child { color: #4a1a1a !important; }
+.theme-light .home-hero p:last-child  { color: #7a5a3a !important; }
+
+/* ── Dashboard kafelki — tryb jasny ────────────────────────────────────── */
+/* Nadpisuje ciemne gradienty inline na pastelowe wersje */
+.theme-light .module-tile { filter: none !important; }
+.theme-light .module-tile[data-mod="prayers"]      { background: linear-gradient(135deg,#fde8e8,#fbbfbf) !important; border-color: #f87171 !important; }
+.theme-light .module-tile[data-mod="gospel"]       { background: linear-gradient(135deg,#dbeafe,#bfdbfe) !important; border-color: #93c5fd !important; }
+.theme-light .module-tile[data-mod="catechism"]    { background: linear-gradient(135deg,#ede9fe,#ddd6fe) !important; border-color: #a78bfa !important; }
+.theme-light .module-tile[data-mod="petitions"]    { background: linear-gradient(135deg,#dcfce7,#bbf7d0) !important; border-color: #86efac !important; }
+.theme-light .module-tile[data-mod="articles"]     { background: linear-gradient(135deg,#ccfbf1,#99f6e4) !important; border-color: #2dd4bf !important; }
+.theme-light .module-tile[data-mod="announcements"]{ background: linear-gradient(135deg,#ffedd5,#fed7aa) !important; border-color: #fb923c !important; }
+.theme-light .module-tile[data-mod="chat"]         { background: linear-gradient(135deg,#e0e7ff,#c7d2fe) !important; border-color: #818cf8 !important; }
+.theme-light .module-tile[data-mod="book"]         { background: linear-gradient(135deg,#fce7f3,#fbcfe8) !important; border-color: #f472b6 !important; }
+.theme-light .module-tile[data-mod="reminders"]    { background: linear-gradient(135deg,#fef9c3,#fde68a) !important; border-color: #facc15 !important; }
+.theme-light .module-tile[data-mod="savoir"]       { background: linear-gradient(135deg,#f5f3ff,#ede9fe) !important; border-color: #a78bfa !important; }
+.theme-light .module-tile[data-mod="about"]        { background: linear-gradient(135deg,#dcfce7,#bbf7d0) !important; border-color: #86efac !important; }
+.theme-light .module-tile[data-mod="watch"]        { background: linear-gradient(135deg,#fee2e2,#fecaca) !important; border-color: #f87171 !important; }
+/* Tekst w kafelkach — w trybie jasnym ciemny */
+.theme-light .module-tile p  { color: #1a1a1a !important; opacity: 1 !important; }
+.theme-light .module-tile p:last-child { opacity: 0.55 !important; color: #374151 !important; }
+/* Ikona w kafelku — ciemniejszy akcent */
+.theme-light .module-tile .tile-icon { background: rgba(0,0,0,0.06) !important; border-color: rgba(0,0,0,0.12) !important; }
+
+/* ── Tryb ciemny — ciepłe tony (domyślny, bez klasy theme-light) ─────── */
+html:not(.theme-light) .text-white    { color: #fef5e4 !important; }
+html:not(.theme-light) .text-slate-100 { color: #fef5e4 !important; }
+html:not(.theme-light) .text-slate-200 { color: #eeddb8 !important; }
+html:not(.theme-light) .text-slate-300 { color: #d9c49a !important; }
+html:not(.theme-light) .text-slate-400 { color: #b39a72 !important; }
+html:not(.theme-light) .text-slate-500 { color: #7a6650 !important; }
+
+/* ─────────────────────────────────────────────────────────────────────── */
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in { animation: fadeIn 0.3s ease forwards; }
+
+/* ── Ustawienia ───────────────────────────────────────────────────────── */
+.settings-hero {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(180, 83, 9, 0.18), transparent 42%),
+    linear-gradient(145deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.96));
+  box-shadow: 0 16px 40px rgba(2, 6, 23, 0.28);
+}
+.theme-light .settings-hero {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(180, 83, 9, 0.12), transparent 42%),
+    linear-gradient(145deg, #ffffff, #f5f1e9) !important;
+  border-color: #d8c19b !important;
+  box-shadow: 0 12px 32px rgba(120, 82, 36, 0.1);
+}
+
+.home2-intro {
+  background:
+    radial-gradient(circle at 88% 30%, rgba(180, 83, 9, 0.16), transparent 34%),
+    linear-gradient(145deg, rgba(69, 10, 10, 0.94), rgba(15, 23, 42, 0.98));
+}
+.theme-light .home2-intro {
+  background:
+    radial-gradient(circle at 88% 30%, rgba(180, 83, 9, 0.12), transparent 34%),
+    linear-gradient(145deg, #fff8ed, #f5ece0) !important;
+}
+
+/* ── Ergonomia dotyku ─────────────────────────────────────────────────── */
+* { -webkit-tap-highlight-color: transparent; }
+
+button, a { touch-action: manipulation; }
+
+/* Widoczny focus tylko z klawiatury */
+:focus-visible {
+  outline: 2px solid #d97706;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.theme-light :focus-visible { outline-color: #b45309; }
+
+/* Spójny, subtelny stan wciśnięcia dla elementów interaktywnych */
+.module-tile { transition: transform 0.15s ease, filter 0.2s ease; }
+.module-tile:active { transform: scale(0.97); }
+
+a[class*="rounded-2xl"]:active,
+button[class*="rounded-2xl"]:active { transform: scale(0.985); }
+
+/* Głębia kart na listach */
+.bg-slate-800, .bg-slate-800\/60 {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+.theme-light .bg-slate-800,
+.theme-light .bg-slate-800\/60 {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  border: 1px solid #e2e0db;
+}
+
+/* Płynne przewijanie poziome tabów, bez paska */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; scroll-behavior: smooth; }
+
+/* ── Jasność (brightness-wrap) ────────────────────────────────────────── */
+/* Filtr nakładany na wrapper zawierający TopBar + main, ale NIE na fixed nav */
+.brightness-wrap { filter: brightness(var(--app-b, 1)); }
+/* BottomNav i inne fixed/sticky elementy poza wrapperem dostają ten sam filtr */
+nav.fixed { filter: brightness(var(--app-b, 1)); }
+
+/* ── Suwak jasności ───────────────────────────────────────────────────── */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #d97706;
+  border: 2px solid #fef3c7;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.15); }
+input[type="range"]::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: #d97706;
+  border: 2px solid #fef3c7;
+  cursor: pointer;
+}
+
+/* Redukcja animacji dla użytkowników z taką preferencją */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Article HTML content (rich rendering with banners & links) ── */
+.article-html-content {
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  line-height: 1.75;
+}
+.article-html-content p { margin-bottom: 1rem; }
+.article-html-content h2 { color: #f1f5f9; font-size: 1.1rem; font-weight: 700; margin: 1.5rem 0 0.5rem; }
+.article-html-content h3 { color: #e2e8f0; font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.4rem; }
+.article-html-content strong, .article-html-content b { color: #f1f5f9; font-weight: 600; }
+.article-html-content em, .article-html-content i { color: #94a3b8; font-style: italic; }
+.article-html-content a {
+  color: #60a5fa;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s;
+}
+.article-html-content a:hover { color: #93c5fd; }
+.article-html-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  margin: 0.75rem 0;
+  display: block;
+}
+.article-html-content ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
+.article-html-content ol { list-style: decimal; padding-left: 1.5rem; margin-bottom: 1rem; }
+.article-html-content li { margin-bottom: 0.25rem; }
+.article-html-content blockquote {
+  border-left: 3px solid #3b82f6;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: #94a3b8;
+  font-style: italic;
+}
+/* Bannery wewnętrzne — zachowaj układ, ale dostosuj kolory */
+.article-html-content div[class*="banner"],
+.article-html-content div[class*="promo"],
+.article-html-content div[class*="box"],
+.article-html-content div[class*="block"] {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(71, 85, 105, 0.5);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+}
+.article-html-content div[class*="banner"] a,
+.article-html-content div[class*="promo"] a,
+.article-html-content div[class*="box"] a,
+.article-html-content div[class*="block"] a {
+  color: #f59e0b;
+}
+/* Tabele */
+.article-html-content table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.8rem; }
+.article-html-content th { background: rgba(51,65,85,0.6); color: #f1f5f9; padding: 0.4rem 0.6rem; text-align: left; }
+.article-html-content td { padding: 0.35rem 0.6rem; border-bottom: 1px solid rgba(71,85,105,0.3); }
