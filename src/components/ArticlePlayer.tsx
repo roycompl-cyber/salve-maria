@@ -9,6 +9,25 @@ interface Props {
   onParagraphChange?: (idx: number) => void;
 }
 
+/** Zamienia skróty i wyrażenia trudne dla syntezatora na pełne formy. */
+function normalizeTTS(text: string): string {
+  return text
+    .replace(/im\.\s*ks\.\s*Piotra\s*Skargi/gi, "imienia księdza Piotra Skargi")
+    .replace(/im\.\s*ks\./gi, "imienia księdza")
+    .replace(/\bks\.\s*([A-ZŁŚŻŹĆŃÓ])/g, "księdza $1")
+    .replace(/\bkard\./gi, "kardynała")
+    .replace(/\bbp\./gi, "biskupa")
+    .replace(/\babp\./gi, "arcybiskupa")
+    .replace(/\bśw\./gi, "świętego")
+    .replace(/\bbl\./gi, "błogosławionego")
+    .replace(/\bdr\./gi, "doktora")
+    .replace(/\bprof\./gi, "profesora")
+    .replace(/\bpl\./gi, "placu")
+    .replace(/\bul\./gi, "ulicy")
+    .replace(/\bnr\s+(\d)/gi, "numer $1")
+    .replace(/(\d+)\s*r\./gi, "$1 roku");
+}
+
 /** Szuka najlepszego głosu dla podanego języka.
  *  Dla łaciny: la → włoski (kościelna wymowa) → hiszpański → domyślny.
  *  Dla polskiego: pl-PL lokalny → pl-PL sieciowy → pl-* → null. */
@@ -80,7 +99,7 @@ export default function ArticlePlayer({ title, content, lang = "pl", onParagraph
 
     paragraphs.slice(startIdx).forEach((para, relIdx) => {
       const absIdx = startIdx + relIdx;
-      const utt = new SpeechSynthesisUtterance(para);
+      const utt = new SpeechSynthesisUtterance(normalizeTTS(para));
       utt.lang = bcp;
       utt.rate = isLatin ? 0.88 : 1; // łacina czytana wolniej dla wyraźności
       if (voice) utt.voice = voice;
