@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export interface DailyReadings {
   date: string;
   readings: { type: string; ref: string; text: string }[];
@@ -25,18 +27,20 @@ export async function GET() {
     const today = new Date().toISOString().slice(0, 10);
     const res = await fetch(`https://deon.pl/czytania/date,${today}`, {
       headers: { "User-Agent": "Mozilla/5.0" },
-      next: { revalidate: 3600 },
+      cache: "no-store",
     });
     const html = await res.text();
 
-    // Parsuj bloki czytań
+    // Parsuj bloki czytań — header może zawierać polskie znaki i spacje
     const readings: { type: string; ref: string; text: string }[] = [];
-    const blockRe = /<h4 class="element-title">\s*([\w\s]+?)\s*(?:\(([^)]+)\))?\s*<\/h4>\s*<p>([\s\S]*?)<\/p>/g;
+    const blockRe = /<h4 class="element-title">([\s\S]*?)<\/h4>\s*(?:<[^>]+>\s*)*<p>([\s\S]*?)<\/p>/g;
     let m;
     while ((m = blockRe.exec(html)) !== null) {
-      const type = m[1].trim();
-      const ref = m[2]?.trim() ?? "";
-      const text = stripHtml(m[3]);
+      const header = m[1].replace(/\s+/g, " ").trim();
+      const refMatch = header.match(/\(([^)]+)\)/);
+      const type = header.replace(/\([^)]+\)/, "").trim();
+      const ref = refMatch?.[1]?.trim() ?? "";
+      const text = stripHtml(m[2]);
       if (text.length > 20) readings.push({ type, ref, text });
     }
 

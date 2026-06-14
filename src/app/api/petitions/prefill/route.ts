@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BASE = "http://polskakatolicka.org";
+const BASE = "https://polskakatolicka.org";
 
 async function getPetitionMeta(slug: string) {
   const res = await fetch(`${BASE}/pl/petycje/${slug}`, {

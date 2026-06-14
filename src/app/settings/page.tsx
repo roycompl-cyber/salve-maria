@@ -4,9 +4,11 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
-import { CheckCircle2, Loader2, User, Phone, MapPin, Mail, Lock, Eye, EyeOff, Bell } from "lucide-react";
+import { CheckCircle2, Loader2, User, Phone, MapPin, Mail, Lock, Eye, EyeOff, Bell, Palette, ShieldCheck } from "lucide-react";
+import Icon from "@/components/Icon";
 import { createClient } from "@/lib/supabase/client";
 import { urlBase64ToUint8Array } from "@/lib/utils";
+import { useAppearance, type FontSize } from "@/hooks/useAppearance";
 
 interface FieldProps {
   label: string;
@@ -76,8 +78,11 @@ export default function SettingsPage() {
   const [pushLoading, setPushLoading] = useState(false);
   const [pushSupported, setPushSupported] = useState(false);
   const [pushError, setPushError] = useState("");
+  const [activeSection, setActiveSection] = useState<"profile" | "appearance" | "notifications" | "security">("profile");
 
+  const { theme, fontSize, brightness, setTheme, setFontSize, setBrightness } = useAppearance();
   const isFirstTime = !profile?.profile_complete;
+  const initials = `${profile?.first_name?.[0] ?? user?.email?.[0] ?? "S"}${profile?.last_name?.[0] ?? ""}`.toUpperCase();
 
   // Sprawdź stan subskrypcji push
   useEffect(() => {
@@ -222,31 +227,62 @@ export default function SettingsPage() {
 
   return (
     <AppShell skipProfileGuard>
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-5 animate-fade-in">
+      <div className="max-w-lg md:max-w-3xl mx-auto px-4 md:px-8 py-4 md:py-7 space-y-5 animate-fade-in">
         {/* Header */}
-        <div>
+        <div className="settings-hero overflow-hidden rounded-3xl border border-amber-700/25 bg-slate-800/60">
+          <div className="p-5 flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold text-yellow-100 border border-yellow-700/30 shadow-lg"
+              style={{ background: "linear-gradient(145deg,#7f1d1d,#b45309)" }}>
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
           {isFirstTime ? (
             <>
-              <h1 className="text-xl font-bold text-yellow-200" style={{ fontFamily: "Georgia, serif" }}>
+              <h1 className="text-xl font-bold text-yellow-100" style={{ fontFamily: "Georgia, serif" }}>
                 Uzupełnij swój profil
               </h1>
-              <p className="text-slate-400 text-sm mt-1">
-                Prosimy o podanie danych przed skorzystaniem z aplikacji.
-                Są one potrzebne do wystawiania poświadczeń darowizn.
-              </p>
+              <p className="text-slate-400 text-xs mt-1">Dokończ konfigurację, aby korzystać z aplikacji.</p>
             </>
           ) : (
             <>
-              <h1 className="text-xl font-bold text-white" style={{ fontFamily: "Georgia, serif" }}>
-                Mój profil
+              <h1 className="text-xl font-bold text-white leading-tight break-words" style={{ fontFamily: "Georgia, serif" }}>
+                <span className="block">{profile?.first_name}</span>
+                <span className="block">{profile?.last_name}</span>
               </h1>
-              <p className="text-slate-400 text-sm mt-1">Twoje dane osobowe i adresowe</p>
+              <p className="text-slate-400 text-xs mt-1 truncate">{user?.email}</p>
             </>
+          )}
+            </div>
+          </div>
+          {!isFirstTime && (
+            <div className="grid grid-cols-4 border-t border-slate-700/70 bg-slate-900/35">
+              {([
+                { key: "profile", label: "Profil", icon: <User size={17} /> },
+                { key: "appearance", label: "Wygląd", icon: <Palette size={17} /> },
+                { key: "notifications", label: "Alerty", icon: <Bell size={17} /> },
+                { key: "security", label: "Hasło", icon: <ShieldCheck size={17} /> },
+              ] as const).map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setActiveSection(item.key)}
+                  className={`relative flex flex-col items-center gap-1 py-3 text-[11px] transition-colors ${
+                    activeSection === item.key ? "text-yellow-300 bg-yellow-500/5" : "text-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  {item.icon}
+                  {item.label}
+                  {activeSection === item.key && <span className="absolute bottom-0 inset-x-3 h-0.5 rounded-full bg-yellow-500" />}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
+        {(isFirstTime || activeSection === "profile") && (
+        <section className="space-y-5 animate-fade-in">
         {/* Email (read-only) */}
-        <div>
+        <div className="rounded-2xl border border-slate-700/70 bg-slate-800/30 p-4">
           <label className="block text-slate-300 text-xs font-medium mb-1.5" style={{ fontFamily: "Georgia, serif" }}>
             Adres e-mail
           </label>
@@ -356,12 +392,117 @@ export default function SettingsPage() {
             )}
           </button>
         </form>
+        </section>
+        )}
+
+        {/* Wygląd */}
+        {!isFirstTime && activeSection === "appearance" && (
+          <section className="bg-slate-800/50 rounded-3xl p-5 space-y-6 border border-slate-700 animate-fade-in">
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5">
+              <Icon name="palette" size={12} /> Wygląd
+            </p>
+
+            {/* Motyw */}
+            <div>
+              <p className="text-slate-300 text-sm mb-2">Motyw</p>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { key: "dark",  label: "Ciemny" },
+                  { key: "light", label: "Jasny" },
+                ] as { key: "dark" | "light"; label: string }[]).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setTheme(key)}
+                    className={`flex flex-col items-center gap-2 py-3 rounded-xl border-2 transition-all ${
+                      theme === key ? "border-yellow-500" : "border-slate-700"
+                    }`}
+                  >
+                    <span
+                      className="w-8 h-8 rounded-lg border"
+                      style={
+                        key === "dark"
+                          ? { backgroundColor: "#1e293b", borderColor: "#475569" }
+                          : { backgroundColor: "#f5f4f0", borderColor: "#a8a29e" }
+                      }
+                    />
+                    <span className="text-xs font-medium" style={{ color: key === "dark" ? "#94a3b8" : "#374151" }}>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Jasność */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-slate-300 text-sm flex items-center gap-1.5">
+                  <span className="text-base">{theme === "dark" ? "☀️" : "🌙"}</span>
+                  {theme === "dark" ? "Rozjaśnienie" : "Przyciemnienie"}
+                </p>
+                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-lg"
+                  style={{ background: "rgba(255,255,255,0.08)", color: "#f59e0b" }}>
+                  {brightness}%
+                </span>
+              </div>
+              {/* Suwak */}
+              <div className="relative">
+                <input
+                  type="range"
+                  min={0} max={100} step={5}
+                  value={brightness}
+                  onChange={e => setBrightness(Number(e.target.value))}
+                  className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, #d97706 0%, #d97706 ${brightness}%, #334155 ${brightness}%, #334155 100%)`,
+                    WebkitAppearance: "none",
+                  }}
+                />
+              </div>
+              {/* Etykiety osi */}
+              <div className="flex justify-between mt-1.5">
+                <span className="text-[10px] text-slate-500">Domyślna</span>
+                {[25, 50, 75].map(v => (
+                  <button key={v} onClick={() => setBrightness(v)}
+                    className="text-[10px] text-slate-500 hover:text-amber-400 transition-colors">{v}%</button>
+                ))}
+                <span className="text-[10px] text-slate-500">Max</span>
+              </div>
+              {brightness > 0 && (
+                <button onClick={() => setBrightness(0)}
+                  className="mt-2 text-xs text-slate-500 hover:text-amber-400 transition-colors underline underline-offset-2">
+                  Przywróć domyślną
+                </button>
+              )}
+            </div>
+
+            {/* Rozmiar czcionki */}
+            <div>
+              <p className="text-slate-300 text-sm mb-2 flex items-center gap-1.5"><Icon name="type" size={14} /> Rozmiar tekstu</p>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { key: "small",  label: "Mały",   size: "text-xs" },
+                  { key: "medium", label: "Średni", size: "text-sm" },
+                  { key: "large",  label: "Duży",   size: "text-base" },
+                ] as { key: FontSize; label: string; size: string }[]).map(({ key, label, size }) => (
+                  <button
+                    key={key}
+                    onClick={() => setFontSize(key)}
+                    className={`py-3 rounded-xl border-2 transition-all ${
+                      fontSize === key ? "border-yellow-500 bg-yellow-500/10 text-yellow-300" : "border-slate-700 text-slate-400"
+                    }`}
+                  >
+                    <span className={`${size} font-medium`}>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Powiadomienia push */}
-        {!isFirstTime && (
-          <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700">
+        {!isFirstTime && activeSection === "notifications" && (
+          <section className="bg-slate-800/50 rounded-3xl p-5 border border-slate-700 animate-fade-in">
             <p className="text-slate-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5 mb-3">
-              <Bell size={12} /> Powiadomienia push
+              <Icon name="bell" size={12} /> Powiadomienia push
             </p>
             {pushError && (
               <p className="text-red-400 text-xs mb-2 break-all">{pushError}</p>
@@ -383,20 +524,29 @@ export default function SettingsPage() {
                     type="button"
                     onClick={handleTogglePush}
                     disabled={pushLoading}
-                    className={`relative w-12 h-6 rounded-full transition-colors ${pushEnabled ? "bg-red-700" : "bg-slate-600"}`}
+                    style={{ width: 52, height: 28, borderRadius: 14, flexShrink: 0, position: "relative", transition: "background 0.2s", background: pushEnabled ? "#991b1b" : "#475569" }}
                   >
-                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${pushEnabled ? "translate-x-6" : "translate-x-0.5"}`} />
+                    <span style={{
+                      position: "absolute",
+                      top: 3, left: pushEnabled ? 27 : 3,
+                      width: 22, height: 22,
+                      borderRadius: "50%",
+                      background: "#fff",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                      transition: "left 0.2s",
+                      display: "block",
+                    }} />
                   </button>
                 </div>
               </label>
             )}
-          </div>
+          </section>
         )}
 
         {/* Zmiana hasła */}
-        {!isFirstTime && (
-          <form onSubmit={handlePasswordChange} className="space-y-4 pt-2">
-            <div className="bg-slate-800/50 rounded-2xl p-4 space-y-4">
+        {!isFirstTime && activeSection === "security" && (
+          <form onSubmit={handlePasswordChange} className="space-y-4 animate-fade-in">
+            <div className="bg-slate-800/50 rounded-3xl p-5 space-y-4 border border-slate-700">
               <p className="text-slate-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5">
                 <Lock size={12} /> Zmiana hasła
               </p>
@@ -446,7 +596,7 @@ export default function SettingsPage() {
               className="w-full py-3.5 rounded-2xl font-bold text-sm text-white transition-all flex items-center justify-center gap-2 shadow-lg"
               style={{ background: pwdSaving ? "#334155" : "linear-gradient(135deg, #1e3a5f, #1e40af)" }}
             >
-              {pwdSaving ? <><Loader2 size={18} className="animate-spin" /> Zmiana hasła…</> : <><Lock size={18} /> Zmień hasło</>}
+              {pwdSaving ? <><Icon name="loader" size={18} className="animate-spin" /> Zmiana hasła…</> : <><Icon name="lock" size={18} /> Zmień hasło</>}
             </button>
           </form>
         )}

@@ -2,7 +2,11 @@
 import { useEffect } from "react";
 import { urlBase64ToUint8Array } from "@/lib/utils";
 
-// Automatycznie subskrybuje push po zalogowaniu (raz na urządzenie)
+const ASKED_KEY = "salve_push_asked_v1";
+
+// Subskrybuje push — tylko jeśli użytkownik już wcześniej wyraził zgodę
+// (tj. Notification.permission === "granted"). Nigdy nie pyta samodzielnie.
+// Żeby poprosić o zgodę, użytkownik musi wejść w Ustawienia → Alerty.
 export function usePushAutoSubscribe(userId: string | undefined) {
   useEffect(() => {
     if (!userId) return;
@@ -10,9 +14,12 @@ export function usePushAutoSubscribe(userId: string | undefined) {
     if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
     async function autoSubscribe() {
-      // Poproś o zgodę i subskrybuj
-      const perm = await Notification.requestPermission();
-      if (perm !== "granted") return;
+      // Nie pytaj o zgodę automatycznie — tylko jeśli już jest udzielona
+      if (Notification.permission !== "granted") return;
+
+      // Jeśli już subskrybowaliśmy w tej sesji — pomiń
+      if (sessionStorage.getItem(ASKED_KEY)) return;
+      sessionStorage.setItem(ASKED_KEY, "1");
 
       const reg = await navigator.serviceWorker.ready;
       const existing = await reg.pushManager.getSubscription();

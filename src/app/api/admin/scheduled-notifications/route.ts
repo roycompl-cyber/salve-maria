@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { safeInternalUrl } from "@/lib/security";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -22,10 +23,19 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { title, body: msgBody, type, url, send_at, cron_time, cron_days } = body;
-  if (!title || !msgBody) return NextResponse.json({ error: "Tytuł i treść są wymagane" }, { status: 400 });
+  if (
+    typeof title !== "string" || title.trim().length < 1 || title.length > 120 ||
+    typeof msgBody !== "string" || msgBody.trim().length < 1 || msgBody.length > 1000 ||
+    !["news", "action", "general"].includes(type || "news") ||
+    (cron_time && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(cron_time)) ||
+    (send_at && Number.isNaN(Date.parse(send_at))) ||
+    (cron_days && (!Array.isArray(cron_days) || cron_days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)))
+  ) {
+    return NextResponse.json({ error: "Nieprawidłowe dane powiadomienia" }, { status: 400 });
+  }
 
   const { data, error } = await supabase.from("scheduled_notifications").insert({
-    title, body: msgBody, type: type || "news", url: url || "",
+    title: title.trim(), body: msgBody.trim(), type: type || "news", url: safeInternalUrl(url, "/announcements"),
     send_at: send_at || null,
     cron_time: cron_time || null,
     cron_days: cron_days || [],
@@ -40,7 +50,9 @@ export async function DELETE(req: NextRequest) {
   const supabase = await requireAdmin();
   if (!supabase) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 });
 
-  const { id } = await req.json();
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Brak id" }, { status: 400 });
   await supabase.from("scheduled_notifications").delete().eq("id", id);
   return NextResponse.json({ ok: true });
 }

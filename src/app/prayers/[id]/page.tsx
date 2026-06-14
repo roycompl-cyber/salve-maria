@@ -3,6 +3,8 @@ import { use, useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import Link from "next/link";
 import { ArrowLeft, Share2, Heart, Type, Loader2 } from "lucide-react";
+import { useFavorites } from "@/hooks/useFavorites";
+import ArticlePlayer from "@/components/ArticlePlayer";
 
 interface Prayer {
   id: string;
@@ -18,13 +20,13 @@ export default function PrayerPage({ params }: { params: Promise<{ id: string }>
   const [prayer, setPrayer] = useState<Prayer | null>(null);
   const [loading, setLoading] = useState(true);
   const [fontSize, setFontSize] = useState<"sm" | "base" | "lg">("base");
-  const [liked, setLiked] = useState(false);
+  const { isFav, toggle } = useFavorites();
 
   useEffect(() => {
     fetch("/api/admin/prayers")
-      .then((r) => r.json())
+      .then(r => r.json())
       .then((data: Prayer[]) => {
-        const found = Array.isArray(data) ? data.find((p) => p.id === id) : null;
+        const found = Array.isArray(data) ? data.find(p => p.id === id) : null;
         setPrayer(found ?? null);
       })
       .finally(() => setLoading(false));
@@ -37,31 +39,39 @@ export default function PrayerPage({ params }: { params: Promise<{ id: string }>
     }
   }
 
+  const fav = isFav(id);
   const fontSizeClass = { sm: "text-sm", base: "text-base", lg: "text-lg" }[fontSize];
 
   return (
     <AppShell>
-      <div className="max-w-lg mx-auto animate-fade-in">
+      <div className="max-w-lg md:max-w-3xl mx-auto animate-fade-in">
         <div className="flex items-center justify-between px-4 py-3">
           <Link href="/prayers" className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors">
             <ArrowLeft size={16} />
             Modlitwy
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setFontSize(fontSize === "sm" ? "base" : fontSize === "base" ? "lg" : "sm")}
-              className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+              className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition-colors"
               title="Zmień rozmiar tekstu"
             >
               <Type size={16} />
             </button>
+            {/* Serce — dodaj/usuń z Mojego modlitewnika */}
             <button
-              onClick={() => setLiked(!liked)}
-              className={`p-1.5 rounded-lg hover:bg-slate-800 transition-colors ${liked ? "text-red-400" : "text-slate-400 hover:text-white"}`}
+              onClick={() => toggle(id)}
+              className={`p-2 rounded-xl hover:bg-slate-800 transition-all ${fav ? "text-red-400" : "text-slate-400 hover:text-white"}`}
+              title={fav ? "Usuń z Mojego modlitewnika" : "Dodaj do Mojego modlitewnika"}
             >
-              <Heart size={16} fill={liked ? "currentColor" : "none"} />
+              <Heart
+                size={18}
+                fill={fav ? "currentColor" : "none"}
+                strokeWidth={fav ? 0 : 1.5}
+                className="transition-transform active:scale-125"
+              />
             </button>
-            <button onClick={handleShare} className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors">
+            <button onClick={handleShare} className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition-colors">
               <Share2 size={16} />
             </button>
           </div>
@@ -92,9 +102,16 @@ export default function PrayerPage({ params }: { params: Promise<{ id: string }>
                   Łaciński
                 </span>
               )}
+              {fav && (
+                <span className="text-xs font-medium text-red-400 bg-red-400/10 px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <Heart size={10} fill="currentColor" /> Mój modlitewnik
+                </span>
+              )}
             </div>
 
-            <h1 className="text-white text-2xl font-bold mb-6 leading-tight">{prayer.title}</h1>
+            <h1 className="text-white text-2xl font-bold mb-4 leading-tight">{prayer.title}</h1>
+
+            <ArticlePlayer title={prayer.title} content={prayer.content} lang={prayer.language === "la" ? "la" : "pl"} />
 
             <div className={`${fontSizeClass} text-slate-200 leading-relaxed whitespace-pre-line font-serif space-y-1`}>
               {prayer.content.split("\n").map((line, i) => {
@@ -106,11 +123,24 @@ export default function PrayerPage({ params }: { params: Promise<{ id: string }>
 
             {prayer.tags?.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-8 pt-4 border-t border-slate-800">
-                {prayer.tags.map((tag) => (
+                {prayer.tags.map(tag => (
                   <span key={tag} className="text-xs text-slate-500 bg-slate-800 px-2 py-1 rounded-lg">#{tag}</span>
                 ))}
               </div>
             )}
+
+            {/* Akcja na dole */}
+            <button
+              onClick={() => toggle(id)}
+              className={`mt-6 w-full py-3 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 transition-all border ${
+                fav
+                  ? "border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                  : "border-slate-700 bg-slate-800 text-slate-400 hover:border-red-500/40 hover:text-red-400"
+              }`}
+            >
+              <Heart size={16} fill={fav ? "currentColor" : "none"} strokeWidth={fav ? 0 : 1.5} />
+              {fav ? "Usuń z Mojego modlitewnika" : "Dodaj do Mojego modlitewnika"}
+            </button>
           </div>
         )}
       </div>

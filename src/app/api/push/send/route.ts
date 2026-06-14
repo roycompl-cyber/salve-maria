@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import webpush from "web-push";
+import { isPermanentPushFailure, safeInternalUrl } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,14 @@ export async function POST(req: NextRequest) {
   }
 
   const { title, body, type, url } = await req.json();
+  if (
+    typeof title !== "string" || title.trim().length < 1 || title.length > 120 ||
+    typeof body !== "string" || body.trim().length < 1 || body.length > 1000 ||
+    !["news", "action", "prayer", "general", "article", "petition"].includes(type)
+  ) {
+    return NextResponse.json({ error: "Nieprawidłowe dane powiadomienia" }, { status: 400 });
+  }
+  const notificationUrl = safeInternalUrl(url, "/announcements");
 
   // Admin client omija RLS — widzi subskrypcje wszystkich użytkowników
   const adminClient = createAdminClient(
@@ -44,7 +53,7 @@ export async function POST(req: NextRequest) {
     body,
     icon: "/icons/icon-192.png",
     badge: "/icons/icon-96.png",
-    url: url || "/",
+    url: notificationUrl,
     tag: type,
   });
 
@@ -59,15 +68,21 @@ export async function POST(req: NextRequest) {
           payload
         );
         sent++;
-      } catch {
-        failed.push(sub.endpoint);
+      } catch (error) {
+        if (isPermanentPushFailure(error)) failed.push(sub.endpoint);
       }
     })
   );
 
   // Clean up dead subscriptions
   if (failed.length > 0) {
-    await supabase.from("push_subscriptions").delete().in("endpoint", failed);
+    await adminClient.from("push_subscriptions").delete().in("endpoint", failed);
+  }
+
+  // Zapisz do historii powiadomień
+  if (sent > 0) {
+    const logUrl = notificationUrl;
+    await supabase.from("push_log").insert({ title, body, type, url: logUrl });
   }
 
   return NextResponse.json({ sent, failed: failed.length });

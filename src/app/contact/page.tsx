@@ -59,7 +59,7 @@ export default function ContactPage() {
 
   return (
     <AppShell>
-      <div className="max-w-lg mx-auto px-4 py-4 animate-fade-in">
+      <div className="max-w-lg md:max-w-3xl mx-auto px-4 md:px-8 py-4 md:py-6 animate-fade-in">
         <div className="mb-5 flex items-center gap-2">
           <MessageCircle size={20} className="text-red-400" />
           <div>

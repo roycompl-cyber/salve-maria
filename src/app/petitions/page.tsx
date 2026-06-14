@@ -3,7 +3,22 @@ import { useState, useEffect } from "react";
 import AppShell from "@/components/AppShell";
 import { PKPetition } from "@/lib/polskakatolicka";
 import Link from "next/link";
-import { ChevronRight, Loader2, PenLine, Users, ExternalLink } from "lucide-react";
+import { ChevronRight, Loader2, PenLine, Users, ExternalLink, CheckCircle2 } from "lucide-react";
+
+const SIGNED_KEY = "salve_signed_petitions_v2";
+
+function getSignedMap(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(SIGNED_KEY) ?? "{}"); }
+  catch { return {}; }
+}
+
+function formatSignedDate(iso: string): string {
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yy = String(d.getFullYear()).slice(2);
+  return `${dd}.${mm}.${yy}`;
+}
 
 function SignatureBar({ count }: { count: number }) {
   // Visual scale: 10000 = full bar
@@ -33,8 +48,10 @@ export default function PetitionsPage() {
   const [petitions, setPetitions] = useState<PKPetition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [signedMap, setSignedMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    setSignedMap(getSignedMap());
     fetch("/api/petitions")
       .then((r) => r.json())
       .then((data) => {
@@ -47,7 +64,7 @@ export default function PetitionsPage() {
 
   return (
     <AppShell>
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-4 animate-fade-in">
+      <div className="max-w-lg md:max-w-3xl mx-auto px-4 md:px-8 py-4 md:py-6 space-y-4 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-white" style={{ fontFamily: "Georgia, serif" }}>
@@ -79,7 +96,7 @@ export default function PetitionsPage() {
         )}
 
         {!loading && !error && (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {petitions.length === 0 && (
               <p className="text-center py-12 text-slate-500">Brak aktywnych petycji</p>
             )}
@@ -100,10 +117,7 @@ export default function PetitionsPage() {
                     />
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-xs font-medium text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <PenLine size={10} /> Petycja
-                      </span>
+                    <div className="flex items-start justify-end">
                       <ChevronRight size={16} className="text-slate-600 group-hover:text-slate-400 flex-shrink-0 transition-colors mt-0.5" />
                     </div>
                     <h2 className="text-white font-semibold mt-1.5 text-sm leading-tight line-clamp-2" style={{ fontFamily: "Georgia, serif" }}>
@@ -119,10 +133,19 @@ export default function PetitionsPage() {
                 </div>
 
                 {/* Sign CTA strip */}
-                <div className="bg-amber-700/20 border-t border-amber-800/30 px-4 py-2 flex items-center justify-between">
-                  <span className="text-amber-300 text-xs font-medium">Podpisz petycję</span>
-                  <PenLine size={14} className="text-amber-400" />
-                </div>
+                {signedMap[petition.slug] ? (
+                  <div className="petition-signed-strip bg-green-900/20 border-t border-green-800/30 px-4 py-2 flex items-center justify-between">
+                    <span className="text-green-400 text-xs font-medium flex items-center gap-1.5">
+                      <CheckCircle2 size={13} />
+                      Podpisano {formatSignedDate(signedMap[petition.slug])} — Dziękujemy
+                    </span>
+                  </div>
+                ) : (
+                  <div className="petition-sign-strip bg-amber-700/20 border-t border-amber-800/30 px-4 py-2 flex items-center justify-between">
+                    <span className="text-amber-300 text-xs font-medium">Podpisz petycję</span>
+                    <PenLine size={14} className="text-amber-400" />
+                  </div>
+                )}
               </Link>
             ))}
           </div>

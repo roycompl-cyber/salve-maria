@@ -98,7 +98,7 @@ export default function NotificationsPage() {
 
   return (
     <AppShell>
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-5 animate-fade-in">
+      <div className="max-w-lg md:max-w-3xl mx-auto px-4 py-4 space-y-5 animate-fade-in">
         <div>
           <h1 className="text-xl font-bold text-white" style={{ fontFamily: "Georgia, serif" }}>Powiadomienia</h1>
           <p className="text-slate-400 text-sm mt-0.5">Zarządzaj powiadomieniami push</p>

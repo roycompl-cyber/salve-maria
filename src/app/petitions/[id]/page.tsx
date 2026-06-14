@@ -7,23 +7,21 @@ import { PKPetition } from "@/lib/polskakatolicka";
 import Link from "next/link";
 import {
   ArrowLeft, Share2, Users, PenLine, ExternalLink, Loader2,
-  CheckCircle2, ChevronDown, ChevronUp, Heart,
+  CheckCircle2, Heart,
 } from "lucide-react";
+import ArticlePlayer from "@/components/ArticlePlayer";
 
-const SIGNED_KEY = "salve_signed_petitions";
+const SIGNED_KEY = "salve_signed_petitions_v2";
 
-function getSignedSlugs(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem(SIGNED_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
+function getSignedMap(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(SIGNED_KEY) ?? "{}"); }
+  catch { return {}; }
 }
-
 function markSigned(slug: string) {
-  const existing = getSignedSlugs();
-  if (!existing.includes(slug)) {
-    localStorage.setItem(SIGNED_KEY, JSON.stringify([...existing, slug]));
+  const map = getSignedMap();
+  if (!map[slug]) {
+    map[slug] = new Date().toISOString();
+    localStorage.setItem(SIGNED_KEY, JSON.stringify(map));
   }
 }
 
@@ -37,19 +35,10 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
   const [error, setError] = useState("");
 
   const [alreadySigned, setAlreadySigned] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
+  const [currentPara, setCurrentPara] = useState(-1);
+
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
-
-  // Form fields
-  const [name, setName] = useState("");
-  const [surname, setSurname] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address2, setAddress2] = useState("");
-  const [address3, setAddress3] = useState("");
-  const [postal, setPostal] = useState("");
-  const [city, setCity] = useState("");
 
   useEffect(() => {
     fetch(`/api/petitions/slug?slug=${encodeURIComponent(id)}`)
@@ -57,67 +46,41 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
       .then((data) => setPetition(data))
       .catch(() => setError("Nie udało się załadować petycji"))
       .finally(() => setLoading(false));
-
-    setAlreadySigned(getSignedSlugs().includes(id));
+    setAlreadySigned(!!getSignedMap()[id]);
   }, [id]);
-
-  // Pre-fill from profile
-  useEffect(() => {
-    if (!profile) return;
-    setName(profile.first_name ?? "");
-    setSurname(profile.last_name ?? "");
-    setEmail(profile.email ?? user?.email ?? "");
-    setPhone(profile.phone ?? "");
-    setAddress2(profile.street ?? "");
-    setAddress3(profile.house_no ?? "");
-    setPostal(profile.postal ?? "");
-    setCity(profile.city ?? "");
-  }, [profile, user]);
 
   async function handleShare() {
     if (!petition) return;
-    if (navigator.share) {
-      await navigator.share({ title: petition.title, text: petition.excerpt, url: petition.source_url });
-    }
+    if (navigator.share) await navigator.share({ title: petition.title, text: petition.excerpt, url: petition.source_url });
   }
 
-  function buildDonationUrl(amount: string) {
+  function handleSign() {
+    if (alreadySigned) return;
     const p = new URLSearchParams({
-      donation_url: petition?.donation_url ?? "",
-      amount,
-      name, surname, email, phone,
-      address2, address3, postal, city,
+      slug: id,
+      name: profile?.first_name ?? "",
+      surname: profile?.last_name ?? "",
+      email: profile?.email ?? user?.email ?? "",
+      phone: profile?.phone ?? "",
+      address2: profile?.street ?? "",
+      address3: profile?.house_no ?? "",
+      postal: profile?.postal ?? "",
+      city: profile?.city ?? "",
     });
-    return `/api/petitions/donation-prefill?${p.toString()}`;
+    markSigned(id);
+    setAlreadySigned(true);
+    window.location.href = `/api/petitions/prefill?${p.toString()}`;
   }
 
   function handleDonate() {
     const amount = selectedAmount ? String(selectedAmount) : customAmount;
-    if (!amount) return;
-    window.open(buildDonationUrl(amount), "_blank", "noopener");
+    if (!amount || !petition) return;
+    window.open(petition.donation_url || petition.source_url, "_blank", "noopener");
   }
-
-  function buildPrefillUrl() {
-    const p = new URLSearchParams({
-      slug: id, name, surname, email, phone,
-      address2, address3, postal, city,
-    });
-    return `/api/petitions/prefill?${p.toString()}`;
-  }
-
-  function handleSign() {
-    markSigned(id);
-    setAlreadySigned(true);
-    // Open prefill page — browser submits the form directly to polskakatolicka.org
-    window.open(buildPrefillUrl(), "_blank", "noopener");
-  }
-
-  const inputCls = "w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors";
-  const labelCls = "block text-xs text-slate-400 mb-1";
 
   return (
     <AppShell>
-      <div className="max-w-lg mx-auto animate-fade-in">
+      <div className="max-w-lg md:max-w-3xl mx-auto animate-fade-in">
         {/* Back bar */}
         <div className="flex items-center justify-between px-4 py-3">
           <Link href="/petitions" className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors">
@@ -154,10 +117,12 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
         {petition && (
           <div className="pb-6">
             {petition.image_url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={petition.image_url} alt={petition.title}
-                className="w-full object-cover max-h-52 bg-slate-800"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              <div className="px-4 mt-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={petition.image_url} alt={petition.title}
+                  className="w-full rounded-2xl object-cover max-h-56 bg-slate-800"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              </div>
             )}
 
             <div className="px-4 pt-4 space-y-4">
@@ -190,98 +155,48 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
               )}
 
               {petition.content && (
+                <ArticlePlayer title={petition.title} content={petition.content} onParagraphChange={setCurrentPara} />
+              )}
+
+              {petition.content && (
                 <div className="space-y-3">
-                  {petition.content.split("\n\n").filter(Boolean).map((para, i) => (
-                    <p key={i} className="text-slate-300 text-sm leading-relaxed">{para}</p>
-                  ))}
+                  {[petition.title, ...petition.content.split("\n\n").filter(Boolean)].slice(1).map((para, i) => {
+                    const absIdx = i + 1;
+                    return (
+                      <p
+                        key={absIdx}
+                        id={`para-${absIdx}`}
+                        className="text-slate-300 text-sm leading-relaxed rounded-xl transition-all duration-300"
+                        style={currentPara === absIdx ? { backgroundColor: "rgba(180,83,9,0.15)", padding: "8px 10px", color: "#fcd9a0" } : {}}
+                      >
+                        {para}
+                      </p>
+                    );
+                  })}
                 </div>
               )}
 
               {/* Sign section */}
-              <div className="rounded-2xl overflow-hidden border border-slate-700">
-                {/* Header */}
-                <button
-                  className="w-full flex items-center justify-between px-4 py-3.5 bg-slate-800 transition-colors"
-                  onClick={() => !alreadySigned && setFormOpen(!formOpen)}
-                  disabled={alreadySigned}
-                >
-                  <span className="flex items-center gap-2 font-semibold text-amber-300 text-sm">
-                    {alreadySigned ? <CheckCircle2 size={16} className="text-green-400" /> : <PenLine size={16} />}
-                    {alreadySigned ? "Petycja podpisana" : "Podpisz petycję"}
-                  </span>
-                  {!alreadySigned && (formOpen
-                    ? <ChevronUp size={16} className="text-slate-400" />
-                    : <ChevronDown size={16} className="text-slate-400" />
-                  )}
-                </button>
-
-                {/* Already signed */}
-                {alreadySigned && (
-                  <div className="bg-slate-900 px-4 pt-5 pb-4 flex flex-col items-center gap-2 text-center">
-                    <CheckCircle2 size={36} className="text-green-400" />
-                    <p className="text-white font-bold">Dziękujemy za podpis!</p>
-                    <p className="text-slate-400 text-sm">Możesz też wesprzeć działalność fundacji darowizną.</p>
-                  </div>
-                )}
-
-                {/* Form */}
-                {formOpen && !alreadySigned && (
-                  <div className="px-4 py-4 bg-slate-900 space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className={labelCls}>Imię *</label>
-                        <input className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="Jan" />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Nazwisko *</label>
-                        <input className={inputCls} value={surname} onChange={e => setSurname(e.target.value)} placeholder="Kowalski" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className={labelCls}>E-mail *</label>
-                      <input className={inputCls} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jan@example.com" />
-                    </div>
-                    <div>
-                      <label className={labelCls}>Telefon</label>
-                      <input className={inputCls} type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="600000000" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className={labelCls}>Ulica / Wieś</label>
-                        <input className={inputCls} value={address2} onChange={e => setAddress2(e.target.value)} placeholder="ul. Główna" />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Nr domu</label>
-                        <input className={inputCls} value={address3} onChange={e => setAddress3(e.target.value)} placeholder="1a" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className={labelCls}>Kod pocztowy</label>
-                        <input className={inputCls} value={postal} onChange={e => setPostal(e.target.value)} placeholder="00-000" />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Miejscowość</label>
-                        <input className={inputCls} value={city} onChange={e => setCity(e.target.value)} placeholder="Warszawa" />
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={handleSign}
-                      disabled={!name || !surname || !email}
-                      className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-50"
-                      style={{ background: "linear-gradient(135deg, #92400e, #b45309)" }}
-                    >
-                      <PenLine size={16} />
-                      Podpisz petycję
-                    </button>
-
-                    <p className="text-slate-600 text-[10px] text-center leading-relaxed">
-                      Dane zostaną przekazane do polskakatolicka.org wyłącznie w celu zarejestrowania Twojego podpisu.
-                    </p>
-                  </div>
-                )}
-              </div>
+              {alreadySigned ? (
+                <div className="bg-slate-800 rounded-2xl px-4 py-5 flex flex-col items-center gap-2 text-center border border-green-700/30">
+                  <CheckCircle2 size={32} className="text-green-400" />
+                  <p className="text-white font-bold">Dziękujemy za podpis!</p>
+                  <p className="text-slate-400 text-sm">Możesz też wesprzeć działalność fundacji darowizną.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <button
+                    onClick={handleSign}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm text-white transition-all"
+                    style={{ background: "linear-gradient(135deg, #92400e, #b45309)" }}
+                  >
+                    <PenLine size={16} /> Podpisz petycję
+                  </button>
+                  <p className="text-slate-600 text-[10px] text-center">
+                    Zostaniesz przekierowany na stronę petycji z wypełnionymi danymi z Twojego profilu.
+                  </p>
+                </div>
+              )}
 
               {/* Donation panel — shown after signing */}
               {alreadySigned && (

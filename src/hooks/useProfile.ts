@@ -41,14 +41,26 @@ export const useProfile = create<ProfileStore>()((set, get) => ({
       data.city?.trim()
     );
 
+    const current = get().profile;
+    const safeData = {
+      first_name: data.first_name ?? current?.first_name ?? null,
+      last_name: data.last_name ?? current?.last_name ?? null,
+      phone: data.phone ?? current?.phone ?? null,
+      street: data.street ?? current?.street ?? null,
+      house_no: data.house_no ?? current?.house_no ?? null,
+      postal: data.postal ?? current?.postal ?? null,
+      city: data.city ?? current?.city ?? null,
+      profile_complete: isComplete,
+    };
+
     const { error } = await supabase
       .from("profiles")
-      .update({ ...data, profile_complete: isComplete })
+      .update(safeData)
       .eq("id", user.id);
 
     if (error) return error.message;
 
-    set({ profile: { ...get().profile!, ...data, profile_complete: isComplete } });
+    set({ profile: { ...get().profile!, ...safeData } });
     return null;
   },
 

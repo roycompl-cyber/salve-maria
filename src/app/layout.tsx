@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import AppearanceProvider from "@/components/AppearanceProvider";
 
 export const metadata: Metadata = {
   title: "Salve Maria",
@@ -28,7 +29,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body className="min-h-screen bg-slate-900 text-slate-100">{children}</body>
+      <body className="min-h-screen bg-slate-900 text-slate-100">
+        <AppearanceProvider />
+        {children}
+      </body>
     </html>
   );
 }
