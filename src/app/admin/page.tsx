@@ -904,9 +904,9 @@ export default function AdminPage() {
             {messagesLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-red-400 animate-spin"/></div>}
             {messages.map(m=>(
               <div key={m.id} className={`${CARD} overflow-hidden ${!m.read?"border-amber-700/50":""}`}>
-                <button className="w-full flex items-center gap-3 px-4 py-3 text-left"
-                  onClick={()=>{setExpandedMsg(expandedMsg===m.id?null:m.id);if(!m.read)handleMarkRead(m.id);}}>
-                  <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <div className="flex-1 min-w-0 cursor-pointer"
+                    onClick={()=>{setExpandedMsg(expandedMsg===m.id?null:m.id);if(!m.read)handleMarkRead(m.id);}}>
                     <div className="flex items-center gap-2">
                       {!m.read&&<span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"/>}
                       <p className="text-white font-semibold text-sm truncate">{m.name}</p>
@@ -915,13 +915,16 @@ export default function AdminPage() {
                     <p className="text-slate-400 text-xs mt-0.5 truncate">{m.topic} · {m.email}</p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <button onClick={e=>{e.stopPropagation();handleDeleteMessage(m.id);}}
+                    <button onClick={()=>handleDeleteMessage(m.id)}
                       className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-700 transition-colors" title="Usuń wiadomość">
                       <Trash2 size={13}/>
                     </button>
-                    {expandedMsg===m.id?<ChevronUp size={14} className="text-slate-400"/>:<ChevronDown size={14} className="text-slate-400"/>}
+                    <button onClick={()=>{setExpandedMsg(expandedMsg===m.id?null:m.id);if(!m.read)handleMarkRead(m.id);}}
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 transition-colors">
+                      {expandedMsg===m.id?<ChevronUp size={14}/>:<ChevronDown size={14}/>}
+                    </button>
                   </div>
-                </button>
+                </div>
                 {expandedMsg===m.id&&(
                   <div className="px-4 pb-4 text-slate-300 text-sm border-t border-slate-700 pt-3 leading-relaxed whitespace-pre-wrap">
                     {m.message}
