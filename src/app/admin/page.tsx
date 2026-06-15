@@ -6,7 +6,7 @@ import {
   Bell, RefreshCw, Trash2, Pencil, Plus, X, Loader2, ShieldAlert,
   ChevronDown, ChevronUp, Clock, MessageSquare, Settings2, Calendar,
   Mail, Play, Lock, BarChart2, LayoutGrid, Eye, EyeOff, ArrowLeft,
-  UserPlus, Home, AlertTriangle, Heart,
+  UserPlus, Home, AlertTriangle,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ interface TileOverride {
   label?: string; sublabel?: string; hidden?: boolean; order?: number; colorPreset?: string;
 }
 interface PageSectionConfig { show?: boolean; title?: string; count?: number; }
-interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; campaigns?: PageSectionConfig; }
+interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; }
 type TilesConfig = Record<string, TileOverride>;
 
 type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "settings" | "stats" | "errors";
@@ -79,7 +79,6 @@ const TILE_MODS = [
   { mod: "book",          defaultLabel: "Zamów książkę",   defaultSublabel: "Z dostawą" },
   { mod: "about",         defaultLabel: "O fundacji",      defaultSublabel: "Instytut ks. Skargi" },
   { mod: "watch",         defaultLabel: "Zobacz",          defaultSublabel: "Polecane filmy" },
-  { mod: "campaigns",    defaultLabel: "Kampanie",        defaultSublabel: "Wesprzyj akcje" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1198,7 +1197,6 @@ export default function AdminPage() {
                 {([
                   {key:"articles" as const, label:"Sekcja Artykułów / Publikacji", defaultTitle:"Publikacje", defaultCount:4, icon:<Newspaper size={16}/>},
                   {key:"petitions" as const, label:"Sekcja Petycji", defaultTitle:"Podejmij działanie", defaultCount:3, icon:<Megaphone size={16}/>},
-                  {key:"campaigns" as const, label:"Sekcja Kampanii", defaultTitle:"Wesprzyj akcje", defaultCount:3, icon:<Heart size={16}/>},
                 ] as const).map(({key,label,defaultTitle,defaultCount,icon})=>{
                   const cfg=pageConfig[key]??{};
                   const isVisible=cfg.show!==false;

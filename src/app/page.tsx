@@ -4,10 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import Icon, { type IconName } from "@/components/Icon";
-import type { PKArticle, PKPetition, PKCampaign } from "@/lib/polskakatolicka";
-import { useAuth } from "@/hooks/useAuth";
-import { useProfile } from "@/hooks/useProfile";
-import { Heart } from "lucide-react";
+import type { PKArticle, PKPetition } from "@/lib/polskakatolicka";
 
 interface TileOverride {
   label?: string;
@@ -43,7 +40,6 @@ const SHORTCUTS: { mod: string; href: string; icon: IconName; label: string; det
   { mod: "chat",          href: "/contact",       icon: "chat",            label: "Kontakt",          detail: "Napisz do nas",       accent: "#818cf8" },
   { mod: "articles",      href: "/articles",      icon: "articles",        label: "Artykuły",         detail: "Publikacje",          accent: "#2dd4bf" },
   { mod: "petitions",     href: "/petitions",     icon: "petition",        label: "Petycje",          detail: "Podejmij działanie",  accent: "#4ade80" },
-  { mod: "campaigns",    href: "/campaigns",     icon: "heart",           label: "Kampanie",         detail: "Wesprzyj akcje",      accent: "#f59e0b" },
   { mod: "savoir",        href: "/savoir-vivre",  icon: "etiquette",       label: "De urbanitate",    detail: "Catholica",           accent: "#c084fc" },
   { mod: "watch",         href: "/watch",         icon: "video-play",      label: "Zobacz",           detail: "Polecane filmy",      accent: "#f87171" },
   { mod: "about",         href: "/about",         icon: "about",           label: "O fundacji",       detail: "Instytut ks. Skargi", accent: "#86efac" },
@@ -71,47 +67,27 @@ function SectionTitle({ title, href, linkLabel = "Zobacz wszystkie" }: { title: 
 }
 
 interface PageSectionConfig { show?: boolean; title?: string; count?: number; }
-interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; campaigns?: PageSectionConfig; }
+interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; }
 
 export default function Home2Page() {
   const [articles, setArticles] = useState<PKArticle[]>([]);
   const [petitions, setPetitions] = useState<PKPetition[]>([]);
-  const [campaigns, setCampaigns] = useState<PKCampaign[]>([]);
   const [tilesConfig, setTilesConfig] = useState<TilesConfig>(() => {
     if (typeof window === "undefined") return {};
     return loadCachedConfig();
   });
 
-  const user = useAuth((s) => s.user);
-  const profile = useProfile((s) => s.profile);
-
-  function handleCampaignSupport(c: PKCampaign) {
-    const params = new URLSearchParams({ donation_url: c.donation_url });
-    if (profile?.first_name) params.set("name", profile.first_name);
-    if (profile?.last_name) params.set("surname", profile.last_name);
-    if (user?.email) params.set("email", user.email);
-    if (profile?.phone) params.set("phone", profile.phone);
-    if (profile?.street) params.set("address2", profile.street);
-    if (profile?.house_no) params.set("address3", profile.house_no);
-    if (profile?.postal) params.set("postal", profile.postal);
-    if (profile?.city) params.set("city", profile.city);
-    window.open(`/api/petitions/donation-prefill?${params.toString()}`, "_blank");
-  }
-
   useEffect(() => {
     Promise.all([
       fetch("/api/articles").then((response) => response.json()),
       fetch("/api/petitions").then((response) => response.json()),
-      fetch("/api/campaigns").then((r) => r.json()),
       fetch("/api/admin/tiles").then((r) => r.json()),
-    ]).then(([articleData, petitionData, campaignData, tilesData]) => {
+    ]).then(([articleData, petitionData, tilesData]) => {
       const pageCfg: PageConfig = (tilesData?._page as unknown as PageConfig) ?? {};
       const artCount = pageCfg.articles?.count ?? 4;
       const petCount = pageCfg.petitions?.count ?? 3;
-      const campCount = pageCfg.campaigns?.count ?? 3;
       if (Array.isArray(articleData)) setArticles(articleData.slice(0, artCount));
       if (Array.isArray(petitionData)) setPetitions(petitionData.slice(0, petCount));
-      if (Array.isArray(campaignData)) setCampaigns(campaignData.slice(0, campCount));
       if (tilesData && typeof tilesData === "object" && !tilesData.error) {
         setTilesConfig(tilesData as TilesConfig);
         localStorage.setItem(TILES_CONFIG_KEY, JSON.stringify(tilesData));
@@ -122,10 +98,8 @@ export default function Home2Page() {
   const pageCfg: PageConfig = (tilesConfig._page as unknown as PageConfig) ?? {};
   const showArticles = pageCfg.articles?.show !== false;
   const showPetitions = pageCfg.petitions?.show !== false;
-  const showCampaigns = pageCfg.campaigns?.show !== false;
   const articlesTitle = pageCfg.articles?.title || "Publikacje";
   const petitionsTitle = pageCfg.petitions?.title || "Podejmij działanie";
-  const campaignsTitle = pageCfg.campaigns?.title || "Wesprzyj akcje";
 
   const featuredArticle = articles[0];
   const featuredPetition = petitions[0];
@@ -210,29 +184,6 @@ export default function Home2Page() {
                   <p className="flex-1 text-sm font-bold text-white leading-tight line-clamp-2">{petition.title}</p>
                   <Icon name="chevron-right" size={16} className="text-amber-500 flex-shrink-0" />
                 </Link>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {showCampaigns && campaigns.length > 0 && (
-          <section>
-            <SectionTitle title={campaignsTitle} href="/campaigns" linkLabel="Wszystkie kampanie" />
-            <div className="space-y-2">
-              {campaigns.map((campaign) => (
-                <div key={campaign.id} className="flex items-center gap-3 rounded-2xl border border-amber-800/30 bg-amber-950/30 p-3">
-                  {campaign.image_url && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={campaign.image_url} alt="" className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
-                  )}
-                  <p className="flex-1 text-sm font-bold text-white leading-tight line-clamp-2">{campaign.title}</p>
-                  <button
-                    onClick={() => handleCampaignSupport(campaign)}
-                    className="flex-shrink-0 flex items-center gap-1.5 rounded-xl bg-amber-500 text-slate-950 px-3 py-2 text-xs font-bold"
-                  >
-                    <Heart size={13} /> Wesprzyj
-                  </button>
-                </div>
               ))}
             </div>
           </section>
