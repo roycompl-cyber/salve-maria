@@ -38,16 +38,23 @@ function sanitizeHtmlSnippet(html: string): string {
     .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
     .replace(/\s+on\w+="[^"]*"/gi, "")
     .replace(/\s+on\w+='[^']*'/gi, "")
-    // Linki wewnętrzne → trasy aplikacji (relative i absolutne)
-    .replace(/href="https?:\/\/polskakatolicka\.org\/pl\/artykuly\/([^"?#]+)[^"]*"/g, 'href="/articles/$1"')
-    .replace(/href="https?:\/\/polskakatolicka\.org\/pl\/petycje\/([^"?#]+)[^"]*"/g, 'href="/petitions/$1"')
-    .replace(/href="\/pl\/artykuly\/([^"?#]+)[^"]*"/g, 'href="/articles/$1"')
-    .replace(/href="\/pl\/petycje\/([^"?#]+)[^"]*"/g, 'href="/petitions/$1"')
-    // Pozostałe linki polskakatolicka.org → przez proxy (uzupełnia dane usera)
-    .replace(/href="(https?:\/\/polskakatolicka\.org[^"]*)"/g, (_, url) =>
-      `href="/api/proxy/external?redirect=${encodeURIComponent(url)}" target="_blank" rel="noopener noreferrer"`)
-    // Relative → absolutne z nową kartą
-    .replace(/href="\/([^"]+)"/g, `href="${BASE_URL}/$1" target="_blank" rel="noopener noreferrer"`)
+    // Przetwarza wszystkie href w jednym przejściu — unika konfliktów między regexami
+    .replace(/href="([^"]+)"/g, (_full, href: string) => {
+      // Artykuły polskakatolicka.org → trasa wewnętrzna
+      const art = href.match(/(?:https?:\/\/polskakatolicka\.org)?\/pl\/artykuly\/([^?#"]+)/);
+      if (art) return `href="/articles/${art[1]}"`;
+      // Petycje polskakatolicka.org → trasa wewnętrzna
+      const pet = href.match(/(?:https?:\/\/polskakatolicka\.org)?\/pl\/petycje\/([^?#"]+)/);
+      if (pet) return `href="/petitions/${pet[1]}"`;
+      // Inne linki polskakatolicka.org → przez proxy z danymi usera
+      if (/^https?:\/\/polskakatolicka\.org/.test(href))
+        return `href="/api/proxy/external?redirect=${encodeURIComponent(href)}" target="_blank" rel="noopener noreferrer"`;
+      // Pozostałe relative → absolutne
+      if (href.startsWith("/"))
+        return `href="${BASE_URL}${href}" target="_blank" rel="noopener noreferrer"`;
+      // Już absolutne zewnętrzne — bez zmian
+      return _full;
+    })
     .replace(/src="\/([^"]+)"/g, `src="${BASE_URL}/$1"`)
     .replace(/<img /g, '<img loading="lazy" ')
     .replace(/\s+width="\d+"/gi, "")
