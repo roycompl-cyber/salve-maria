@@ -88,6 +88,11 @@ export async function GET(req: NextRequest) {
     const styleMatches = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];
     const styles = styleMatches.map(m => m[1]).join("\n");
 
+    // Style inline z atrybutu <body style="...">
+    const bodyTagMatch = html.match(/<body([^>]*)>/i);
+    const bodyStyle = bodyTagMatch?.[1]?.match(/style=["']([^"']+)["']/)?.[1] ?? "";
+    const bodyClass = bodyTagMatch?.[1]?.match(/class=["']([^"']+)["']/)?.[1] ?? "";
+
     // Treść <body>
     const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
     let body = bodyMatch ? bodyMatch[1] : html;
@@ -103,7 +108,7 @@ export async function GET(req: NextRequest) {
     // Usuń inline event handlery
     body = body.replace(/\s+on\w+="[^"]*"/gi, "");
 
-    return NextResponse.json({ body, styles, cssLinks, base });
+    return NextResponse.json({ body, styles, cssLinks, base, bodyStyle, bodyClass });
   } catch (e) {
     return NextResponse.json({ error: "Fetch failed: " + String(e) }, { status: 502 });
   }

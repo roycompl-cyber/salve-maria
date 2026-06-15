@@ -7,6 +7,8 @@ interface ProxyResult {
   body?: string;
   styles?: string;
   cssLinks?: string[];
+  bodyStyle?: string;
+  bodyClass?: string;
   error?: string;
 }
 
@@ -106,12 +108,19 @@ function ViewerContent() {
 
       {!loading && result?.body && (
         <>
-          {/* Załaduj zewnętrzne arkusze CSS strony */}
           {result.cssLinks?.map(href => (
             // eslint-disable-next-line @next/next/no-css-tags
             <link key={href} rel="stylesheet" href={href} />
           ))}
-          <div className="external-page-content">
+          <div
+            className={`external-page-content${result.bodyClass ? ` ${result.bodyClass}` : ""}`}
+            style={result.bodyStyle ? Object.fromEntries(
+              result.bodyStyle.split(";").filter(Boolean).map(s => {
+                const [k, ...v] = s.split(":");
+                return [k.trim().replace(/-([a-z])/g, (_, c) => c.toUpperCase()), v.join(":").trim()];
+              })
+            ) : undefined}
+          >
             {result.styles && (
               <style dangerouslySetInnerHTML={{ __html: result.styles }} />
             )}
