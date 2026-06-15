@@ -10,6 +10,7 @@ import {
   CheckCircle2, Heart,
 } from "lucide-react";
 import ArticlePlayer from "@/components/ArticlePlayer";
+import RichLinks from "@/components/RichLinks";
 
 const SIGNED_KEY = "salve_signed_petitions_v2";
 
@@ -254,7 +255,7 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
 
               {petition.banners_html && (
                 <div className="pt-5 border-t border-slate-700/50">
-                  <div className="article-html-content" dangerouslySetInnerHTML={{ __html: petition.banners_html }} />
+                  <RichLinks html={petition.banners_html} />
                 </div>
               )}
 

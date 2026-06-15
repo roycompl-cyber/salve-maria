@@ -8,6 +8,7 @@ import ArticlePlayer from "@/components/ArticlePlayer";
 import Link from "next/link";
 import { ArrowLeft, Share2, Calendar, User, ExternalLink, Loader2, WifiOff } from "lucide-react";
 import { getArticleFromCache } from "@/hooks/useOfflineArticles";
+import RichLinks from "@/components/RichLinks";
 
 export default function ArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -172,7 +173,7 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
 
             {article.banners_html && (
               <div className="mt-6 pt-5 border-t border-slate-700/50">
-                <div className="article-html-content" dangerouslySetInnerHTML={{ __html: article.banners_html }} />
+                <RichLinks html={article.banners_html} />
               </div>
             )}
 

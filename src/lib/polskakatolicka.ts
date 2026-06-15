@@ -38,7 +38,9 @@ function sanitizeHtmlSnippet(html: string): string {
     .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
     .replace(/\s+on\w+="[^"]*"/gi, "")
     .replace(/\s+on\w+='[^']*'/gi, "")
-    // Rewrite internal links to app routes
+    // Rewrite internal links to app routes (relative i absolutne)
+    .replace(/href="https?:\/\/polskakatolicka\.org\/pl\/artykuly\/([^"?#]+)[^"]*"/g, 'href="/articles/$1"')
+    .replace(/href="https?:\/\/polskakatolicka\.org\/pl\/petycje\/([^"?#]+)[^"]*"/g, 'href="/petitions/$1"')
     .replace(/href="\/pl\/artykuly\/([^"?#]+)[^"]*"/g, 'href="/articles/$1"')
     .replace(/href="\/pl\/petycje\/([^"?#]+)[^"]*"/g, 'href="/petitions/$1"')
     .replace(/href="\/([^"]+)"/g, `href="${BASE_URL}/$1" target="_blank" rel="noopener noreferrer"`)
