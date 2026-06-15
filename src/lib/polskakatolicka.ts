@@ -48,27 +48,32 @@ function sanitizeHtmlSnippet(html: string): string {
     .replace(/\s+height="\d+"/gi, "");
 }
 
-/** Wyciąga z HTML artykułu tylko elementy wizualne (bannery, linki z obrazkami),
- *  pomijając zwykłe akapity tekstowe — żeby nie duplikować treści. */
-function extractVisualBanners(rawHtml: string): string {
+/** Wyciąga z HTML artykułu wszystkie linki (obrazkowe i tekstowe),
+ *  z deduplikacją po href. Pomija trywialne kotwice i bardzo krótkie linki inline. */
+function extractEnrichments(rawHtml: string): string {
   const found: string[] = [];
+  const seenHrefs = new Set<string>();
 
-  // <a>...<img>...</a> — link owijający obrazek (baner)
-  const aImgRe = /<a\b[^>]*>((?:[^<]|<(?!\/a\b))*?<img\b[^>]*\/?>[^<]*)<\/a>/gi;
+  const aRe = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
   let m: RegExpExecArray | null;
-  while ((m = aImgRe.exec(rawHtml)) !== null) {
-    found.push(m[0]);
-  }
+  while ((m = aRe.exec(rawHtml)) !== null) {
+    const attrs = m[1];
+    const inner = m[2];
+    const full  = m[0];
 
-  // Samodzielne <img> nie wewnątrz <a> (obrazki blokowe)
-  const standaloneImgRe = /<img\b[^>]*\/?>(?![^<]*<\/a>)/gi;
-  // Zbieramy pozycje już znalezionych, żeby nie duplikować
-  const inATag = new Set(found.map(f => f));
-  while ((m = standaloneImgRe.exec(rawHtml)) !== null) {
-    const img = m[0];
-    if (!found.some(f => f.includes(img))) {
-      found.push(img);
-    }
+    const hrefM = attrs.match(/href="([^"]+)"/);
+    if (!hrefM) continue;
+    const href = hrefM[1];
+    if (!href || href === "#" || href.startsWith("javascript:")) continue;
+    if (seenHrefs.has(href)) continue;
+    seenHrefs.add(href);
+
+    const hasImg = /<img\b/i.test(inner);
+    const text   = inner.replace(/<[^>]+>/g, "").trim();
+    // Pomiń bardzo krótkie linki tekstowe bez obrazka (np. "tu", "więcej")
+    if (!hasImg && text.length < 8) continue;
+
+    found.push(full);
   }
 
   if (!found.length) return "";
@@ -258,7 +263,7 @@ export async function fetchArticle(slug: string): Promise<PKArticle | null> {
 
     const content = contentLines.slice(contentStart).join("\n\n");
 
-    const banners_html = rawContent ? extractVisualBanners(rawContent) : "";
+    const banners_html = rawContent ? extractEnrichments(rawContent) : "";
 
     // Excerpt — og:description or first 200 chars of content
     const ogDesc = html.match(/property=["']og:description["'][^>]+content=["']([^"']+)["']/);
@@ -368,7 +373,7 @@ export async function fetchPetition(slug: string): Promise<PKPetition | null> {
                        extractDivContent(html, "petition-content") ||
                        extractDivContent(html, "petition-body");
     const content = rawContent ? stripTags(rawContent) : "";
-    const banners_html = rawContent ? extractVisualBanners(rawContent) : "";
+    const banners_html = rawContent ? extractEnrichments(rawContent) : "";
 
     const ogDesc = html.match(/property=["']og:description["'][^>]+content=["']([^"']+)["']/);
     const excerpt = ogDesc?.[1]?.trim() || content.slice(0, 220);

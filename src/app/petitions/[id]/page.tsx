@@ -254,7 +254,6 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
 
               {petition.banners_html && (
                 <div className="pt-5 border-t border-slate-700/50">
-                  <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">Powiązane treści</p>
                   <div className="article-html-content" dangerouslySetInnerHTML={{ __html: petition.banners_html }} />
                 </div>
               )}

@@ -170,10 +170,8 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
               })}
             </div>
 
-            {/* Bannery i linki z oryginalnej strony (tylko elementy wizualne, bez duplikowania tekstu) */}
             {article.banners_html && (
               <div className="mt-6 pt-5 border-t border-slate-700/50">
-                <p className="text-xs text-slate-500 uppercase tracking-wider mb-3">Powiązane treści</p>
                 <div className="article-html-content" dangerouslySetInnerHTML={{ __html: article.banners_html }} />
               </div>
             )}
