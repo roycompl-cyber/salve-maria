@@ -130,9 +130,7 @@ export default function GospelPage() {
 
         {!loading && readings.length > 0 && (
           <a
-            href="https://deon.pl/czytania"
-            target="_blank"
-            rel="noopener noreferrer"
+            href={`/viewer?url=${encodeURIComponent("https://deon.pl/czytania")}`}
             className="flex items-center justify-center gap-2 mt-6 text-slate-500 hover:text-amber-400 text-xs transition-colors"
           >
             Źródło: deon.pl <ExternalLink size={11} />

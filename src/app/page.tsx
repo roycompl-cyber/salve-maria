@@ -43,7 +43,7 @@ const SHORTCUTS: { mod: string; href: string; icon: IconName; label: string; det
   { mod: "savoir",        href: "/savoir-vivre",  icon: "etiquette",       label: "De urbanitate",    detail: "Catholica",           accent: "#c084fc" },
   { mod: "watch",         href: "/watch",         icon: "video-play",      label: "Zobacz",           detail: "Polecane filmy",      accent: "#f87171" },
   { mod: "about",         href: "/about",         icon: "about",           label: "O fundacji",       detail: "Instytut ks. Skargi", accent: "#86efac" },
-  { mod: "book", href: "https://polskakatolicka.org/pl/wplata-na-kampanie?payment=e5fbcc41223d97a406605e88faf65b", icon: "book-open", label: "Zamów książkę", detail: "Z dostawą", accent: "#f472b6", external: true },
+  { mod: "book", href: "/viewer?url=" + encodeURIComponent("https://polskakatolicka.org/pl/wplata-na-kampanie?payment=e5fbcc41223d97a406605e88faf65b"), icon: "book-open", label: "Zamów książkę", detail: "Z dostawą", accent: "#f472b6" },
 ];
 
 const TILES_CONFIG_KEY = "salve_tiles_config";

@@ -46,14 +46,18 @@ function sanitizeHtmlSnippet(html: string): string {
       // Petycje polskakatolicka.org → trasa wewnętrzna
       const pet = href.match(/(?:https?:\/\/polskakatolicka\.org)?\/pl\/petycje\/([^?#"]+)/);
       if (pet) return `href="/petitions/${pet[1]}"`;
-      // Inne linki polskakatolicka.org → przez proxy z danymi usera
-      if (/^https?:\/\/polskakatolicka\.org/.test(href))
-        return `href="/api/proxy/external?redirect=${encodeURIComponent(href)}" target="_blank" rel="noopener noreferrer"`;
-      // Pozostałe relative → absolutne
-      if (href.startsWith("/"))
-        return `href="${BASE_URL}${href}" target="_blank" rel="noopener noreferrer"`;
-      // Już absolutne zewnętrzne — bez zmian
-      return _full;
+      // Inne linki polskakatolicka.org → przez proxy z danymi usera, otwierane w przeglądarce wbudowanej
+      if (/^https?:\/\/polskakatolicka\.org/.test(href)) {
+        const proxyUrl = `/api/proxy/external?redirect=${encodeURIComponent(href)}`;
+        return `href="/viewer?url=${encodeURIComponent(proxyUrl)}"`;
+      }
+      // Pozostałe relative → absolutne, otwierane w przeglądarce wbudowanej
+      if (href.startsWith("/")) {
+        const absUrl = `${BASE_URL}${href}`;
+        return `href="/viewer?url=${encodeURIComponent(absUrl)}"`;
+      }
+      // Już absolutne zewnętrzne → przeglądarka wbudowana
+      return `href="/viewer?url=${encodeURIComponent(href)}"`;
     })
     .replace(/src="\/([^"]+)"/g, `src="${BASE_URL}/$1"`)
     .replace(/<img /g, '<img loading="lazy" ')

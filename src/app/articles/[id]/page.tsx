@@ -66,9 +66,7 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
           <div className="flex items-center gap-1">
             {article && (
               <a
-                href={article.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={`/viewer?url=${encodeURIComponent(article.source_url)}`}
                 className="text-slate-400 hover:text-blue-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
                 title="Otwórz na polskakatolicka.org"
               >
@@ -181,9 +179,7 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
 
             {/* Source link */}
             <a
-              href={article.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={`/viewer?url=${encodeURIComponent(article.source_url)}`}
               className="mt-8 flex items-center justify-center gap-2 text-slate-500 hover:text-blue-400 text-xs transition-colors"
             >
               Źródło: polskakatolicka.org <ExternalLink size={12} />

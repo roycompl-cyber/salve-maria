@@ -73,9 +73,7 @@ export default function PetitionsPage() {
             <p className="text-slate-400 text-xs mt-0.5">Podpisz i weź udział w akcjach</p>
           </div>
           <a
-            href="http://polskakatolicka.org/pl/petycje"
-            target="_blank"
-            rel="noopener noreferrer"
+            href={`/viewer?url=${encodeURIComponent("http://polskakatolicka.org/pl/petycje")}`}
             className="text-xs text-slate-500 hover:text-yellow-400 flex items-center gap-1 transition-colors"
           >
             polskakatolicka.org <ExternalLink size={11} />

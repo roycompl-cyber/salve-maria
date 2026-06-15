@@ -93,9 +93,7 @@ export default function AboutPage() {
             Twoja darowizna pozwala nam organizować kampanie, wydawać publikacje i szerzyć wiarę katolicką w Polsce i na świecie.
           </p>
           <a
-            href="https://polskakatolicka.org/pl/o-nas"
-            target="_blank"
-            rel="noopener noreferrer"
+            href={`/viewer?url=${encodeURIComponent("https://polskakatolicka.org/pl/o-nas")}`}
             className="inline-flex items-center gap-2 text-xs text-amber-400 hover:text-amber-300 transition-colors"
           >
             <ExternalLink size={13} /> Czytaj więcej na polskakatolicka.org

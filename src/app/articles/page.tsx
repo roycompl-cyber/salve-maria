@@ -31,9 +31,7 @@ export default function ArticlesPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-white">{t("articles.title")}</h1>
           <a
-            href="http://polskakatolicka.org"
-            target="_blank"
-            rel="noopener noreferrer"
+            href={`/viewer?url=${encodeURIComponent("http://polskakatolicka.org")}`}
             className="text-xs text-slate-500 hover:text-blue-400 flex items-center gap-1 transition-colors"
           >
             polskakatolicka.org <ExternalLink size={11} />

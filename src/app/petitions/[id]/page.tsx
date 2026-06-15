@@ -92,7 +92,7 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
           </button>
           <div className="flex items-center gap-1">
             {petition && (
-              <a href={petition.source_url} target="_blank" rel="noopener noreferrer"
+              <a href={`/viewer?url=${encodeURIComponent(petition.source_url)}`}
                 className="text-slate-400 hover:text-amber-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
                 title="Otwórz na polskakatolicka.org">
                 <ExternalLink size={16} />
@@ -261,7 +261,7 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
                 </div>
               )}
 
-              <a href={petition.source_url} target="_blank" rel="noopener noreferrer"
+              <a href={`/viewer?url=${encodeURIComponent(petition.source_url)}`}
                 className="flex items-center justify-center gap-2 text-slate-500 hover:text-amber-400 text-xs transition-colors pt-2 pb-4">
                 Źródło: polskakatolicka.org <ExternalLink size={12} />
               </a>
