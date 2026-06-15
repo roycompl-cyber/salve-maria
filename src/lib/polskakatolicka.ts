@@ -416,3 +416,30 @@ export async function fetchPetition(slug: string): Promise<PKPetition | null> {
     return null;
   }
 }
+
+export interface PKCampaign {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  image_url: string;
+  donation_url: string;
+  donation_amounts: number[];
+  source_url: string;
+}
+
+export async function fetchCampaignList(): Promise<PKCampaign[]> {
+  const petitions = await fetchPetitionList();
+  return petitions
+    .filter(p => p.donation_url)
+    .map(p => ({
+      id: p.slug,
+      slug: p.slug,
+      title: p.title,
+      excerpt: p.excerpt,
+      image_url: p.image_url,
+      donation_url: p.donation_url,
+      donation_amounts: p.donation_amounts,
+      source_url: p.donation_url,
+    }));
+}

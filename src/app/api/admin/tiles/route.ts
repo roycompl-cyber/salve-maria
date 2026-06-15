@@ -29,7 +29,7 @@ function adminClient() {
 }
 
 // Znane identyfikatory modułów — odrzucamy wszystko inne (np. numeryczne klucze z corrupt danych)
-const VALID_MODS = new Set(["prayers","gospel","catechism","petitions","articles","announcements","chat","reminders","savoir","about","watch","book","_page"]);
+const VALID_MODS = new Set(["prayers","gospel","catechism","petitions","articles","announcements","chat","reminders","savoir","about","watch","book","campaigns","_page"]);
 
 export async function GET() {
   const supabase = await createClient();
