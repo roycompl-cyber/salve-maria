@@ -68,24 +68,42 @@ export async function GET(req: NextRequest) {
     const html = await res.text();
     const base = `${parsed.protocol}//${parsed.host}`;
 
-    // Wyciągnij inline <style> tagi
+    function toAbsolute(href: string): string {
+      if (!href) return href;
+      if (/^https?:\/\//.test(href)) return href;
+      if (href.startsWith("//")) return `${parsed.protocol}${href}`;
+      if (href.startsWith("/")) return `${base}${href}`;
+      return `${base}/${href}`;
+    }
+
+    // Zewnętrzne arkusze CSS z <head>
+    const cssLinks: string[] = [];
+    const linkRe = /<link[^>]+rel=["']stylesheet["'][^>]*>/gi;
+    for (const m of html.matchAll(linkRe)) {
+      const hrefM = m[0].match(/href=["']([^"']+)["']/);
+      if (hrefM) cssLinks.push(toAbsolute(hrefM[1]));
+    }
+
+    // Inline <style> bloki
     const styleMatches = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];
     const styles = styleMatches.map(m => m[1]).join("\n");
 
-    // Wyciągnij treść <body>
+    // Treść <body>
     const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
     let body = bodyMatch ? bodyMatch[1] : html;
 
     // Przepisz relatywne src/href na absolutne
     body = body
       .replace(/(src|href)="(\/(?!\/))/g, `$1="${base}/`)
-      .replace(/(src|href)="(?!https?:|\/\/|#|mailto:|tel:|data:)([^"]+)"/g,
+      .replace(/(src|href)="(?!https?:|\/\/|#|mailto:|tel:|data:|javascript:)([^"]+)"/g,
         (_, attr, path) => `${attr}="${base}/${path}"`);
 
-    // Usuń skrypty (bezpieczeństwo)
+    // Usuń skrypty
     body = body.replace(/<script[\s\S]*?<\/script>/gi, "");
+    // Usuń inline event handlery
+    body = body.replace(/\s+on\w+="[^"]*"/gi, "");
 
-    return NextResponse.json({ body, styles, base });
+    return NextResponse.json({ body, styles, cssLinks, base });
   } catch (e) {
     return NextResponse.json({ error: "Fetch failed: " + String(e) }, { status: 502 });
   }

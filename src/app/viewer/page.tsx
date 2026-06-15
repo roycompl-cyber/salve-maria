@@ -6,7 +6,18 @@ import { ArrowLeft, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 interface ProxyResult {
   body?: string;
   styles?: string;
+  cssLinks?: string[];
   error?: string;
+}
+
+// Domeny których nie proxy-ujemy — otwieramy bezpośrednio w przeglądarce
+const EXTERNAL_PASSTHROUGH = ["youtube.com", "youtu.be", "vimeo.com", "facebook.com", "instagram.com", "twitter.com", "x.com"];
+
+function isPassthrough(url: string): boolean {
+  try {
+    const h = new URL(url).hostname.replace(/^www\./, "");
+    return EXTERNAL_PASSTHROUGH.some(d => h === d || h.endsWith(`.${d}`));
+  } catch { return false; }
 }
 
 function ViewerContent() {
@@ -27,7 +38,15 @@ function ViewerContent() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => { load(); }, [url]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (isPassthrough(url)) {
+      // Otwórz od razu w systemowej przeglądarce i wróć
+      window.open(url, "_blank", "noopener,noreferrer");
+      router.back();
+      return;
+    }
+    load();
+  }, [url]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!url) {
     return (
@@ -44,7 +63,7 @@ function ViewerContent() {
       <div className="flex items-center gap-3 px-4 py-3 bg-slate-900 border-b border-slate-800 flex-shrink-0 sticky top-0 z-50">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm transition-colors"
+          className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm transition-colors whitespace-nowrap"
         >
           <ArrowLeft size={16} />
           Powróć do Salve Maria
@@ -66,7 +85,6 @@ function ViewerContent() {
         </a>
       </div>
 
-      {/* Content */}
       {loading && (
         <div className="flex items-center justify-center py-24">
           <Loader2 size={28} className="text-amber-500 animate-spin" />
@@ -74,24 +92,32 @@ function ViewerContent() {
       )}
 
       {!loading && result?.error && (
-        <div className="flex flex-col items-center justify-center py-24 gap-4 px-6 text-center">
-          <p className="text-slate-600">{result.error}</p>
+        <div className="flex flex-col items-center justify-center py-24 gap-4 px-6 text-center bg-slate-950">
+          <p className="text-slate-400">{result.error}</p>
           <button onClick={load} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-sm font-semibold">
             <RefreshCw size={14} /> Spróbuj ponownie
           </button>
-          <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-amber-600 underline flex items-center gap-1">
+          <a href={url} target="_blank" rel="noopener noreferrer"
+            className="text-sm text-amber-400 underline flex items-center gap-1">
             Otwórz w przeglądarce <ExternalLink size={12} />
           </a>
         </div>
       )}
 
       {!loading && result?.body && (
-        <div className="external-page-content">
-          {result.styles && (
-            <style dangerouslySetInnerHTML={{ __html: result.styles }} />
-          )}
-          <div dangerouslySetInnerHTML={{ __html: result.body }} />
-        </div>
+        <>
+          {/* Załaduj zewnętrzne arkusze CSS strony */}
+          {result.cssLinks?.map(href => (
+            // eslint-disable-next-line @next/next/no-css-tags
+            <link key={href} rel="stylesheet" href={href} />
+          ))}
+          <div className="external-page-content">
+            {result.styles && (
+              <style dangerouslySetInnerHTML={{ __html: result.styles }} />
+            )}
+            <div dangerouslySetInnerHTML={{ __html: result.body }} />
+          </div>
+        </>
       )}
     </div>
   );
