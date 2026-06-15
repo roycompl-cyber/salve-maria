@@ -7,7 +7,6 @@ function ViewerContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const url = searchParams.get("url") ?? "";
-  const title = searchParams.get("title") ?? url;
 
   if (!url) {
     return (
@@ -18,6 +17,8 @@ function ViewerContent() {
     );
   }
 
+  const proxySrc = `/api/proxy/page?url=${encodeURIComponent(url)}`;
+
   return (
     <div className="flex flex-col h-screen bg-slate-950">
       {/* Header */}
@@ -27,28 +28,26 @@ function ViewerContent() {
           className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm transition-colors"
         >
           <ArrowLeft size={16} />
-          Powróć
+          Powróć do Salve Maria
         </button>
-        <div className="flex-1 min-w-0">
-          <p className="text-slate-400 text-xs truncate">{title || url}</p>
-        </div>
+        <div className="flex-1" />
         <a
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-slate-400 hover:text-amber-400 transition-colors flex-shrink-0"
+          className="text-slate-500 hover:text-amber-400 transition-colors flex-shrink-0"
           title="Otwórz w przeglądarce"
         >
-          <ExternalLink size={16} />
+          <ExternalLink size={15} />
         </a>
       </div>
 
       {/* iframe */}
       <div className="flex-1 relative">
         <iframe
-          src={url}
+          src={proxySrc}
           className="w-full h-full border-0"
-          title={title || "Zewnętrzna strona"}
+          title="Zewnętrzna strona"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
         />
       </div>
