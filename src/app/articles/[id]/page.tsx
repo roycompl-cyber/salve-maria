@@ -6,6 +6,7 @@ import { PKArticle } from "@/lib/polskakatolicka";
 import { formatDate } from "@/lib/utils";
 import ArticlePlayer from "@/components/ArticlePlayer";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Share2, Calendar, User, ExternalLink, Loader2, WifiOff } from "lucide-react";
 import { getArticleFromCache } from "@/hooks/useOfflineArticles";
 import RichLinks from "@/components/RichLinks";
@@ -13,6 +14,7 @@ import RichLinks from "@/components/RichLinks";
 export default function ArticlePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { t } = useLocale();
+  const router = useRouter();
   const [article, setArticle] = useState<PKArticle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -54,13 +56,13 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
       <div className="max-w-lg md:max-w-3xl mx-auto animate-fade-in">
         {/* Back bar */}
         <div className="flex items-center justify-between px-4 py-3">
-          <Link
-            href="/articles"
+          <button
+            onClick={() => router.back()}
             className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors"
           >
             <ArrowLeft size={16} />
             {t("articles.back")}
-          </Link>
+          </button>
           <div className="flex items-center gap-1">
             {article && (
               <a

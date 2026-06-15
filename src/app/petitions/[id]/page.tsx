@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { PKPetition } from "@/lib/polskakatolicka";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Share2, Users, PenLine, ExternalLink, Loader2,
   CheckCircle2, Heart,
@@ -30,6 +31,7 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
   const { id } = use(params);
   const { user } = useAuth();
   const { profile } = useProfile();
+  const router = useRouter();
 
   const [petition, setPetition] = useState<PKPetition | null>(null);
   const [loading, setLoading] = useState(true);
@@ -84,10 +86,10 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
       <div className="max-w-lg md:max-w-3xl mx-auto animate-fade-in">
         {/* Back bar */}
         <div className="flex items-center justify-between px-4 py-3">
-          <Link href="/petitions" className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors">
+          <button onClick={() => router.back()} className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors">
             <ArrowLeft size={16} />
-            Petycje
-          </Link>
+            Powróć
+          </button>
           <div className="flex items-center gap-1">
             {petition && (
               <a href={petition.source_url} target="_blank" rel="noopener noreferrer"
