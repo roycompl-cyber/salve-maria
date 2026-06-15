@@ -5,8 +5,8 @@ export interface PKArticle {
   slug: string;
   title: string;
   excerpt: string;
-  content: string;       // plain text (for TTS)
-  content_html?: string; // sanitized HTML (for rendering with links/banners)
+  content: string;        // plain text (for TTS)
+  banners_html?: string;  // tylko wizualne elementy (bannery, linki z obrazkami)
   image_url: string;
   author: string;
   published_at: string;
@@ -20,7 +20,7 @@ export interface PKPetition {
   title: string;
   excerpt: string;
   content: string;
-  content_html?: string;
+  banners_html?: string;
   image_url: string;
   signature_count: number;
   source_url: string;
@@ -29,29 +29,50 @@ export interface PKPetition {
   donation_amounts: number[]; // e.g. [60, 90, 120, 250, 500, 1200]
 }
 
-function sanitizeArticleHtml(html: string): string {
+function sanitizeHtmlSnippet(html: string): string {
   return html
-    // Remove dangerous tags with their content
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
     .replace(/<iframe[\s\S]*?<\/iframe>/gi, "")
     .replace(/<form[\s\S]*?<\/form>/gi, "")
     .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
-    // Remove event handlers
     .replace(/\s+on\w+="[^"]*"/gi, "")
     .replace(/\s+on\w+='[^']*'/gi, "")
-    // Rewrite internal article/petition links to app routes
+    // Rewrite internal links to app routes
     .replace(/href="\/pl\/artykuly\/([^"?#]+)[^"]*"/g, 'href="/articles/$1"')
     .replace(/href="\/pl\/petycje\/([^"?#]+)[^"]*"/g, 'href="/petitions/$1"')
-    // Fix remaining relative hrefs to absolute
     .replace(/href="\/([^"]+)"/g, `href="${BASE_URL}/$1" target="_blank" rel="noopener noreferrer"`)
-    // Fix relative image src
     .replace(/src="\/([^"]+)"/g, `src="${BASE_URL}/$1"`)
-    // Add loading=lazy to images
     .replace(/<img /g, '<img loading="lazy" ')
-    // Remove width/height inline styles that break responsive layout
     .replace(/\s+width="\d+"/gi, "")
     .replace(/\s+height="\d+"/gi, "");
+}
+
+/** Wyciąga z HTML artykułu tylko elementy wizualne (bannery, linki z obrazkami),
+ *  pomijając zwykłe akapity tekstowe — żeby nie duplikować treści. */
+function extractVisualBanners(rawHtml: string): string {
+  const found: string[] = [];
+
+  // <a>...<img>...</a> — link owijający obrazek (baner)
+  const aImgRe = /<a\b[^>]*>((?:[^<]|<(?!\/a\b))*?<img\b[^>]*\/?>[^<]*)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = aImgRe.exec(rawHtml)) !== null) {
+    found.push(m[0]);
+  }
+
+  // Samodzielne <img> nie wewnątrz <a> (obrazki blokowe)
+  const standaloneImgRe = /<img\b[^>]*\/?>(?![^<]*<\/a>)/gi;
+  // Zbieramy pozycje już znalezionych, żeby nie duplikować
+  const inATag = new Set(found.map(f => f));
+  while ((m = standaloneImgRe.exec(rawHtml)) !== null) {
+    const img = m[0];
+    if (!found.some(f => f.includes(img))) {
+      found.push(img);
+    }
+  }
+
+  if (!found.length) return "";
+  return sanitizeHtmlSnippet(found.join("\n"));
 }
 
 function stripTags(html: string): string {
@@ -237,8 +258,7 @@ export async function fetchArticle(slug: string): Promise<PKArticle | null> {
 
     const content = contentLines.slice(contentStart).join("\n\n");
 
-    // Sanitized HTML for rich rendering (links, banners preserved)
-    const content_html = rawContent ? sanitizeArticleHtml(rawContent) : "";
+    const banners_html = rawContent ? extractVisualBanners(rawContent) : "";
 
     // Excerpt — og:description or first 200 chars of content
     const ogDesc = html.match(/property=["']og:description["'][^>]+content=["']([^"']+)["']/);
@@ -250,7 +270,7 @@ export async function fetchArticle(slug: string): Promise<PKArticle | null> {
       title,
       excerpt,
       content,
-      content_html,
+      banners_html,
       image_url,
       author,
       published_at,
@@ -348,7 +368,7 @@ export async function fetchPetition(slug: string): Promise<PKPetition | null> {
                        extractDivContent(html, "petition-content") ||
                        extractDivContent(html, "petition-body");
     const content = rawContent ? stripTags(rawContent) : "";
-    const content_html = rawContent ? sanitizeArticleHtml(rawContent) : "";
+    const banners_html = rawContent ? extractVisualBanners(rawContent) : "";
 
     const ogDesc = html.match(/property=["']og:description["'][^>]+content=["']([^"']+)["']/);
     const excerpt = ogDesc?.[1]?.trim() || content.slice(0, 220);
@@ -366,7 +386,7 @@ export async function fetchPetition(slug: string): Promise<PKPetition | null> {
       title,
       excerpt,
       content,
-      content_html,
+      banners_html,
       image_url,
       signature_count,
       source_url: `${BASE_URL}/pl/petycje/${slug}`,
