@@ -12,12 +12,12 @@ export async function GET(req: NextRequest) {
   try {
     parsed = new URL(targetUrl);
   } catch {
-    return new NextResponse("Invalid URL", { status: 400 });
+    return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
   }
 
   const hostname = parsed.hostname.replace(/^www\./, "");
   if (!ALLOWED_HOSTS.some(h => hostname === h || hostname.endsWith(`.${h}`))) {
-    return new NextResponse("Forbidden host", { status: 403 });
+    return NextResponse.json({ error: "Forbidden host" }, { status: 403 });
   }
 
   // Dla polskakatolicka.org dołącz dane profilu usera jeśli zalogowany
@@ -57,40 +57,36 @@ export async function GET(req: NextRequest) {
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "pl-PL,pl;q=0.9",
       },
+      redirect: "follow",
     });
 
     const contentType = res.headers.get("content-type") ?? "text/html";
-
-    // Dla binarnych zasobów (obrazki, CSS, JS) przepuść bez modyfikacji
     if (!contentType.includes("text/html")) {
-      const body = await res.arrayBuffer();
-      return new NextResponse(body, {
-        status: res.status,
-        headers: { "content-type": contentType },
-      });
+      return NextResponse.json({ error: "Not HTML" }, { status: 415 });
     }
 
-    let html = await res.text();
+    const html = await res.text();
     const base = `${parsed.protocol}//${parsed.host}`;
 
-    // Przepisz relatywne URL-e zasobów na absolutne
-    html = html
-      .replace(/(<(?:link|script|img|source)[^>]+(?:href|src)=")(\/)([^"]*")/gi,
-        (_, pre, _slash, rest) => `${pre}${base}/${rest}`)
-      .replace(/(<(?:link|script|img|source)[^>]+(?:href|src)=")((?!https?:|\/\/|data:)([^"]*)")/gi,
-        (_, pre, path) => `${pre}${base}/${path}`);
+    // Wyciągnij inline <style> tagi
+    const styleMatches = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];
+    const styles = styleMatches.map(m => m[1]).join("\n");
 
-    // Wstrzyknij <base> żeby relatywne linki działały
-    html = html.replace(/<head([^>]*)>/i, `<head$1><base href="${base}/">`);
+    // Wyciągnij treść <body>
+    const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    let body = bodyMatch ? bodyMatch[1] : html;
 
-    return new NextResponse(html, {
-      status: 200,
-      headers: {
-        "content-type": "text/html; charset=utf-8",
-        // Brak X-Frame-Options i CSP — pozwala na osadzenie w iframe
-      },
-    });
+    // Przepisz relatywne src/href na absolutne
+    body = body
+      .replace(/(src|href)="(\/(?!\/))/g, `$1="${base}/`)
+      .replace(/(src|href)="(?!https?:|\/\/|#|mailto:|tel:|data:)([^"]+)"/g,
+        (_, attr, path) => `${attr}="${base}/${path}"`);
+
+    // Usuń skrypty (bezpieczeństwo)
+    body = body.replace(/<script[\s\S]*?<\/script>/gi, "");
+
+    return NextResponse.json({ body, styles, base });
   } catch (e) {
-    return new NextResponse("Fetch failed: " + String(e), { status: 502 });
+    return NextResponse.json({ error: "Fetch failed: " + String(e) }, { status: 502 });
   }
 }
