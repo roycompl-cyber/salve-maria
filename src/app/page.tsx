@@ -220,7 +220,7 @@ export default function Home2Page() {
             <SectionTitle title={campaignsTitle} href="/campaigns" linkLabel="Wszystkie kampanie" />
             <div className="space-y-2">
               {campaigns.map((campaign) => (
-                <div key={campaign.slug} className="flex items-center gap-3 rounded-2xl border border-amber-800/30 bg-amber-950/30 p-3">
+                <div key={campaign.id} className="flex items-center gap-3 rounded-2xl border border-amber-800/30 bg-amber-950/30 p-3">
                   {campaign.image_url && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={campaign.image_url} alt="" className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />

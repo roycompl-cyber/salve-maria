@@ -78,7 +78,7 @@ export default function CampaignsPage() {
             )}
             {campaigns.map((campaign) => (
               <div
-                key={campaign.slug}
+                key={campaign.id}
                 className="block bg-slate-800 rounded-2xl overflow-hidden"
               >
                 <div className="flex gap-3 p-4">
