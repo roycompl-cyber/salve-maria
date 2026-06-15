@@ -46,6 +46,9 @@ function sanitizeHtmlSnippet(html: string): string {
       // Petycje polskakatolicka.org → trasa wewnętrzna
       const pet = href.match(/(?:https?:\/\/polskakatolicka\.org)?\/pl\/petycje\/([^?#"]+)/);
       if (pet) return `href="/petitions/${pet[1]}"`;
+      // Serwisy video/social — otwierać bezpośrednio w nowej karcie (nie da się ich proxy-ować)
+      if (/^https?:\/\/(www\.)?(youtube\.com|youtu\.be|vimeo\.com|facebook\.com|instagram\.com|twitter\.com|x\.com|tiktok\.com)/.test(href))
+        return `href="${href}" target="_blank" rel="noopener noreferrer"`;
       // Inne linki polskakatolicka.org → przeglądarka wbudowana (proxy pobiera z danymi usera)
       if (/^https?:\/\/polskakatolicka\.org/.test(href))
         return `href="/viewer?url=${encodeURIComponent(href)}"`;
