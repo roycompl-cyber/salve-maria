@@ -2,6 +2,7 @@
 import { use, useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Share2, Heart, Type, Loader2 } from "lucide-react";
 import { useFavorites } from "@/hooks/useFavorites";
 import ArticlePlayer from "@/components/ArticlePlayer";
@@ -17,6 +18,7 @@ interface Prayer {
 
 export default function PrayerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const [prayer, setPrayer] = useState<Prayer | null>(null);
   const [loading, setLoading] = useState(true);
   const [fontSize, setFontSize] = useState<"sm" | "base" | "lg">("base");
@@ -46,10 +48,10 @@ export default function PrayerPage({ params }: { params: Promise<{ id: string }>
     <AppShell>
       <div className="max-w-lg md:max-w-3xl mx-auto animate-fade-in">
         <div className="flex items-center justify-between px-4 py-3">
-          <Link href="/prayers" className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors">
+          <button onClick={() => router.back()} className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors">
             <ArrowLeft size={16} />
-            Modlitwy
-          </Link>
+            Powróć
+          </button>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setFontSize(fontSize === "sm" ? "base" : fontSize === "base" ? "lg" : "sm")}

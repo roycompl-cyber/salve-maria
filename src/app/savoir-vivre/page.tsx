@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import ArticlePlayer from "@/components/ArticlePlayer";
 import AppShell from "@/components/AppShell";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Search, ChevronDown, ChevronUp } from "lucide-react";
 
 interface Section {
@@ -529,6 +530,7 @@ function renderBlock(block: Block, i: number) {
 }
 
 export default function SavoirVivrePage() {
+  const router = useRouter();
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -581,10 +583,10 @@ export default function SavoirVivrePage() {
       <div className="max-w-lg md:max-w-3xl mx-auto animate-fade-in">
 
         <div className="px-4 pt-3 pb-4" style={{ background: "linear-gradient(180deg,#1a0a2e 0%,transparent 100%)" }}>
-          <Link href="/" className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm mb-3 transition-colors">
+          <button onClick={() => router.back()} className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm mb-3 transition-colors">
             <ArrowLeft size={16} />
-            Główna
-          </Link>
+            Powróć
+          </button>
           <div className="flex items-center gap-3 mb-1">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: "#c084fc22", border: "1px solid #c084fc44" }}>
