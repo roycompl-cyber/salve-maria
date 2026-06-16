@@ -6,9 +6,6 @@ import { ArrowLeft, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 interface ProxyResult {
   body?: string;
   styles?: string;
-  cssLinks?: string[];
-  bodyStyle?: string;
-  bodyClass?: string;
   error?: string;
 }
 
@@ -107,26 +104,12 @@ function ViewerContent() {
       )}
 
       {!loading && result?.body && (
-        <>
-          {result.cssLinks?.map(href => (
-            // eslint-disable-next-line @next/next/no-css-tags
-            <link key={href} rel="stylesheet" href={href} />
-          ))}
-          <div
-            className={`external-page-content${result.bodyClass ? ` ${result.bodyClass}` : ""}`}
-            style={result.bodyStyle ? Object.fromEntries(
-              result.bodyStyle.split(";").filter(Boolean).map(s => {
-                const [k, ...v] = s.split(":");
-                return [k.trim().replace(/-([a-z])/g, (_, c) => c.toUpperCase()), v.join(":").trim()];
-              })
-            ) : undefined}
-          >
-            {result.styles && (
-              <style dangerouslySetInnerHTML={{ __html: result.styles }} />
-            )}
-            <div dangerouslySetInnerHTML={{ __html: result.body }} />
-          </div>
-        </>
+        <div className="external-page-content">
+          {result.styles && (
+            <style dangerouslySetInnerHTML={{ __html: result.styles }} />
+          )}
+          <div dangerouslySetInnerHTML={{ __html: result.body }} />
+        </div>
       )}
     </div>
   );

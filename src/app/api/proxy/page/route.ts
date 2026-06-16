@@ -4,6 +4,41 @@ import { adminClient } from "@/lib/security";
 
 const ALLOWED_HOSTS = ["polskakatolicka.org", "deon.pl"];
 
+async function fetchCss(url: string): Promise<string> {
+  try {
+    const r = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      next: { revalidate: 3600 },
+    });
+    if (!r.ok) return "";
+    return await r.text();
+  } catch { return ""; }
+}
+
+/** Prefiksuje reguły CSS tak, żeby działały tylko wewnątrz .external-page-content */
+function scopeCss(css: string, scope: string): string {
+  // Usuń komentarze
+  css = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  // Przetwarzaj blok po bloku
+  return css.replace(/([^{}]+)\{([^{}]*)\}/g, (_, selectors: string, rules: string) => {
+    const at = selectors.trim();
+    // Pomiń @keyframes, @font-face, @import itp.
+    if (at.startsWith("@")) return `${at}{${rules}}`;
+    const scoped = selectors
+      .split(",")
+      .map(s => {
+        s = s.trim();
+        if (!s) return "";
+        // body i html → zastąp scopem
+        if (/^(html|body|:root)$/.test(s)) return scope;
+        return `${scope} ${s}`;
+      })
+      .filter(Boolean)
+      .join(", ");
+    return `${scoped}{${rules}}`;
+  });
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const targetUrl = searchParams.get("url") ?? "";
@@ -67,6 +102,7 @@ export async function GET(req: NextRequest) {
 
     const html = await res.text();
     const base = `${parsed.protocol}//${parsed.host}`;
+    const SCOPE = ".external-page-content";
 
     function toAbsolute(href: string): string {
       if (!href) return href;
@@ -76,22 +112,20 @@ export async function GET(req: NextRequest) {
       return `${base}/${href}`;
     }
 
-    // Zewnętrzne arkusze CSS z <head>
-    const cssLinks: string[] = [];
+    // Pobierz i scopuj zewnętrzne arkusze CSS
     const linkRe = /<link[^>]+rel=["']stylesheet["'][^>]*>/gi;
+    const cssUrls: string[] = [];
     for (const m of html.matchAll(linkRe)) {
       const hrefM = m[0].match(/href=["']([^"']+)["']/);
-      if (hrefM) cssLinks.push(toAbsolute(hrefM[1]));
+      if (hrefM) cssUrls.push(toAbsolute(hrefM[1]));
     }
+    const externalCssTexts = await Promise.all(cssUrls.map(fetchCss));
+    const scopedCss = externalCssTexts.map(c => scopeCss(c, SCOPE)).join("\n");
 
-    // Inline <style> bloki
+    // Inline <style> bloki — też scopuj
     const styleMatches = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];
-    const styles = styleMatches.map(m => m[1]).join("\n");
-
-    // Style inline z atrybutu <body style="...">
-    const bodyTagMatch = html.match(/<body([^>]*)>/i);
-    const bodyStyle = bodyTagMatch?.[1]?.match(/style=["']([^"']+)["']/)?.[1] ?? "";
-    const bodyClass = bodyTagMatch?.[1]?.match(/class=["']([^"']+)["']/)?.[1] ?? "";
+    const inlineCss = styleMatches.map(m => m[1]).join("\n");
+    const scopedInline = scopeCss(inlineCss, SCOPE);
 
     // Treść <body>
     const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
@@ -103,12 +137,13 @@ export async function GET(req: NextRequest) {
       .replace(/(src|href)="(?!https?:|\/\/|#|mailto:|tel:|data:|javascript:)([^"]+)"/g,
         (_, attr, path) => `${attr}="${base}/${path}"`);
 
-    // Usuń skrypty
+    // Usuń skrypty i event handlery
     body = body.replace(/<script[\s\S]*?<\/script>/gi, "");
-    // Usuń inline event handlery
     body = body.replace(/\s+on\w+="[^"]*"/gi, "");
 
-    return NextResponse.json({ body, styles, cssLinks, base, bodyStyle, bodyClass });
+    const styles = scopedCss + "\n" + scopedInline;
+
+    return NextResponse.json({ body, styles, base });
   } catch (e) {
     return NextResponse.json({ error: "Fetch failed: " + String(e) }, { status: 502 });
   }
