@@ -191,7 +191,7 @@ export default function Home2Page() {
 
         <section className="pb-3">
           <SectionTitle title="Salve Maria" />
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
             {[...SHORTCUTS]
               .filter((s) => !tilesConfig[s.mod]?.hidden)
               .sort((a, b) => (tilesConfig[a.mod]?.order ?? 99) - (tilesConfig[b.mod]?.order ?? 99))
