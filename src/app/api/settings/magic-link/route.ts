@@ -10,7 +10,7 @@ export async function GET() {
     .select("value")
     .eq("key", "magic_link_enabled")
     .single();
-  const enabled = data?.value !== "false";
+  const enabled = data?.value === "true";
   return NextResponse.json({ enabled });
 }
 
