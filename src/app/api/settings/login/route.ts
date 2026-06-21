@@ -4,10 +4,9 @@ import { adminClient } from "@/lib/security";
 
 const KEYS = ["magic_link_enabled", "registration_enabled"] as const;
 
-// Publiczny odczyt — login page nie wymaga sesji
+// Publiczny odczyt — login page nie wymaga sesji, adminClient omija RLS
 export async function GET() {
-  const supabase = await createClient();
-  const { data } = await supabase
+  const { data } = await adminClient()
     .from("app_settings")
     .select("key, value")
     .in("key", [...KEYS]);
