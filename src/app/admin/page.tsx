@@ -402,7 +402,8 @@ export default function AdminPage() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [magicLinkEnabled, setMagicLinkEnabled] = useState(false);
-  const [magicLinkLoading, setMagicLinkLoading] = useState(false);
+  const [registrationEnabled, setRegistrationEnabled] = useState(false);
+  const [loginSettingsLoading, setLoginSettingsLoading] = useState(false);
 
   // Tiles config
   const [tilesConfig, setTilesConfig] = useState<TilesConfig>({});
@@ -458,7 +459,10 @@ export default function AdminPage() {
       fetch("/api/admin/settings").then(r=>r.json()).then(d=>setAppSettings(d));
     }
     if (section==="login") {
-      fetch("/api/settings/magic-link").then(r=>r.json()).then(d=>setMagicLinkEnabled(d.enabled===true));
+      fetch("/api/settings/login").then(r=>r.json()).then(d=>{
+        setMagicLinkEnabled(d.magic_link_enabled===true);
+        setRegistrationEnabled(d.registration_enabled===true);
+      });
     }
     if (section==="tiles" && Object.keys(tilesConfig).length===0) {
       setTilesLoading(true);
@@ -566,16 +570,16 @@ export default function AdminPage() {
   }
 
   // ── App settings ──
-  async function handleToggleMagicLink() {
-    setMagicLinkLoading(true);
-    const next = !magicLinkEnabled;
-    await fetch("/api/settings/magic-link", {
+  async function handleLoginSetting(key: "magic_link_enabled" | "registration_enabled", val: boolean) {
+    setLoginSettingsLoading(true);
+    await fetch("/api/settings/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: next }),
+      body: JSON.stringify({ [key]: val }),
     });
-    setMagicLinkEnabled(next);
-    setMagicLinkLoading(false);
+    if (key === "magic_link_enabled") setMagicLinkEnabled(val);
+    if (key === "registration_enabled") setRegistrationEnabled(val);
+    setLoginSettingsLoading(false);
   }
 
   async function handleSaveSettings(e: React.FormEvent) {
@@ -1417,29 +1421,44 @@ export default function AdminPage() {
 
         {section==="login" && (<>
           <SectionHeader title="Ekran logowania" onBack={()=>setSection(null)}/>
-          <div className="px-4 pb-8 space-y-4">
-            <div className={`${CARD} p-4`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-white font-semibold text-sm">Magic Link</p>
-                  <p className="text-slate-400 text-xs mt-0.5">
-                    Logowanie bez hasła — jednorazowy link wysyłany na e-mail
-                  </p>
+          <div className="px-4 pb-8 space-y-3">
+            {[
+              {
+                key: "magic_link_enabled" as const,
+                label: "Magic Link",
+                desc: "Logowanie bez hasła — jednorazowy link wysyłany na e-mail",
+                enabled: magicLinkEnabled,
+                onLabel: "Widoczny na ekranie logowania.",
+                offLabel: "Ukryty — użytkownicy logują się tylko hasłem.",
+              },
+              {
+                key: "registration_enabled" as const,
+                label: "Rejestracja konta",
+                desc: "Pozwól nowym użytkownikom samodzielnie zakładać konta",
+                enabled: registrationEnabled,
+                onLabel: "Przycisk rejestracji jest widoczny na ekranie logowania.",
+                offLabel: "Rejestracja wyłączona — tylko admin może tworzyć konta.",
+              },
+            ].map(item => (
+              <div key={item.key} className={`${CARD} p-4`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0 pr-4">
+                    <p className="text-white font-semibold text-sm">{item.label}</p>
+                    <p className="text-slate-400 text-xs mt-0.5">{item.desc}</p>
+                  </div>
+                  <button
+                    onClick={() => handleLoginSetting(item.key, !item.enabled)}
+                    disabled={loginSettingsLoading}
+                    className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 disabled:opacity-50 ${item.enabled ? "bg-red-700" : "bg-slate-700"}`}
+                  >
+                    <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${item.enabled ? "left-6" : "left-0.5"}`}/>
+                  </button>
                 </div>
-                <button
-                  onClick={handleToggleMagicLink}
-                  disabled={magicLinkLoading}
-                  className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 disabled:opacity-50 ${magicLinkEnabled ? "bg-red-700" : "bg-slate-700"}`}
-                >
-                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${magicLinkEnabled ? "left-6" : "left-0.5"}`}/>
-                </button>
+                <p className="text-slate-500 text-xs mt-3">
+                  {item.enabled ? item.onLabel : item.offLabel}
+                </p>
               </div>
-              <p className="text-slate-500 text-xs mt-3">
-                {magicLinkEnabled
-                  ? "Przycisk Magic Link jest widoczny na ekranie logowania."
-                  : "Przycisk Magic Link jest ukryty — użytkownicy logują się tylko hasłem."}
-              </p>
-            </div>
+            ))}
           </div>
         </>)}
 
