@@ -14,8 +14,9 @@ export async function GET() {
 
   const map = Object.fromEntries((data ?? []).map(r => [r.key, r.value]));
   return NextResponse.json({
-    magic_link_enabled:    map.magic_link_enabled    === "true",
-    registration_enabled:  map.registration_enabled  === "true",
+    magic_link_enabled:   map.magic_link_enabled  === "true",
+    // rejestracja domyślnie włączona jeśli nigdy nie ustawiono
+    registration_enabled: map.registration_enabled !== "false",
   });
 }
 
