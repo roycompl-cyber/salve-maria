@@ -718,7 +718,7 @@ export default function AdminPage() {
             <p className="text-slate-500 text-[10px] uppercase tracking-widest mb-0.5">Salve Maria</p>
             <h1 className="text-white text-2xl font-bold" style={{fontFamily:"Georgia,serif"}}>Panel admina</h1>
           </div>
-          <div className="px-4 pb-8 grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="px-4 pb-8 grid grid-cols-1 md:grid-cols-3 gap-3">
             {dashTiles.map(t=>(
               <button key={t.key} onClick={()=>setSection(t.key)}
                 className="relative rounded-2xl p-4 flex flex-col gap-3 text-left transition-all hover:brightness-110 active:scale-[0.97]"
