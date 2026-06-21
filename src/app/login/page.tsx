@@ -194,7 +194,7 @@ export default function LoginPage() {
         <p className="text-center text-slate-500 text-xs mt-8 leading-relaxed">
           Aplikacja przeznaczona dla zarejestrowanych darczyńców.<br />
           ul. Rotmistrzowska 18, 02-951 Warszawa<br />
-          <a href="mailto:kontakt@piotrskarga.pl" className="text-yellow-600 hover:text-yellow-400">kontakt@piotrskarga.pl</a>
+          <a href="mailto:kontakt@polskakatolicka.org" className="text-yellow-600 hover:text-yellow-400">kontakt@polskakatolicka.org</a>
         </p>
       </div>
     </div>
