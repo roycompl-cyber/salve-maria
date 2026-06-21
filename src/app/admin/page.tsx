@@ -47,7 +47,7 @@ interface PageSectionConfig { show?: boolean; title?: string; count?: number; }
 interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; }
 type TilesConfig = Record<string, TileOverride>;
 
-type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "settings" | "stats" | "errors";
+type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "settings" | "stats" | "errors" | "login";
 type NotifType = "news" | "action" | "prayer" | "article" | "petition";
 
 // ─── Color palettes ───────────────────────────────────────────────────────────
@@ -401,6 +401,8 @@ export default function AdminPage() {
   const [appSettings, setAppSettings] = useState<AppSettings>({});
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
+  const [magicLinkEnabled, setMagicLinkEnabled] = useState(false);
+  const [magicLinkLoading, setMagicLinkLoading] = useState(false);
 
   // Tiles config
   const [tilesConfig, setTilesConfig] = useState<TilesConfig>({});
@@ -454,6 +456,9 @@ export default function AdminPage() {
     }
     if (section==="settings" && Object.keys(appSettings).length===0) {
       fetch("/api/admin/settings").then(r=>r.json()).then(d=>setAppSettings(d));
+    }
+    if (section==="login") {
+      fetch("/api/settings/magic-link").then(r=>r.json()).then(d=>setMagicLinkEnabled(d.enabled===true));
     }
     if (section==="tiles" && Object.keys(tilesConfig).length===0) {
       setTilesLoading(true);
@@ -561,6 +566,18 @@ export default function AdminPage() {
   }
 
   // ── App settings ──
+  async function handleToggleMagicLink() {
+    setMagicLinkLoading(true);
+    const next = !magicLinkEnabled;
+    await fetch("/api/settings/magic-link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: next }),
+    });
+    setMagicLinkEnabled(next);
+    setMagicLinkLoading(false);
+  }
+
   async function handleSaveSettings(e: React.FormEvent) {
     e.preventDefault();
     setSettingsSaving(true); setSettingsSaved(false);
@@ -681,6 +698,7 @@ export default function AdminPage() {
     { key:"stats",         icon:<BarChart2 size={22}/>,  label:"Statystyki",     desc:"Wyświetlenia, aktywność",     color:"linear-gradient(135deg,#042828,#074a4a)", accent:"#2dd4bf" },
     { key:"errors",        icon:<AlertTriangle size={22}/>,label:"Błędy",         desc:"Monitoring produkcji",        color:"linear-gradient(135deg,#3b0909,#6b1111)", accent:"#f87171", badge:stats?.errors24h||undefined },
     { key:"settings",      icon:<Settings2 size={22}/>,  label:"Kontakt",        desc:"Ustawienia kontaktu",         color:"linear-gradient(135deg,#0f0a28,#1e1550)", accent:"#818cf8" },
+    { key:"login",         icon:<Lock size={22}/>,       label:"Ekran logowania", desc:"Magic Link i inne opcje",     color:"linear-gradient(135deg,#1a0a0a,#3b1010)", accent:"#f87171" },
   ];
 
   return (
@@ -1394,6 +1412,34 @@ export default function AdminPage() {
                 )}
               </div>
             </>)}
+          </div>
+        </>)}
+
+        {section==="login" && (<>
+          <SectionHeader title="Ekran logowania" onBack={()=>setSection(null)}/>
+          <div className="px-4 pb-8 space-y-4">
+            <div className={`${CARD} p-4`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white font-semibold text-sm">Magic Link</p>
+                  <p className="text-slate-400 text-xs mt-0.5">
+                    Logowanie bez hasła — jednorazowy link wysyłany na e-mail
+                  </p>
+                </div>
+                <button
+                  onClick={handleToggleMagicLink}
+                  disabled={magicLinkLoading}
+                  className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 disabled:opacity-50 ${magicLinkEnabled ? "bg-red-700" : "bg-slate-700"}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${magicLinkEnabled ? "left-6" : "left-0.5"}`}/>
+                </button>
+              </div>
+              <p className="text-slate-500 text-xs mt-3">
+                {magicLinkEnabled
+                  ? "Przycisk Magic Link jest widoczny na ekranie logowania."
+                  : "Przycisk Magic Link jest ukryty — użytkownicy logują się tylko hasłem."}
+              </p>
+            </div>
           </div>
         </>)}
 

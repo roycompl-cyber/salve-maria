@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/hooks/useLocale";
 import { Mail, Lock, Loader2 } from "lucide-react";
@@ -13,8 +13,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [magicLinkEnabled, setMagicLinkEnabled] = useState(false);
 
   const supabase = createClient();
+
+  useEffect(() => {
+    fetch("/api/settings/magic-link")
+      .then(r => r.json())
+      .then(d => setMagicLinkEnabled(d.enabled === true))
+      .catch(() => {});
+  }, []);
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
@@ -68,7 +76,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Tab toggle */}
+        {/* Tab toggle — Magic Link tylko gdy włączony */}
         <div className="flex bg-slate-800 rounded-xl p-1 mb-6">
           <button
             className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
@@ -78,14 +86,16 @@ export default function LoginPage() {
           >
             {t("auth.password")}
           </button>
-          <button
-            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-              mode === "magic" ? "bg-red-800 text-yellow-100" : "text-slate-400 hover:text-slate-200"
-            }`}
-            onClick={() => setMode("magic")}
-          >
-            Magic Link
-          </button>
+          {magicLinkEnabled && (
+            <button
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                mode === "magic" ? "bg-red-800 text-yellow-100" : "text-slate-400 hover:text-slate-200"
+              }`}
+              onClick={() => setMode("magic")}
+            >
+              Magic Link
+            </button>
+          )}
         </div>
 
         <form onSubmit={handleSignIn} className="space-y-4">
