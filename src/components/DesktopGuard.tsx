@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
 
-const BYPASS_KEY = "salve_desktop_bypass";
 const BYPASS_CODE = process.env.NEXT_PUBLIC_DESKTOP_BYPASS_CODE ?? "741852";
 
 type DeviceMode = "loading" | "desktop" | "mobile-browser" | "pwa";
@@ -41,11 +40,9 @@ function ScreenDesktop({ onBypass }: { onBypass: () => void }) {
 
     if (d && idx < 5) refs[idx + 1].current?.focus();
 
-    // Auto-submit when all 6 filled
     const code = next.join("");
     if (code.length === 6) {
       if (code === BYPASS_CODE) {
-        try { localStorage.setItem(BYPASS_KEY, "1"); } catch {}
         onBypass();
       } else {
         setError(true);
@@ -66,7 +63,6 @@ function ScreenDesktop({ onBypass }: { onBypass: () => void }) {
     if (text.length === 6) {
       setDigits(text.split(""));
       if (text === BYPASS_CODE) {
-        try { localStorage.setItem(BYPASS_KEY, "1"); } catch {}
         onBypass();
       } else {
         setError(true);
@@ -110,7 +106,6 @@ function ScreenDesktop({ onBypass }: { onBypass: () => void }) {
 
         {/* Admin bypass */}
         <div className="space-y-3">
-          <p className="text-slate-700 text-xs">Podaj kod dostępu administratora</p>
           <div className="flex justify-center gap-2" onPaste={handlePaste}>
             {digits.map((d, i) => (
               <input
@@ -209,16 +204,7 @@ export default function DesktopGuard({ children }: { children: React.ReactNode }
   const [mode, setMode] = useState<DeviceMode>("loading");
   const [bypassed, setBypassed] = useState(false);
 
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(BYPASS_KEY) === "1") {
-        setBypassed(true);
-        setMode("pwa");
-        return;
-      }
-    } catch {}
-    setMode(detectMode());
-  }, []);
+  useEffect(() => { setMode(detectMode()); }, []);
 
   if (mode === "loading") return <>{children}</>;
   if (bypassed || mode === "pwa") return <>{children}</>;
