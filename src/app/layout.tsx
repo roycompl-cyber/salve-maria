@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import AppearanceProvider from "@/components/AppearanceProvider";
+import DesktopGuard from "@/components/DesktopGuard";
 
 export const metadata: Metadata = {
   title: "Salve Maria",
@@ -31,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-slate-900 text-slate-100">
         <AppearanceProvider />
-        {children}
+        <DesktopGuard>{children}</DesktopGuard>
       </body>
     </html>
   );
