@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { QRCodeSVG } from "qrcode.react";
 
 type DeviceMode = "loading" | "desktop" | "mobile-browser" | "pwa";
 
@@ -41,8 +42,20 @@ function ScreenDesktop() {
           </h2>
           <p className="text-slate-400 text-sm leading-relaxed">
             Salve Maria działa jako aplikacja PWA na smartfonach i tabletach.
-            Otwórz poniższy adres na swoim telefonie.
+            Zeskanuj kod QR telefonem lub przepisz adres.
           </p>
+          {/* QR code */}
+          <div className="flex justify-center py-2">
+            <div className="rounded-2xl bg-white p-4 shadow-lg">
+              <QRCodeSVG
+                value="https://salve-maria.vercel.app"
+                size={160}
+                bgColor="#ffffff"
+                fgColor="#1e0a0a"
+                level="M"
+              />
+            </div>
+          </div>
           <div className="rounded-xl bg-slate-900/80 border border-slate-700 px-4 py-3">
             <p className="text-yellow-300 font-mono text-sm tracking-wide select-all">salve-maria.vercel.app</p>
           </div>
