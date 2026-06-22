@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import AppShell from "@/components/AppShell";
+import Icon, { type IconName } from "@/components/Icon";
 import {
   Send, CheckCircle2, Newspaper, Megaphone, BookMarked, Users,
   Bell, RefreshCw, Trash2, Pencil, Plus, X, Loader2, ShieldAlert,
@@ -41,13 +42,13 @@ interface ContactMsg {
 }
 interface AppSettings { [key: string]: string; }
 interface TileOverride {
-  label?: string; sublabel?: string; hidden?: boolean; order?: number; colorPreset?: string;
+  label?: string; sublabel?: string; hidden?: boolean; order?: number; colorPreset?: string; icon?: string;
 }
 interface PageSectionConfig { show?: boolean; title?: string; count?: number; }
 interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; }
 type TilesConfig = Record<string, TileOverride>;
 
-type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "settings" | "stats" | "errors" | "login";
+type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "settings" | "stats" | "errors" | "login";
 type NotifType = "news" | "action" | "prayer" | "article" | "petition";
 
 // ─── Color palettes ───────────────────────────────────────────────────────────
@@ -66,19 +67,28 @@ const COLOR_PALETTES = [
   { id: "pink",   label: "Różowy",     darkColor: "linear-gradient(135deg,#280a1a,#50103a)", accent: "#f472b6", textColor: "#fce7f3", lightBg: "#fce7f3,#fbcfe8",  lightBorder: "#f472b6" },
 ];
 
-const TILE_MODS = [
-  { mod: "prayers",       defaultLabel: "Modlitwy",       defaultSublabel: "Modlitewnik" },
-  { mod: "gospel",        defaultLabel: "Ewangelia",       defaultSublabel: "Słowo na dziś" },
-  { mod: "catechism",     defaultLabel: "Katechizm",       defaultSublabel: "Kard. Gasparri" },
-  { mod: "petitions",     defaultLabel: "Petycje",         defaultSublabel: "Podejmij działanie" },
-  { mod: "articles",      defaultLabel: "Artykuły",        defaultSublabel: "Publikacje" },
-  { mod: "announcements", defaultLabel: "Ogłoszenia",      defaultSublabel: "Aktualności" },
-  { mod: "chat",          defaultLabel: "Kontakt",         defaultSublabel: "Napisz do nas" },
-  { mod: "reminders",     defaultLabel: "Przypomnienia",   defaultSublabel: "Alarmy modlitewne" },
-  { mod: "savoir",        defaultLabel: "De urbanitate",   defaultSublabel: "Catholica" },
-  { mod: "book",          defaultLabel: "Zamów książkę",   defaultSublabel: "Z dostawą" },
-  { mod: "about",         defaultLabel: "O fundacji",      defaultSublabel: "Instytut ks. Skargi" },
-  { mod: "watch",         defaultLabel: "Zobacz",          defaultSublabel: "Polecane filmy" },
+const MODULE_ICONS: IconName[] = [
+  "jerusalem-cross","cross","gospel","catechism","prayers","bell",
+  "articles","petition","announcements","chat","etiquette","about",
+  "video-play","book-open","quote","heart","star","calendar","pen",
+  "donate","shield","home","play","map-pin","mail","phone","info",
+  "user","search","palette",
+];
+
+const TILE_MODS: { mod: string; defaultLabel: string; defaultSublabel: string; defaultIcon: IconName }[] = [
+  { mod: "prayers",       defaultLabel: "Modlitwy",       defaultSublabel: "Modlitewnik",            defaultIcon: "jerusalem-cross" },
+  { mod: "gospel",        defaultLabel: "Ewangelia",       defaultSublabel: "Słowo na dziś",          defaultIcon: "gospel" },
+  { mod: "catechism",     defaultLabel: "Katechizm",       defaultSublabel: "Kard. Gasparri",         defaultIcon: "catechism" },
+  { mod: "petitions",     defaultLabel: "Petycje",         defaultSublabel: "Podejmij działanie",     defaultIcon: "petition" },
+  { mod: "articles",      defaultLabel: "Artykuły",        defaultSublabel: "Publikacje",             defaultIcon: "articles" },
+  { mod: "announcements", defaultLabel: "Ogłoszenia",      defaultSublabel: "Aktualności",            defaultIcon: "announcements" },
+  { mod: "chat",          defaultLabel: "Kontakt",         defaultSublabel: "Napisz do nas",          defaultIcon: "chat" },
+  { mod: "reminders",     defaultLabel: "Przypomnienia",   defaultSublabel: "Alarmy modlitewne",      defaultIcon: "bell" },
+  { mod: "savoir",        defaultLabel: "De urbanitate",   defaultSublabel: "Catholica",              defaultIcon: "etiquette" },
+  { mod: "book",          defaultLabel: "Zamów książkę",   defaultSublabel: "Z dostawą",              defaultIcon: "book-open" },
+  { mod: "about",         defaultLabel: "O fundacji",      defaultSublabel: "Instytut ks. Skargi",    defaultIcon: "about" },
+  { mod: "watch",         defaultLabel: "Zobacz",          defaultSublabel: "Polecane filmy",         defaultIcon: "video-play" },
+  { mod: "plinio",        defaultLabel: "Myśl na dziś",    defaultSublabel: "Plinio Corrêa de Oliveira", defaultIcon: "quote" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -416,6 +426,11 @@ export default function AdminPage() {
   const [pageConfig, setPageConfig] = useState<PageConfig>({});
   const [pageConfigSaving, setPageConfigSaving] = useState(false);
 
+  // Modules state
+  const [modulesTab, setModulesTab] = useState<"list"|"nav">("list");
+  const [expandedMod, setExpandedMod] = useState<string|null>(null);
+  const [modEdits, setModEdits] = useState<{label?:string;sublabel?:string;icon?:string}>({});
+
   // ── Auth check ──
   useEffect(() => {
     fetch("/api/admin/check").then(r => r.json()).then(d => setIsAdmin(d.admin===true)).catch(() => setIsAdmin(false));
@@ -464,7 +479,7 @@ export default function AdminPage() {
         setRegistrationEnabled(d.registration_enabled===true);
       });
     }
-    if (section==="tiles" && Object.keys(tilesConfig).length===0) {
+    if ((section==="tiles" || section==="modules") && Object.keys(tilesConfig).length===0) {
       setTilesLoading(true);
       fetch("/api/admin/tiles").then(r=>r.json()).then(d=>{
         setTilesConfig(d??{});
@@ -671,6 +686,59 @@ export default function AdminPage() {
     setTilesSaved(true); setTimeout(()=>setTilesSaved(false),3000);
   }
 
+  // ── Module handlers ──
+  function handleToggleModuleEnabled(mod: string) {
+    const current = tilesConfig[mod]?.hidden ?? false;
+    const next = { ...tilesConfig, [mod]: { ...tilesConfig[mod], hidden: !current } };
+    setTilesConfig(next);
+    fetch("/api/admin/tiles", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(next) })
+      .then(() => { setTilesSaved(true); setTimeout(()=>setTilesSaved(false), 2000); });
+  }
+
+  async function handleSaveModInline(mod: string) {
+    setTilesSaving(true);
+    const next = { ...tilesConfig, [mod]: { ...tilesConfig[mod], ...modEdits } };
+    if (!modEdits.label) delete (next[mod] as TileOverride).label;
+    if (!modEdits.sublabel) delete (next[mod] as TileOverride).sublabel;
+    if (!modEdits.icon) delete (next[mod] as TileOverride).icon;
+    setTilesConfig(next);
+    await fetch("/api/admin/tiles", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(next) });
+    try { localStorage.setItem("salve_tiles_config", JSON.stringify(next)); } catch {}
+    setTilesSaving(false); setTilesSaved(true); setTimeout(()=>setTilesSaved(false), 2000);
+    setExpandedMod(null); setModEdits({});
+  }
+
+  function getNavItems(): string[] {
+    return (tilesConfig._nav as {items?:string[]} | undefined)?.items ?? [];
+  }
+
+  function handleAddToNav(mod: string) {
+    const current = getNavItems();
+    if (current.includes(mod) || current.length >= 5) return;
+    const next = { ...tilesConfig, _nav: { items: [...current, mod] } };
+    setTilesConfig(next as TilesConfig);
+    fetch("/api/admin/tiles", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(next) });
+    try { localStorage.setItem("salve_tiles_config", JSON.stringify(next)); } catch {}
+  }
+
+  function handleRemoveFromNav(mod: string) {
+    const next = { ...tilesConfig, _nav: { items: getNavItems().filter(m => m !== mod) } };
+    setTilesConfig(next as TilesConfig);
+    fetch("/api/admin/tiles", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(next) });
+    try { localStorage.setItem("salve_tiles_config", JSON.stringify(next)); } catch {}
+  }
+
+  function handleMoveNavItem(mod: string, dir: "up"|"down") {
+    const items = [...getNavItems()];
+    const idx = items.indexOf(mod);
+    if (dir==="up" && idx > 0) [items[idx-1],items[idx]] = [items[idx],items[idx-1]];
+    if (dir==="down" && idx < items.length-1) [items[idx],items[idx+1]] = [items[idx+1],items[idx]];
+    const next = { ...tilesConfig, _nav: { items } };
+    setTilesConfig(next as TilesConfig);
+    fetch("/api/admin/tiles", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(next) });
+    try { localStorage.setItem("salve_tiles_config", JSON.stringify(next)); } catch {}
+  }
+
   // ── Auth guard ──
   if (isAdmin===null) return <AppShell><div className="flex justify-center py-24"><Loader2 size={28} className="text-red-400 animate-spin"/></div></AppShell>;
   if (!isAdmin) return (
@@ -699,6 +767,7 @@ export default function AdminPage() {
     { key:"users",         icon:<Users size={22}/>,      label:"Użytkownicy",    desc:"Konta, role, hasła",          color:"linear-gradient(135deg,#052a10,#0a4a1e)", accent:"#4ade80", badge:stats?.users },
     { key:"prayers",       icon:<BookMarked size={22}/>, label:"Modlitwy",       desc:"Katalog modlitw",             color:"linear-gradient(135deg,#332500,#5c4500)", accent:"#facc15", badge:stats?.prayers },
     { key:"tiles",         icon:<LayoutGrid size={22}/>, label:"Strona główna",  desc:"Kafelki, kolejność, kolory",  color:"linear-gradient(135deg,#1a0a2e,#2e1060)", accent:"#c084fc" },
+    { key:"modules",       icon:<LayoutGrid size={22}/>, label:"Moduły",          desc:"Ikony, nazwy, nawigacja",     color:"linear-gradient(135deg,#0a1a2e,#0f2e50)", accent:"#38bdf8" },
     { key:"stats",         icon:<BarChart2 size={22}/>,  label:"Statystyki",     desc:"Wyświetlenia, aktywność",     color:"linear-gradient(135deg,#042828,#074a4a)", accent:"#2dd4bf" },
     { key:"errors",        icon:<AlertTriangle size={22}/>,label:"Błędy",         desc:"Monitoring produkcji",        color:"linear-gradient(135deg,#3b0909,#6b1111)", accent:"#f87171", badge:stats?.errors24h||undefined },
     { key:"settings",      icon:<Settings2 size={22}/>,  label:"Kontakt",        desc:"Ustawienia kontaktu",         color:"linear-gradient(135deg,#0f0a28,#1e1550)", accent:"#818cf8" },
@@ -1253,6 +1322,230 @@ export default function AdminPage() {
                   className={`w-full ${BTN_PRIMARY}`} style={{background:"linear-gradient(135deg,#4a1942,#7e1d6e)"}}>
                   {pageConfigSaving?<Loader2 size={15} className="animate-spin"/>:<CheckCircle2 size={15}/>} Zapisz konfigurację sekcji
                 </button>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── MODULES ── */}
+        {section==="modules" && (<>
+          <SectionHeader title="Moduły" subtitle="Ikony, nazwy, widoczność, nawigacja" onBack={()=>{setSection(null);setExpandedMod(null);setModEdits({});setModulesTab("list");}}/>
+          <div className="px-4 pb-8 space-y-3">
+            {tilesSaved && (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3 text-green-400 text-sm flex items-center gap-2">
+                <CheckCircle2 size={15}/> Zapisano.
+              </div>
+            )}
+
+            {/* Sub-tabs */}
+            <div className="flex bg-slate-800/80 rounded-xl p-1 gap-1">
+              {(["list","nav"] as const).map(tab=>(
+                <button key={tab} onClick={()=>{setModulesTab(tab);setExpandedMod(null);setModEdits({});}}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${modulesTab===tab?"bg-sky-900/70 text-sky-200":"text-slate-400 hover:text-slate-200"}`}>
+                  {tab==="list"?"Moduły":"Dolna nawigacja"}
+                </button>
+              ))}
+            </div>
+
+            {tilesLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-red-400 animate-spin"/></div>}
+
+            {/* TAB: Lista modułów */}
+            {modulesTab==="list" && !tilesLoading && (
+              <div className="space-y-2">
+                {TILE_MODS.map(({mod, defaultLabel, defaultSublabel, defaultIcon})=>{
+                  const ov = tilesConfig[mod] ?? {};
+                  const enabled = !ov.hidden;
+                  const currentIcon = (ov.icon || defaultIcon) as IconName;
+                  const isExpanded = expandedMod === mod;
+                  return (
+                    <div key={mod} className={`${CARD} overflow-hidden transition-opacity ${!enabled?"opacity-50":""}`}>
+                      <div className="p-3 flex items-center gap-3">
+                        {/* Icon preview */}
+                        <div className="w-10 h-10 rounded-xl bg-slate-700/60 border border-slate-600/40 flex items-center justify-center flex-shrink-0 text-sky-400">
+                          <Icon name={currentIcon} size={18}/>
+                        </div>
+                        {/* Labels */}
+                        <div className="flex-1 min-w-0 cursor-pointer select-none" onClick={()=>{
+                          if(isExpanded){setExpandedMod(null);setModEdits({});}
+                          else{setExpandedMod(mod);setModEdits({label:ov.label,sublabel:ov.sublabel,icon:ov.icon});}
+                        }}>
+                          <p className="text-white text-sm font-semibold">{ov.label||defaultLabel}</p>
+                          <p className="text-slate-500 text-xs truncate">{ov.sublabel||defaultSublabel} <span className="text-slate-700 font-mono text-[10px]">[{mod}]</span></p>
+                        </div>
+                        {/* Toggle enabled + edit */}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button onClick={()=>handleToggleModuleEnabled(mod)}
+                            className={`relative w-10 h-5 rounded-full transition-colors ${enabled?"bg-sky-600":"bg-slate-700"}`}>
+                            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${enabled?"left-5":"left-0.5"}`}/>
+                          </button>
+                          <button onClick={()=>{
+                            if(isExpanded){setExpandedMod(null);setModEdits({});}
+                            else{setExpandedMod(mod);setModEdits({label:ov.label,sublabel:ov.sublabel,icon:ov.icon});}
+                          }} className={`p-1.5 rounded-lg transition-colors ${isExpanded?"text-amber-400 bg-amber-400/10":"text-slate-400 hover:text-amber-400 hover:bg-slate-700"}`}>
+                            <Pencil size={14}/>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Expanded edit */}
+                      {isExpanded && (
+                        <div className="border-t border-slate-700/60 p-4 space-y-4 bg-slate-900/50">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className={labelCls}>Nazwa</label>
+                              <input className={inputCls} value={modEdits.label??""} onChange={e=>setModEdits(p=>({...p,label:e.target.value}))} placeholder={defaultLabel}/>
+                            </div>
+                            <div>
+                              <label className={labelCls}>Opis</label>
+                              <input className={inputCls} value={modEdits.sublabel??""} onChange={e=>setModEdits(p=>({...p,sublabel:e.target.value}))} placeholder={defaultSublabel}/>
+                            </div>
+                          </div>
+
+                          {/* Icon picker */}
+                          <div>
+                            <label className={labelCls}>Ikona</label>
+                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                              {MODULE_ICONS.map(iconName=>(
+                                <button key={iconName} onClick={()=>setModEdits(p=>({...p,icon:iconName}))} title={iconName}
+                                  className={`w-9 h-9 rounded-lg border transition-all flex items-center justify-center ${(modEdits.icon||ov.icon||defaultIcon)===iconName?"border-sky-400 bg-sky-400/15 text-sky-300":"border-slate-700 hover:border-slate-500 text-slate-400 hover:text-white"}`}>
+                                  <Icon name={iconName} size={16}/>
+                                </button>
+                              ))}
+                            </div>
+                            {modEdits.icon && <p className="text-xs text-slate-500 mt-1.5 font-mono">{modEdits.icon}</p>}
+                          </div>
+
+                          {/* Preview */}
+                          <div className="rounded-xl p-3 flex items-center gap-3 bg-slate-950/60 border border-slate-800">
+                            <span className="text-[10px] text-slate-600 uppercase tracking-wider flex-shrink-0">Podgląd</span>
+                            <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-sky-400/10 border border-sky-400/20 text-sky-300">
+                              <Icon name={(modEdits.icon||ov.icon||defaultIcon) as IconName} size={18}/>
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block text-sm font-bold text-white truncate">{modEdits.label||ov.label||defaultLabel}</span>
+                              <span className="block text-[10px] text-slate-500 truncate">{modEdits.sublabel||ov.sublabel||defaultSublabel}</span>
+                            </span>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <button onClick={()=>handleSaveModInline(mod)} disabled={tilesSaving}
+                              className={`flex-1 ${BTN_PRIMARY}`} style={{background:"linear-gradient(135deg,#0a2e4a,#0f4a7e)"}}>
+                              {tilesSaving?<Loader2 size={15} className="animate-spin"/>:<CheckCircle2 size={15}/>} Zapisz
+                            </button>
+                            <button onClick={()=>{setExpandedMod(null);setModEdits({});}}
+                              className="px-4 py-2.5 rounded-xl text-slate-400 bg-slate-700 hover:bg-slate-600 text-sm transition-colors">
+                              Anuluj
+                            </button>
+                            {(ov.label||ov.sublabel||ov.icon) && (
+                              <button onClick={()=>{
+                                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                const {label:_l,sublabel:_s,icon:_i,...rest}=tilesConfig[mod]??{};
+                                const next={...tilesConfig,[mod]:rest};
+                                setTilesConfig(next);
+                                fetch("/api/admin/tiles",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(next)});
+                                try{localStorage.setItem("salve_tiles_config",JSON.stringify(next));}catch{}
+                                setExpandedMod(null);setModEdits({});
+                              }} title="Przywróć domyślne" className="px-3 py-2.5 rounded-xl text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors">
+                                <Trash2 size={14}/>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* TAB: Dolna nawigacja */}
+            {modulesTab==="nav" && !tilesLoading && (
+              <div className="space-y-4">
+                <p className="text-slate-400 text-xs leading-relaxed">
+                  Wybierz max. 5 modułów wyświetlanych w dolnym menu. Pozycja <span className="text-white">START</span> (strona główna) jest zawsze widoczna i stała.
+                </p>
+
+                {/* Active nav items */}
+                <div className={`${CARD} divide-y divide-slate-700/50`}>
+                  {/* Fixed home */}
+                  <div className="p-3 flex items-center gap-3 opacity-50">
+                    <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center text-slate-400 flex-shrink-0">
+                      <Icon name="home" size={16}/>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-white text-sm font-semibold">START</p>
+                      <p className="text-slate-500 text-[11px]">Zawsze pierwsza pozycja</p>
+                    </div>
+                    <span className="text-[10px] text-slate-600 bg-slate-800 px-2 py-0.5 rounded-full">stała</span>
+                  </div>
+
+                  {/* Configured nav items */}
+                  {getNavItems().length === 0 && (
+                    <div className="p-4 text-center text-slate-500 text-sm">Brak skonfigurowanych pozycji — używane są wartości domyślne</div>
+                  )}
+                  {getNavItems().map((mod, idx, arr)=>{
+                    const defMod = TILE_MODS.find(t=>t.mod===mod);
+                    if (!defMod) return null;
+                    const ov = tilesConfig[mod] ?? {};
+                    const icon = ((ov as TileOverride).icon || defMod.defaultIcon) as IconName;
+                    const label = (ov as TileOverride).label || defMod.defaultLabel;
+                    return (
+                      <div key={mod} className="p-3 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center text-sky-400 flex-shrink-0">
+                          <Icon name={icon} size={16}/>
+                        </div>
+                        <p className="flex-1 text-white text-sm font-semibold">{label}</p>
+                        <div className="flex items-center gap-0.5">
+                          <button disabled={idx===0} onClick={()=>handleMoveNavItem(mod,"up")}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-700 disabled:opacity-20 transition-colors"><ChevronUp size={14}/></button>
+                          <button disabled={idx===arr.length-1} onClick={()=>handleMoveNavItem(mod,"down")}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-700 disabled:opacity-20 transition-colors"><ChevronDown size={14}/></button>
+                          <button onClick={()=>handleRemoveFromNav(mod)}
+                            className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/20 transition-colors ml-1"><X size={14}/></button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Available modules to add */}
+                {getNavItems().length < 5 && (
+                  <div>
+                    <p className="text-slate-500 text-xs mb-2 uppercase tracking-wider">Dodaj do nawigacji ({5 - getNavItems().length} wolnych miejsc)</p>
+                    <div className="flex flex-wrap gap-2">
+                      {TILE_MODS.filter(({mod})=>
+                        !getNavItems().includes(mod) && !tilesConfig[mod]?.hidden
+                      ).map(({mod, defaultLabel, defaultIcon})=>{
+                        const ov = tilesConfig[mod] ?? {};
+                        const icon = ((ov as TileOverride).icon || defaultIcon) as IconName;
+                        const label = (ov as TileOverride).label || defaultLabel;
+                        return (
+                          <button key={mod} onClick={()=>handleAddToNav(mod)}
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:border-sky-500/50 hover:bg-sky-500/10 transition-all text-sm text-slate-300 hover:text-white">
+                            <Icon name={icon as IconName} size={14} className="text-sky-400"/>
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {getNavItems().length >= 5 && (
+                  <p className="text-center text-slate-500 text-xs py-2">Osiągnięto limit 5 pozycji nawigacji</p>
+                )}
+
+                {/* Reset to defaults */}
+                {getNavItems().length > 0 && (
+                  <button onClick={()=>{
+                    const next={...tilesConfig,_nav:{items:[]}};
+                    setTilesConfig(next as TilesConfig);
+                    fetch("/api/admin/tiles",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(next)});
+                    try{localStorage.setItem("salve_tiles_config",JSON.stringify(next));}catch{}
+                  }} className="w-full py-2.5 rounded-xl text-slate-500 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 text-sm transition-colors">
+                    Przywróć domyślną nawigację
+                  </button>
+                )}
               </div>
             )}
           </div>
