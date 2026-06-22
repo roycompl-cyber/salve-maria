@@ -3,8 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
 
-const BYPASS_CODE = process.env.NEXT_PUBLIC_DESKTOP_BYPASS_CODE ?? "741852";
-
 type DeviceMode = "loading" | "desktop" | "mobile-browser" | "pwa";
 
 function detectMode(): DeviceMode {
@@ -25,31 +23,39 @@ function detectMode(): DeviceMode {
 function ScreenDesktop({ onBypass }: { onBypass: () => void }) {
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState(false);
+  const [checking, setChecking] = useState(false);
   const refs = [
     useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null),
   ];
 
+  async function checkCode(code: string) {
+    setChecking(true);
+    try {
+      const res = await fetch("/api/bypass-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const { ok } = await res.json() as { ok: boolean };
+      if (ok) { onBypass(); return; }
+    } catch {}
+    setChecking(false);
+    setError(true);
+    setDigits(["", "", "", "", "", ""]);
+    setTimeout(() => { setError(false); refs[0].current?.focus(); }, 1200);
+  }
+
   function handleDigit(idx: number, val: string) {
+    if (checking) return;
     const d = val.replace(/\D/g, "").slice(-1);
     const next = [...digits];
     next[idx] = d;
     setDigits(next);
     setError(false);
-
     if (d && idx < 5) refs[idx + 1].current?.focus();
-
-    const code = next.join("");
-    if (code.length === 6) {
-      if (code === BYPASS_CODE) {
-        onBypass();
-      } else {
-        setError(true);
-        setDigits(["", "", "", "", "", ""]);
-        refs[0].current?.focus();
-      }
-    }
+    if (next.join("").length === 6) checkCode(next.join(""));
   }
 
   function handleKeyDown(idx: number, e: React.KeyboardEvent<HTMLInputElement>) {
@@ -59,15 +65,11 @@ function ScreenDesktop({ onBypass }: { onBypass: () => void }) {
   }
 
   function handlePaste(e: React.ClipboardEvent) {
+    if (checking) return;
     const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
     if (text.length === 6) {
       setDigits(text.split(""));
-      if (text === BYPASS_CODE) {
-        onBypass();
-      } else {
-        setError(true);
-        setTimeout(() => { setDigits(["", "", "", "", "", ""]); refs[0].current?.focus(); }, 600);
-      }
+      checkCode(text);
     }
   }
 
@@ -118,7 +120,7 @@ function ScreenDesktop({ onBypass }: { onBypass: () => void }) {
                 onChange={e => handleDigit(i, e.target.value)}
                 onKeyDown={e => handleKeyDown(i, e)}
                 className={`w-10 h-12 rounded-xl text-center text-lg font-bold bg-slate-900 border transition-all outline-none
-                  ${error ? "border-red-500 text-red-400 animate-pulse" : "border-slate-700 text-white focus:border-yellow-600"}`}
+                  ${error ? "border-red-500 text-red-400 animate-pulse" : checking ? "border-yellow-700/50 text-slate-500" : "border-slate-700 text-white focus:border-yellow-600"}`}
               />
             ))}
           </div>

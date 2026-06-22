@@ -48,7 +48,7 @@ interface PageSectionConfig { show?: boolean; title?: string; count?: number; }
 interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; }
 type TilesConfig = Record<string, TileOverride>;
 
-type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "referral" | "settings" | "stats" | "errors" | "login";
+type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "referral" | "bypass" | "settings" | "stats" | "errors" | "login";
 type NotifType = "news" | "action" | "prayer" | "article" | "petition";
 
 // ─── Color palettes ───────────────────────────────────────────────────────────
@@ -432,6 +432,14 @@ export default function AdminPage() {
   const [expandedMod, setExpandedMod] = useState<string|null>(null);
   const [modEdits, setModEdits] = useState<{label?:string;sublabel?:string;icon?:string}>({});
 
+  // ── Bypass code ──
+  const [bypassCode, setBypassCode] = useState("");
+  const [bypassInput, setBypassInput] = useState("");
+  const [bypassSaving, setBypassSaving] = useState(false);
+  const [bypassSaved, setBypassSaved] = useState(false);
+  const [bypassError, setBypassError] = useState("");
+  const [bypassLoading, setBypassLoading] = useState(false);
+
   // ── Referral / share email config ──
   const [shareSubject, setShareSubject] = useState("");
   const [shareBody, setShareBody] = useState("");
@@ -488,6 +496,7 @@ export default function AdminPage() {
       });
     }
     if (section==="referral" && !shareSubject) { loadShareConfig(); }
+    if (section==="bypass") { loadBypassCode(); }
     if ((section==="tiles" || section==="modules") && Object.keys(tilesConfig).length===0) {
       setTilesLoading(true);
       fetch("/api/admin/tiles").then(r=>r.json()).then(d=>{
@@ -748,6 +757,36 @@ export default function AdminPage() {
     try { localStorage.setItem("salve_tiles_config", JSON.stringify(next)); } catch {}
   }
 
+  // ── Bypass code handlers ──
+  async function loadBypassCode() {
+    setBypassLoading(true);
+    try {
+      const r = await fetch("/api/admin/bypass-code");
+      const { code } = await r.json() as { code: string | null };
+      setBypassCode(code ?? "");
+      setBypassInput(code ?? "");
+    } finally { setBypassLoading(false); }
+  }
+
+  async function handleSaveBypass() {
+    if (!/^\d{6}$/.test(bypassInput)) { setBypassError("Kod musi mieć dokładnie 6 cyfr"); return; }
+    setBypassSaving(true); setBypassError("");
+    const r = await fetch("/api/admin/bypass-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: bypassInput }),
+    });
+    const res = await r.json() as { ok?: boolean; error?: string };
+    setBypassSaving(false);
+    if (res.ok) { setBypassCode(bypassInput); setBypassSaved(true); setTimeout(() => setBypassSaved(false), 2500); }
+    else setBypassError(res.error ?? "Błąd zapisu");
+  }
+
+  async function handleDeleteBypass() {
+    await fetch("/api/admin/bypass-code", { method: "DELETE" });
+    setBypassCode(""); setBypassInput("");
+  }
+
   // ── Referral handlers ──
   async function loadShareConfig() {
     setShareLoading(true);
@@ -814,6 +853,7 @@ export default function AdminPage() {
     { key:"tiles",         icon:<LayoutGrid size={22}/>, label:"Strona główna",  desc:"Kafelki, kolejność, kolory",  color:"linear-gradient(135deg,#1a0a2e,#2e1060)", accent:"#c084fc" },
     { key:"modules",       icon:<LayoutGrid size={22}/>, label:"Moduły",          desc:"Ikony, nazwy, nawigacja",     color:"linear-gradient(135deg,#0a1a2e,#0f2e50)", accent:"#38bdf8" },
     { key:"referral",      icon:<Mail size={22}/>,      label:"Polecanie",        desc:"Treść maila polecającego",    color:"linear-gradient(135deg,#0f2800,#1e4a00)", accent:"#86efac" },
+    { key:"bypass",        icon:<Lock size={22}/>,      label:"Kod dostępu",      desc:"Mój kod do panelu na desktop", color:"linear-gradient(135deg,#1a1a0a,#3a3a10)", accent:"#facc15" },
     { key:"stats",         icon:<BarChart2 size={22}/>,  label:"Statystyki",     desc:"Wyświetlenia, aktywność",     color:"linear-gradient(135deg,#042828,#074a4a)", accent:"#2dd4bf" },
     { key:"errors",        icon:<AlertTriangle size={22}/>,label:"Błędy",         desc:"Monitoring produkcji",        color:"linear-gradient(135deg,#3b0909,#6b1111)", accent:"#f87171", badge:stats?.errors24h||undefined },
     { key:"settings",      icon:<Settings2 size={22}/>,  label:"Kontakt",        desc:"Ustawienia kontaktu",         color:"linear-gradient(135deg,#0f0a28,#1e1550)", accent:"#818cf8" },
@@ -1660,6 +1700,71 @@ export default function AdminPage() {
                   <RefreshCw size={15}/>
                 </button>
               </div>
+            </>)}
+          </div>
+        </>)}
+
+        {/* ── BYPASS CODE ── */}
+        {section==="bypass" && (<>
+          <SectionHeader title="Kod dostępu" subtitle="Twój osobisty kod do panelu na komputerze" onBack={()=>setSection(null)}/>
+          <div className="px-4 pb-8 space-y-4">
+            {bypassSaved && (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3 text-green-400 text-sm flex items-center gap-2">
+                <CheckCircle2 size={15}/> Kod zapisany.
+              </div>
+            )}
+            {bypassLoading ? (
+              <div className="flex justify-center py-16"><Loader2 size={24} className="text-yellow-400 animate-spin"/></div>
+            ) : (<>
+              <div className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-5 space-y-3">
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Na ekranie informacyjnym dla komputerów (desktop) wpisanie tego kodu daje dostęp do logowania.
+                  Każdy administrator ma swój własny, unikalny kod.
+                </p>
+                {bypassCode ? (
+                  <div className="flex items-center gap-3 rounded-xl bg-slate-900/60 border border-yellow-800/40 px-4 py-3">
+                    <span className="text-yellow-400 font-mono text-2xl tracking-[0.3em] font-bold">{bypassCode}</span>
+                    <span className="text-slate-600 text-xs ml-auto">aktywny</span>
+                  </div>
+                ) : (
+                  <div className="rounded-xl bg-slate-900/60 border border-slate-700 px-4 py-3 text-slate-500 text-sm text-center">
+                    Brak ustawionego kodu
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className={labelCls}>{bypassCode ? "Zmień kod" : "Ustaw nowy kod"} (6 cyfr)</label>
+                <div className="flex gap-2">
+                  <input
+                    className={`${inputCls} font-mono tracking-[0.3em] text-center text-lg`}
+                    value={bypassInput}
+                    onChange={e => { setBypassInput(e.target.value.replace(/\D/g,"").slice(0,6)); setBypassError(""); }}
+                    maxLength={6}
+                    inputMode="numeric"
+                    placeholder="000000"
+                  />
+                  <button
+                    onClick={handleSaveBypass}
+                    disabled={bypassSaving || bypassInput.length !== 6}
+                    className="px-4 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-1.5 transition-all disabled:opacity-40 flex-shrink-0"
+                    style={{ background: "linear-gradient(135deg,#332500,#5c4500)", color: "#fef9c3" }}
+                  >
+                    {bypassSaving ? <Loader2 size={14} className="animate-spin"/> : <CheckCircle2 size={14}/>}
+                    Zapisz
+                  </button>
+                </div>
+                {bypassError && <p className="text-red-400 text-xs mt-1.5">{bypassError}</p>}
+              </div>
+
+              {bypassCode && (
+                <button
+                  onClick={handleDeleteBypass}
+                  className="w-full py-2.5 rounded-xl text-red-400 bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 text-sm transition-colors flex items-center justify-center gap-2"
+                >
+                  <Trash2 size={14}/> Usuń kod
+                </button>
+              )}
             </>)}
           </div>
         </>)}
