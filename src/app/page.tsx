@@ -107,7 +107,7 @@ export default function Home2Page() {
 
   return (
     <AppShell>
-      <div className="max-w-lg md:max-w-4xl mx-auto px-4 md:px-8 py-4 md:py-7 space-y-7 animate-fade-in">
+      <div className="max-w-lg md:max-w-4xl mx-auto px-2 md:px-6 py-3 md:py-6 space-y-6 animate-fade-in">
         {showArticles && <section>
           <SectionTitle title={articlesTitle} href="/articles" linkLabel="Wszystkie artykuły" />
           {featuredArticle ? (
