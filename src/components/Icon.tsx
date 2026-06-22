@@ -11,7 +11,7 @@ export type IconName =
   | "palette" | "type" | "pen" | "trash" | "book-open"
   | "plus" | "minus" | "info" | "star" | "cross" | "jerusalem-cross"
   | "catechism" | "donate" | "announcements" | "chat" | "etiquette"
-  | "about" | "video-play" | "quote";
+  | "about" | "video-play" | "quote" | "copy";
 
 interface IconProps {
   name: IconName;
@@ -271,6 +271,14 @@ export default function Icon({ name, size = 20, className = "", strokeWidth = 1.
 
       case "check":
         return <polyline {...sf()} points="4,13 9,18 20,7" />;
+
+      case "copy":
+        return (
+          <>
+            <rect {...sf()} x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path {...sf()} d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </>
+        );
 
       case "close":
         return (

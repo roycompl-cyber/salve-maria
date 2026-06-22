@@ -89,6 +89,7 @@ const TILE_MODS: { mod: string; defaultLabel: string; defaultSublabel: string; d
   { mod: "about",         defaultLabel: "O fundacji",      defaultSublabel: "Instytut ks. Skargi",    defaultIcon: "about" },
   { mod: "watch",         defaultLabel: "Zobacz",          defaultSublabel: "Polecane filmy",         defaultIcon: "video-play" },
   { mod: "plinio",        defaultLabel: "Myśl na dziś",    defaultSublabel: "Plinio Corrêa de Oliveira", defaultIcon: "quote" },
+  { mod: "share",         defaultLabel: "Udostępnij",      defaultSublabel: "Poleć znajomym",            defaultIcon: "share" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

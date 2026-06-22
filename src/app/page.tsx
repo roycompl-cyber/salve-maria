@@ -45,6 +45,7 @@ const SHORTCUTS: { mod: string; href: string; icon: IconName; label: string; det
   { mod: "about",         href: "/about",         icon: "about",           label: "O fundacji",       detail: "Instytut ks. Skargi", accent: "#86efac" },
   { mod: "book", href: "/viewer?url=" + encodeURIComponent("https://polskakatolicka.org/pl/wplata-na-kampanie?payment=e5fbcc41223d97a406605e88faf65b"), icon: "book-open", label: "Zamów książkę", detail: "Z dostawą", accent: "#f472b6" },
   { mod: "plinio", href: "/plinio", icon: "quote", label: "Myśl na dziś", detail: "Plinio Corrêa de Oliveira", accent: "#d97706" },
+  { mod: "share", href: "/share", icon: "share", label: "Udostępnij", detail: "Poleć znajomym", accent: "#38bdf8" },
 ];
 
 const TILES_CONFIG_KEY = "salve_tiles_config";
