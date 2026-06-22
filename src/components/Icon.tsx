@@ -11,7 +11,7 @@ export type IconName =
   | "palette" | "type" | "pen" | "trash" | "book-open"
   | "plus" | "minus" | "info" | "star" | "cross" | "jerusalem-cross"
   | "catechism" | "donate" | "announcements" | "chat" | "etiquette"
-  | "about" | "video-play";
+  | "about" | "video-play" | "quote";
 
 interface IconProps {
   name: IconName;
@@ -535,6 +535,14 @@ export default function Icon({ name, size = 20, className = "", strokeWidth = 1.
             <path stroke="currentColor" strokeWidth={0} fill="currentColor" opacity={0.85} d="M10,8.5 L16,11 L10,13.5 Z" />
             <line {...sf(0.5)} x1="8" y1="21" x2="16" y2="21" strokeWidth={sw * 0.9} />
             <line {...sf(0.5)} x1="12" y1="18" x2="12" y2="21" strokeWidth={sw * 0.9} />
+          </>
+        );
+
+      case "quote":
+        return (
+          <>
+            <path {...sf()} d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+            <path {...sf()} d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" />
           </>
         );
 

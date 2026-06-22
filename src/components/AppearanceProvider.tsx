@@ -17,7 +17,7 @@ export default function AppearanceProvider() {
       const theme = (JSON.parse(localStorage.getItem("app_theme") ?? '"dark"') ?? "dark") as Theme;
       const fontSize = (JSON.parse(localStorage.getItem("app_font_size") ?? '"medium"') ?? "medium") as FontSize;
       const brightness = (JSON.parse(localStorage.getItem("app_brightness") ?? "0") ?? 0) as number;
-      document.documentElement.style.fontSize = FONT_SIZE_MAP[fontSize] ?? "16px";
+      document.documentElement.style.setProperty("--app-font-size", FONT_SIZE_MAP[fontSize] ?? "16px");
       document.documentElement.classList.toggle("theme-light", theme === "light");
       applyBrightness(brightness, theme);
     } catch {}

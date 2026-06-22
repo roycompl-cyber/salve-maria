@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+/* Nadpisujemy rozmiary tekstu z rem na em, żeby skalowały się względem
+   body (--app-font-size), a nie html — spacing (rem) pozostaje bez zmian. */
+@theme {
+  --text-xs: 0.75em;
+  --text-sm: 0.875em;
+  --text-base: 1em;
+  --text-lg: 1.125em;
+  --text-xl: 1.25em;
+  --text-2xl: 1.5em;
+  --text-3xl: 1.875em;
+  --text-4xl: 2.25em;
+  --text-5xl: 3em;
+  --text-6xl: 3.75em;
+}
+
 :root {
   --background: #0f172a;
   --foreground: #f5f0e8;
@@ -11,6 +26,7 @@ body {
   font-family: Georgia, "Times New Roman", Times, serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
+  font-size: var(--app-font-size, 16px);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -251,12 +267,12 @@ input[type="range"]::-moz-range-thumb {
 /* ── Article HTML content (rich rendering with banners & links) ── */
 .article-html-content {
   color: #cbd5e1;
-  font-size: 0.9rem;
+  font-size: 0.9em;
   line-height: 1.75;
 }
 .article-html-content p { margin-bottom: 1rem; }
-.article-html-content h2 { color: #f1f5f9; font-size: 1.1rem; font-weight: 700; margin: 1.5rem 0 0.5rem; }
-.article-html-content h3 { color: #e2e8f0; font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.4rem; }
+.article-html-content h2 { color: #f1f5f9; font-size: 1.1em; font-weight: 700; margin: 1.5rem 0 0.5rem; }
+.article-html-content h3 { color: #e2e8f0; font-size: 1em; font-weight: 600; margin: 1.25rem 0 0.4rem; }
 .article-html-content strong, .article-html-content b { color: #f1f5f9; font-weight: 600; }
 .article-html-content em, .article-html-content i { color: #94a3b8; font-style: italic; }
 .article-html-content a {
@@ -301,6 +317,6 @@ input[type="range"]::-moz-range-thumb {
   color: #f59e0b;
 }
 /* Tabele */
-.article-html-content table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.8rem; }
+.article-html-content table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.8em; }
 .article-html-content th { background: rgba(51,65,85,0.6); color: #f1f5f9; padding: 0.4rem 0.6rem; text-align: left; }
 .article-html-content td { padding: 0.35rem 0.6rem; border-bottom: 1px solid rgba(71,85,105,0.3); }

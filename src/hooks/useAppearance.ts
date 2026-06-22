@@ -69,14 +69,14 @@ export function useAppearance() {
     setFontSizeState(f);
     setBrightnessState(b);
     applyTheme(t, b);
-    document.documentElement.style.fontSize = FONT_SIZE_MAP[f];
+    document.documentElement.style.setProperty("--app-font-size", FONT_SIZE_MAP[f]);
     prevThemeRef.current = t;
     setMounted(true);
   }, []);
 
   useEffect(() => {
     if (!mounted) return;
-    document.documentElement.style.fontSize = FONT_SIZE_MAP[fontSize];
+    document.documentElement.style.setProperty("--app-font-size", FONT_SIZE_MAP[fontSize]);
     localStorage.setItem("app_font_size", JSON.stringify(fontSize));
   }, [fontSize, mounted]);
 
