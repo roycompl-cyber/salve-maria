@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/Icon";
+import ArticlePlayer from "@/components/ArticlePlayer";
 
 interface PlinioQuote {
   day: number;
@@ -58,6 +59,10 @@ export default function PlinioPage() {
 
         {!loading && data && (
           <div className="space-y-4">
+            <ArticlePlayer
+              title="Myśl na dziś — Plinio Corrêa de Oliveira"
+              content={data.quote + "\n\n" + data.source}
+            />
 
             {/* Etykieta dnia */}
             <div className="flex items-center gap-2">
