@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 
-import { ShareConfig, DEFAULT_SHARE_CONFIG } from "@/lib/share-config";
-export type { ShareConfig };
-export { DEFAULT_SHARE_CONFIG };
+import { type ShareConfig, DEFAULT_SHARE_CONFIG } from "@/lib/share-config";
 
 async function requireAdmin() {
   const supabase = await createClient();
