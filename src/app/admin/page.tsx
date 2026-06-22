@@ -48,7 +48,7 @@ interface PageSectionConfig { show?: boolean; title?: string; count?: number; }
 interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; }
 type TilesConfig = Record<string, TileOverride>;
 
-type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "settings" | "stats" | "errors" | "login";
+type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "referral" | "settings" | "stats" | "errors" | "login";
 type NotifType = "news" | "action" | "prayer" | "article" | "petition";
 
 // ─── Color palettes ───────────────────────────────────────────────────────────
@@ -432,6 +432,13 @@ export default function AdminPage() {
   const [expandedMod, setExpandedMod] = useState<string|null>(null);
   const [modEdits, setModEdits] = useState<{label?:string;sublabel?:string;icon?:string}>({});
 
+  // ── Referral / share email config ──
+  const [shareSubject, setShareSubject] = useState("");
+  const [shareBody, setShareBody] = useState("");
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareSaving, setShareSaving] = useState(false);
+  const [shareSaved, setShareSaved] = useState(false);
+
   // ── Auth check ──
   useEffect(() => {
     fetch("/api/admin/check").then(r => r.json()).then(d => setIsAdmin(d.admin===true)).catch(() => setIsAdmin(false));
@@ -480,6 +487,7 @@ export default function AdminPage() {
         setRegistrationEnabled(d.registration_enabled===true);
       });
     }
+    if (section==="referral" && !shareSubject) { loadShareConfig(); }
     if ((section==="tiles" || section==="modules") && Object.keys(tilesConfig).length===0) {
       setTilesLoading(true);
       fetch("/api/admin/tiles").then(r=>r.json()).then(d=>{
@@ -740,6 +748,42 @@ export default function AdminPage() {
     try { localStorage.setItem("salve_tiles_config", JSON.stringify(next)); } catch {}
   }
 
+  // ── Referral handlers ──
+  async function loadShareConfig() {
+    setShareLoading(true);
+    try {
+      const r = await fetch("/api/admin/share");
+      const c = await r.json();
+      setShareSubject(c.subject ?? "");
+      setShareBody(c.body ?? "");
+    } finally {
+      setShareLoading(false);
+    }
+  }
+
+  async function handleSaveShare() {
+    setShareSaving(true);
+    await fetch("/api/admin/share", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subject: shareSubject, body: shareBody }),
+    });
+    setShareSaving(false);
+    setShareSaved(true);
+    setTimeout(() => setShareSaved(false), 2500);
+  }
+
+  function handleResetShare() {
+    fetch("/api/admin/share").then(r => r.json()).then(() => {
+      // Re-fetch defaults by posting empty (API fills defaults)
+      fetch("/api/admin/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: "", body: "" }),
+      }).then(() => loadShareConfig());
+    });
+  }
+
   // ── Auth guard ──
   if (isAdmin===null) return <AppShell><div className="flex justify-center py-24"><Loader2 size={28} className="text-red-400 animate-spin"/></div></AppShell>;
   if (!isAdmin) return (
@@ -769,6 +813,7 @@ export default function AdminPage() {
     { key:"prayers",       icon:<BookMarked size={22}/>, label:"Modlitwy",       desc:"Katalog modlitw",             color:"linear-gradient(135deg,#332500,#5c4500)", accent:"#facc15", badge:stats?.prayers },
     { key:"tiles",         icon:<LayoutGrid size={22}/>, label:"Strona główna",  desc:"Kafelki, kolejność, kolory",  color:"linear-gradient(135deg,#1a0a2e,#2e1060)", accent:"#c084fc" },
     { key:"modules",       icon:<LayoutGrid size={22}/>, label:"Moduły",          desc:"Ikony, nazwy, nawigacja",     color:"linear-gradient(135deg,#0a1a2e,#0f2e50)", accent:"#38bdf8" },
+    { key:"referral",      icon:<Mail size={22}/>,      label:"Polecanie",        desc:"Treść maila polecającego",    color:"linear-gradient(135deg,#0f2800,#1e4a00)", accent:"#86efac" },
     { key:"stats",         icon:<BarChart2 size={22}/>,  label:"Statystyki",     desc:"Wyświetlenia, aktywność",     color:"linear-gradient(135deg,#042828,#074a4a)", accent:"#2dd4bf" },
     { key:"errors",        icon:<AlertTriangle size={22}/>,label:"Błędy",         desc:"Monitoring produkcji",        color:"linear-gradient(135deg,#3b0909,#6b1111)", accent:"#f87171", badge:stats?.errors24h||undefined },
     { key:"settings",      icon:<Settings2 size={22}/>,  label:"Kontakt",        desc:"Ustawienia kontaktu",         color:"linear-gradient(135deg,#0f0a28,#1e1550)", accent:"#818cf8" },
@@ -1549,6 +1594,73 @@ export default function AdminPage() {
                 )}
               </div>
             )}
+          </div>
+        </>)}
+
+        {/* ── REFERRAL ── */}
+        {section==="referral" && (<>
+          <SectionHeader title="Polecanie" subtitle="Treść maila polecającego aplikację" onBack={()=>setSection(null)}/>
+          <div className="px-4 pb-8 space-y-4">
+            {shareSaved && (
+              <div className="bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3 text-green-400 text-sm flex items-center gap-2">
+                <CheckCircle2 size={15}/> Zapisano.
+              </div>
+            )}
+            {shareLoading ? (
+              <div className="flex justify-center py-16"><Loader2 size={24} className="text-green-400 animate-spin"/></div>
+            ) : (<>
+              <div>
+                <label className={labelCls}>Temat wiadomości</label>
+                <input
+                  className={inputCls}
+                  value={shareSubject}
+                  onChange={e => setShareSubject(e.target.value)}
+                  placeholder="Polecam aplikację Salve Maria"
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Treść wiadomości</label>
+                <textarea
+                  className={`${inputCls} resize-none leading-relaxed`}
+                  rows={14}
+                  value={shareBody}
+                  onChange={e => setShareBody(e.target.value)}
+                  placeholder="Treść maila polecającego…"
+                />
+                <p className="text-slate-600 text-[11px] mt-1.5">
+                  Link do aplikacji wstaw bezpośrednio w treści. Odbiorca wpisze tylko swój adres e-mail.
+                </p>
+              </div>
+
+              {/* Preview */}
+              <div className="rounded-xl border border-slate-700/40 bg-slate-900/50 p-4 space-y-2">
+                <p className="text-[10px] text-slate-600 uppercase tracking-wider">Podgląd</p>
+                <p className="text-slate-400 text-xs"><span className="text-slate-600">Temat:</span> {shareSubject || "—"}</p>
+                <pre className="text-slate-400 text-xs whitespace-pre-wrap leading-relaxed font-sans mt-1 max-h-40 overflow-y-auto">
+                  {shareBody || "—"}
+                </pre>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={handleSaveShare}
+                  disabled={shareSaving || !shareSubject || !shareBody}
+                  className="flex-1 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40"
+                  style={{ background: "linear-gradient(135deg,#052a10,#0a4a1e)", color: "#86efac" }}
+                >
+                  {shareSaving ? <Loader2 size={15} className="animate-spin"/> : <CheckCircle2 size={15}/>}
+                  Zapisz
+                </button>
+                <button
+                  onClick={loadShareConfig}
+                  disabled={shareLoading}
+                  className="px-4 py-3 rounded-xl text-slate-400 bg-slate-700 hover:bg-slate-600 text-sm transition-colors"
+                  title="Odśwież"
+                >
+                  <RefreshCw size={15}/>
+                </button>
+              </div>
+            </>)}
           </div>
         </>)}
 

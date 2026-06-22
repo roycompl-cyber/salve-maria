@@ -1,37 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/Icon";
 import { QRCodeSVG } from "qrcode.react";
+import { DEFAULT_SHARE_CONFIG, type ShareConfig } from "@/app/api/admin/share/route";
 
 const APP_URL = "https://salve-maria.vercel.app";
-
-const EMAIL_SUBJECT = "Polecam aplikację Salve Maria";
-const EMAIL_BODY = `Chciałem/am Ci polecić bezpłatną aplikację katolickiej fundacji Instytut im. Ks. Piotra Skargi — Salve Maria.
-
-Znajdziesz w niej m.in.:
-• Modlitewnik i Ewangelię na każdy dzień
-• Katechizm kardynała Gasparriego
-• Aktualne artykuły i ogłoszenia
-• Myśl na dziś z dzieł Plinia Corrêa de Oliveira
-• I wiele więcej…
-
-Aplikacja działa jako PWA — wystarczy ją zainstalować na ekranie głównego telefonu:
-
-${APP_URL}
-
-Wystarczy otworzyć powyższy link na telefonie i dodać do ekranu głównego.
-
-Niech będzie pochwalony Jezus Chrystus!`;
 
 export default function SharePage() {
   const [email, setEmail] = useState("");
   const [copied, setCopied] = useState(false);
+  const [config, setConfig] = useState<ShareConfig>(DEFAULT_SHARE_CONFIG);
+
+  useEffect(() => {
+    fetch("/api/admin/share")
+      .then(r => r.json())
+      .then((c: ShareConfig) => setConfig(c))
+      .catch(() => {});
+  }, []);
 
   function handleSendEmail() {
-    const mailto = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(EMAIL_SUBJECT)}&body=${encodeURIComponent(EMAIL_BODY)}`;
+    const mailto = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(config.subject)}&body=${encodeURIComponent(config.body)}`;
     window.location.href = mailto;
   }
 
@@ -40,9 +31,7 @@ export default function SharePage() {
       await navigator.clipboard.writeText(APP_URL);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
-    } catch {
-      // fallback — select text
-    }
+    } catch {}
   }
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -66,13 +55,7 @@ export default function SharePage() {
         <div className="rounded-2xl border border-slate-700/60 bg-slate-800/50 p-5 flex flex-col items-center gap-4">
           <p className="text-slate-400 text-xs uppercase tracking-wider">Zeskanuj aparatem telefonu</p>
           <div className="rounded-2xl bg-white p-4 shadow-xl">
-            <QRCodeSVG
-              value={APP_URL}
-              size={180}
-              bgColor="#ffffff"
-              fgColor="#1e0a0a"
-              level="M"
-            />
+            <QRCodeSVG value={APP_URL} size={180} bgColor="#ffffff" fgColor="#1e0a0a" level="M" />
           </div>
           <div className="flex items-center gap-2 w-full">
             <div className="flex-1 rounded-xl bg-slate-900/80 border border-slate-700 px-3 py-2.5">
@@ -108,12 +91,12 @@ export default function SharePage() {
             />
           </div>
 
-          {/* Preview of content */}
+          {/* Preview */}
           <div className="rounded-xl border border-slate-700/40 bg-slate-900/40 px-4 py-3 space-y-1">
             <p className="text-[10px] text-slate-600 uppercase tracking-wider">Temat wiadomości</p>
-            <p className="text-slate-400 text-xs">{EMAIL_SUBJECT}</p>
+            <p className="text-slate-400 text-xs">{config.subject}</p>
             <p className="text-[10px] text-slate-600 uppercase tracking-wider mt-2">Treść</p>
-            <p className="text-slate-500 text-xs leading-relaxed line-clamp-3">{EMAIL_BODY.split("\n")[0]}{" "}…</p>
+            <p className="text-slate-500 text-xs leading-relaxed line-clamp-3">{config.body.split("\n")[0]}{" "}…</p>
           </div>
 
           <button
@@ -130,10 +113,10 @@ export default function SharePage() {
           </p>
         </div>
 
-        {/* Native share (if supported) */}
+        {/* Native share */}
         {typeof navigator !== "undefined" && "share" in navigator && (
           <button
-            onClick={() => navigator.share({ title: "Salve Maria", text: "Polecam aplikację Salve Maria — fundacji Instytut im. Ks. Piotra Skargi", url: APP_URL })}
+            onClick={() => navigator.share({ title: "Salve Maria", text: config.body, url: APP_URL })}
             className="w-full py-3 rounded-2xl border border-slate-700 bg-slate-800/50 text-slate-300 text-sm font-medium flex items-center justify-center gap-2 hover:bg-slate-700 transition-colors"
           >
             <Icon name="share" size={16} />
