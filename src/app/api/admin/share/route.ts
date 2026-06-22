@@ -2,23 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 
-export interface ShareConfig {
-  subject: string;
-  body: string;
-}
-
-export const DEFAULT_SHARE_CONFIG: ShareConfig = {
-  subject: "Polecam aplikację Salve Maria",
-  body: `Chcę Ci polecić bezpłatną aplikację Salve Maria, Fundacji Instytutu im. Ks. Piotra Skargi.
-
-Aplikacja działa jako PWA — wystarczy ją zainstalować na ekranie głównym telefonu (po otwarciu w przeglądarce zobaczysz instrukcję - to proste):
-
-https://salve-maria.vercel.app
-
-Otwórz powyższy link na telefonie i dodaj do ekranu głównego.
-
-Serdecznie pozdrawiam.`,
-};
+import { ShareConfig, DEFAULT_SHARE_CONFIG } from "@/lib/share-config";
+export type { ShareConfig };
+export { DEFAULT_SHARE_CONFIG };
 
 async function requireAdmin() {
   const supabase = await createClient();

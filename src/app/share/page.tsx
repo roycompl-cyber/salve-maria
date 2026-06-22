@@ -5,7 +5,7 @@ import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import Icon from "@/components/Icon";
 import { QRCodeSVG } from "qrcode.react";
-import { DEFAULT_SHARE_CONFIG, type ShareConfig } from "@/app/api/admin/share/route";
+import { DEFAULT_SHARE_CONFIG, type ShareConfig } from "@/lib/share-config";
 
 const APP_URL = "https://salve-maria.vercel.app";
 
