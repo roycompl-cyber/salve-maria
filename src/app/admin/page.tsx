@@ -253,8 +253,8 @@ function ScheduledForm({ onSave, onCancel, saving }: {
   );
 }
 
-// ─── User edit modal ──────────────────────────────────────────────────────────
-function UserEditModal({ user, onSave, onCancel, saving, saveError }: {
+// ─── User edit form (inline) ──────────────────────────────────────────────────
+function UserEditForm({ user, onSave, onCancel, saving, saveError }: {
   user: UserRow; onSave: (d: Partial<UserRow>) => void; onCancel: () => void; saving: boolean; saveError?: string;
 }) {
   const [firstName, setFirstName] = useState(user.first_name ?? "");
@@ -263,49 +263,41 @@ function UserEditModal({ user, onSave, onCancel, saving, saveError }: {
   const [city, setCity] = useState(user.city ?? "");
   const [role, setRole] = useState(["admin","donor"].includes(user.role) ? user.role : "donor");
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onCancel}>
-      <div className="w-full max-w-lg bg-slate-900 rounded-t-3xl md:rounded-3xl border-t md:border border-slate-700 flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-center pt-3 pb-1 md:hidden flex-shrink-0"><div className="w-10 h-1 rounded-full bg-slate-600"/></div>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
-          <div className="min-w-0">
-            <p className="text-white font-bold text-base">Edytuj użytkownika</p>
-            <p className="text-slate-500 text-xs font-mono mt-0.5 truncate">{user.email}</p>
-          </div>
-          <button onClick={onCancel} className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors flex-shrink-0 ml-3"><X size={18}/></button>
+    <div className="rounded-2xl border border-red-800/40 p-4 space-y-4" style={{background:"linear-gradient(135deg,#1c0a0a,#1a1a1a)"}}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-white font-semibold text-sm">Edytuj użytkownika</p>
+          <p className="text-slate-500 text-xs font-mono mt-0.5">{user.email}</p>
         </div>
-        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className={labelCls}>Imię</label><input className={inputCls} value={firstName} onChange={e => setFirstName(e.target.value)}/></div>
-            <div><label className={labelCls}>Nazwisko</label><input className={inputCls} value={lastName} onChange={e => setLastName(e.target.value)}/></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className={labelCls}>Telefon</label><input className={inputCls} value={phone} onChange={e => setPhone(e.target.value)}/></div>
-            <div><label className={labelCls}>Miasto</label><input className={inputCls} value={city} onChange={e => setCity(e.target.value)}/></div>
-          </div>
-          <div><label className={labelCls}>Rola</label>
-            <select className={inputCls} value={role} onChange={e => setRole(e.target.value)}>
-              <option value="donor">donor</option><option value="admin">admin</option>
-            </select>
-          </div>
-        </div>
-        <div className="flex flex-col gap-2 px-6 py-4 border-t border-slate-800 flex-shrink-0">
-          {saveError && <p className="text-red-400 text-xs text-center bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{saveError}</p>}
-          <div className="flex gap-2">
-            <button onClick={() => onSave({ first_name: firstName||null, last_name: lastName||null, phone: phone||null, city: city||null, role })}
-              disabled={saving}
-              className={`flex-1 ${BTN_PRIMARY}`} style={{ background: "linear-gradient(135deg,#7f1d1d,#991b1b)" }}>
-              {saving?<Loader2 size={15} className="animate-spin"/>:<CheckCircle2 size={15}/>} Zapisz zmiany
-            </button>
-            <button onClick={onCancel} className="px-5 py-3 rounded-xl text-slate-400 bg-slate-800 hover:bg-slate-700 text-sm transition-colors">Anuluj</button>
-          </div>
-        </div>
+        <button onClick={onCancel} className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-700 transition-colors"><X size={16}/></button>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className={labelCls}>Imię</label><input className={inputCls} value={firstName} onChange={e=>setFirstName(e.target.value)}/></div>
+        <div><label className={labelCls}>Nazwisko</label><input className={inputCls} value={lastName} onChange={e=>setLastName(e.target.value)}/></div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className={labelCls}>Telefon</label><input className={inputCls} value={phone} onChange={e=>setPhone(e.target.value)}/></div>
+        <div><label className={labelCls}>Miasto</label><input className={inputCls} value={city} onChange={e=>setCity(e.target.value)}/></div>
+      </div>
+      <div><label className={labelCls}>Rola</label>
+        <select className={inputCls} value={role} onChange={e=>setRole(e.target.value)}>
+          <option value="donor">donor</option><option value="admin">admin</option>
+        </select>
+      </div>
+      {saveError && <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{saveError}</p>}
+      <div className="flex gap-2">
+        <button onClick={()=>onSave({first_name:firstName||null,last_name:lastName||null,phone:phone||null,city:city||null,role})}
+          disabled={saving} className={`flex-1 ${BTN_PRIMARY}`} style={{background:"linear-gradient(135deg,#7f1d1d,#991b1b)"}}>
+          {saving?<Loader2 size={15} className="animate-spin"/>:<CheckCircle2 size={15}/>} Zapisz zmiany
+        </button>
+        <button onClick={onCancel} className="px-4 py-2.5 rounded-xl text-slate-400 bg-slate-800 hover:bg-slate-700 text-sm transition-colors">Anuluj</button>
       </div>
     </div>
   );
 }
 
-// ─── Add user modal ───────────────────────────────────────────────────────────
-function AddUserModal({ onSave, onCancel, saving, saveError }: {
+// ─── Add user form (inline) ───────────────────────────────────────────────────
+function AddUserForm({ onSave, onCancel, saving, saveError }: {
   onSave: (d: { email: string; password: string; first_name: string; last_name: string; phone: string; city: string; role: string }) => void;
   onCancel: () => void; saving: boolean; saveError?: string;
 }) {
@@ -314,45 +306,37 @@ function AddUserModal({ onSave, onCancel, saving, saveError }: {
   const [phone, setPhone] = useState(""); const [city, setCity] = useState("");
   const [role, setRole] = useState("donor");
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onCancel}>
-      <div className="w-full max-w-lg bg-slate-900 rounded-t-3xl md:rounded-3xl border-t md:border border-slate-700 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        <div className="flex justify-center pt-3 pb-1 md:hidden flex-shrink-0"><div className="w-10 h-1 rounded-full bg-slate-600"/></div>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 flex-shrink-0">
-          <p className="text-white font-bold text-base flex items-center gap-2"><UserPlus size={16} className="text-green-400"/> Nowy użytkownik</p>
-          <button onClick={onCancel} className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors"><X size={18}/></button>
-        </div>
-        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
-          <div><label className={labelCls}>Email *</label>
-            <input className={inputCls} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="adres@email.pl"/>
-          </div>
-          <div><label className={labelCls}>Hasło *</label>
-            <input className={inputCls} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="min. 6 znaków"/>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className={labelCls}>Imię</label><input className={inputCls} value={firstName} onChange={e => setFirstName(e.target.value)}/></div>
-            <div><label className={labelCls}>Nazwisko</label><input className={inputCls} value={lastName} onChange={e => setLastName(e.target.value)}/></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className={labelCls}>Telefon</label><input className={inputCls} value={phone} onChange={e => setPhone(e.target.value)}/></div>
-            <div><label className={labelCls}>Miasto</label><input className={inputCls} value={city} onChange={e => setCity(e.target.value)}/></div>
-          </div>
-          <div><label className={labelCls}>Rola</label>
-            <select className={inputCls} value={role} onChange={e => setRole(e.target.value)}>
-              <option value="donor">donor</option><option value="admin">admin</option>
-            </select>
-          </div>
-        </div>
-        <div className="flex flex-col gap-2 px-6 py-4 border-t border-slate-800 flex-shrink-0">
-          {saveError && <p className="text-red-400 text-xs text-center bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{saveError}</p>}
-          <div className="flex gap-2">
-            <button onClick={() => onSave({ email, password, first_name: firstName, last_name: lastName, phone, city, role })}
-              disabled={saving || !email || !password}
-              className={`flex-1 ${BTN_PRIMARY}`} style={{ background: "linear-gradient(135deg,#14532d,#166534)" }}>
-              {saving?<Loader2 size={15} className="animate-spin"/>:<UserPlus size={15}/>} Utwórz konto
-            </button>
-            <button onClick={onCancel} className="px-5 py-3 rounded-xl text-slate-400 bg-slate-800 hover:bg-slate-700 text-sm transition-colors">Anuluj</button>
-          </div>
-        </div>
+    <div className="rounded-2xl border border-green-800/40 p-4 space-y-4" style={{background:"linear-gradient(135deg,#0a1c0a,#1a1a1a)"}}>
+      <div className="flex items-center justify-between">
+        <p className="text-white font-semibold text-sm flex items-center gap-2"><UserPlus size={15} className="text-green-400"/>Nowy użytkownik</p>
+        <button onClick={onCancel} className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-700 transition-colors"><X size={16}/></button>
+      </div>
+      <div><label className={labelCls}>Email *</label>
+        <input className={inputCls} type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="adres@email.pl"/>
+      </div>
+      <div><label className={labelCls}>Hasło *</label>
+        <input className={inputCls} type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="min. 6 znaków"/>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className={labelCls}>Imię</label><input className={inputCls} value={firstName} onChange={e=>setFirstName(e.target.value)}/></div>
+        <div><label className={labelCls}>Nazwisko</label><input className={inputCls} value={lastName} onChange={e=>setLastName(e.target.value)}/></div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className={labelCls}>Telefon</label><input className={inputCls} value={phone} onChange={e=>setPhone(e.target.value)}/></div>
+        <div><label className={labelCls}>Miasto</label><input className={inputCls} value={city} onChange={e=>setCity(e.target.value)}/></div>
+      </div>
+      <div><label className={labelCls}>Rola</label>
+        <select className={inputCls} value={role} onChange={e=>setRole(e.target.value)}>
+          <option value="donor">donor</option><option value="admin">admin</option>
+        </select>
+      </div>
+      {saveError && <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{saveError}</p>}
+      <div className="flex gap-2">
+        <button onClick={()=>onSave({email,password,first_name:firstName,last_name:lastName,phone,city,role})}
+          disabled={saving||!email||!password} className={`flex-1 ${BTN_PRIMARY}`} style={{background:"linear-gradient(135deg,#14532d,#166534)"}}>
+          {saving?<Loader2 size={15} className="animate-spin"/>:<UserPlus size={15}/>} Utwórz konto
+        </button>
+        <button onClick={onCancel} className="px-4 py-2.5 rounded-xl text-slate-400 bg-slate-800 hover:bg-slate-700 text-sm transition-colors">Anuluj</button>
       </div>
     </div>
   );
@@ -1049,8 +1033,6 @@ export default function AdminPage() {
 
   return (
     <AppShell>
-      {editingUser && <UserEditModal user={editingUser} onSave={handleSaveUser} onCancel={()=>{setEditingUser(null);setUserSaveError("");}} saving={userSaving} saveError={userSaveError}/>}
-      {addingUser && <AddUserModal onSave={handleAddUser} onCancel={()=>{setAddingUser(false);setAddUserError("");}} saving={addUserSaving} saveError={addUserError}/>}
 
       <div className="max-w-lg md:max-w-3xl mx-auto animate-fade-in">
 
@@ -1313,58 +1295,69 @@ export default function AdminPage() {
         {section==="users" && (<>
           <SectionHeader title="Użytkownicy" subtitle={`${users.length} zarejestrowanych kont`} onBack={()=>setSection(null)}/>
           <div className="px-4 pb-2 flex justify-end">
-            <button onClick={()=>setAddingUser(true)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white`}
-              style={{background:"linear-gradient(135deg,#14532d,#166534)"}}>
-              <UserPlus size={15}/> Dodaj użytkownika
-            </button>
+            {!addingUser && !editingUser && (
+              <button onClick={()=>setAddingUser(true)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white`}
+                style={{background:"linear-gradient(135deg,#14532d,#166534)"}}>
+                <UserPlus size={15}/> Dodaj użytkownika
+              </button>
+            )}
           </div>
           <div className="px-4 pb-8 space-y-2 mt-2">
             {usersLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-red-400 animate-spin"/></div>}
+            {addingUser && (
+              <AddUserForm onSave={handleAddUser} onCancel={()=>{setAddingUser(false);setAddUserError("");}} saving={addUserSaving} saveError={addUserError}/>
+            )}
             {users.map(u=>(
-              <div key={u.id} className={`${CARD} p-4`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-white font-semibold text-sm">
-                        {u.first_name||u.last_name?`${u.first_name??""} ${u.last_name??""}`.trim():"—"}
-                      </p>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${u.role==="admin"?"bg-red-900/40 text-red-400":"bg-slate-700/80 text-slate-400"}`}>
-                        {u.role}
-                      </span>
-                      {u.profile_complete&&<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-900/30 text-green-400">✓ profil</span>}
-                    </div>
-                    <p className="text-slate-400 text-xs mt-0.5 truncate">{u.email}</p>
-                    <div className="flex items-center gap-3 mt-1 text-slate-500 text-xs flex-wrap">
-                      {u.phone&&<span>{u.phone}</span>}
-                      {u.city&&<span>{u.city}</span>}
-                      <span>rejestracja: {new Date(u.created_at).toLocaleDateString("pl-PL")}</span>
-                    </div>
-                    <div className="mt-0.5 text-xs">
-                      {u.last_sign_in_at ? (
-                        <span className="text-slate-500">
-                          ostatnie logowanie:{" "}
-                          <span className="text-slate-400">
-                            {new Date(u.last_sign_in_at).toLocaleDateString("pl-PL")}{" "}
-                            {new Date(u.last_sign_in_at).toLocaleTimeString("pl-PL", {hour:"2-digit",minute:"2-digit"})}
+              <div key={u.id}>
+                {editingUser?.id===u.id ? (
+                  <UserEditForm user={u} onSave={handleSaveUser} onCancel={()=>{setEditingUser(null);setUserSaveError("");}} saving={userSaving} saveError={userSaveError}/>
+                ) : (
+                  <div className={`${CARD} p-4`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-white font-semibold text-sm">
+                            {u.first_name||u.last_name?`${u.first_name??""} ${u.last_name??""}`.trim():"—"}
+                          </p>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${u.role==="admin"?"bg-red-900/40 text-red-400":"bg-slate-700/80 text-slate-400"}`}>
+                            {u.role}
                           </span>
-                        </span>
-                      ) : (
-                        <span className="text-slate-600">nie logował się</span>
-                      )}
+                          {u.profile_complete&&<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-900/30 text-green-400">✓ profil</span>}
+                        </div>
+                        <p className="text-slate-400 text-xs mt-0.5 truncate">{u.email}</p>
+                        <div className="flex items-center gap-3 mt-1 text-slate-500 text-xs flex-wrap">
+                          {u.phone&&<span>{u.phone}</span>}
+                          {u.city&&<span>{u.city}</span>}
+                          <span>rejestracja: {new Date(u.created_at).toLocaleDateString("pl-PL")}</span>
+                        </div>
+                        <div className="mt-0.5 text-xs">
+                          {u.last_sign_in_at ? (
+                            <span className="text-slate-500">
+                              ostatnie logowanie:{" "}
+                              <span className="text-slate-400">
+                                {new Date(u.last_sign_in_at).toLocaleDateString("pl-PL")}{" "}
+                                {new Date(u.last_sign_in_at).toLocaleTimeString("pl-PL", {hour:"2-digit",minute:"2-digit"})}
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="text-slate-600">nie logował się</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button onClick={()=>setEditingUser(u)} title="Edytuj" className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-700 transition-colors"><Pencil size={13}/></button>
+                        <button onClick={async()=>{if(!confirm(`Wysłać link resetowania hasła do ${u.email}?`))return;await fetch("/api/admin/users/reset-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:u.email})});}}
+                          title="Resetuj hasło" className="p-1.5 rounded-lg text-slate-500 hover:text-amber-400 hover:bg-slate-700 transition-colors"><Lock size={13}/></button>
+                        <button onClick={async()=>{
+                          if(!confirm(`Trwale usunąć konto ${u.email}? Tej operacji nie można cofnąć.`))return;
+                          const res=await fetch(`/api/admin/users/${u.id}`,{method:"DELETE"});
+                          if(res.ok)setUsers(prev=>prev.filter(x=>x.id!==u.id));
+                        }} title="Usuń konto" className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-700 transition-colors"><Trash2 size={13}/></button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button onClick={()=>setEditingUser(u)} title="Edytuj" className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-700 transition-colors"><Pencil size={13}/></button>
-                    <button onClick={async()=>{if(!confirm(`Wysłać link resetowania hasła do ${u.email}?`))return;await fetch("/api/admin/users/reset-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:u.email})});}}
-                      title="Resetuj hasło" className="p-1.5 rounded-lg text-slate-500 hover:text-amber-400 hover:bg-slate-700 transition-colors"><Lock size={13}/></button>
-                    <button onClick={async()=>{
-                      if(!confirm(`Trwale usunąć konto ${u.email}? Tej operacji nie można cofnąć.`))return;
-                      const res=await fetch(`/api/admin/users/${u.id}`,{method:"DELETE"});
-                      if(res.ok)setUsers(prev=>prev.filter(x=>x.id!==u.id));
-                    }} title="Usuń konto" className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-700 transition-colors"><Trash2 size={13}/></button>
-                  </div>
-                </div>
+                )}
               </div>
             ))}
             {!usersLoading&&users.length===0&&<p className="text-slate-500 text-sm text-center py-8">Brak użytkowników.</p>}
