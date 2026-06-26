@@ -50,7 +50,7 @@ interface PageSectionConfig { show?: boolean; title?: string; count?: number; }
 interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; }
 type TilesConfig = Record<string, TileOverride>;
 
-type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "plinio" | "referral" | "bypass" | "settings" | "stats" | "errors" | "login" | "access";
+type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "plinio" | "catechism" | "civilitas" | "referral" | "bypass" | "settings" | "stats" | "errors" | "login" | "access";
 type NotifType = "news" | "action" | "prayer" | "article" | "petition";
 
 // ─── Color palettes ───────────────────────────────────────────────────────────
@@ -489,6 +489,29 @@ export default function AdminPage() {
   const [plinioConfigSaving, setPlinioConfigSaving] = useState(false);
   const [plinioConfigSaved, setPlinioConfigSaved] = useState(false);
 
+  // ── Catechism state ──
+  interface CatChapter { id: string; num: number; title: string; qa: {n: number; q: string; a: string}[] }
+  const [catChapters, setCatChapters] = useState<CatChapter[]>([]);
+  const [catConfig, setCatConfig] = useState<Record<string, string>>({});
+  const [catQaOverrides, setCatQaOverrides] = useState<Record<string, {q: string; a: string}>>({});
+  const [catLoading, setCatLoading] = useState(false);
+  const [catTab, setCatTab] = useState<"qa"|"config">("qa");
+  const [catSearch, setCatSearch] = useState("");
+  const [catActiveChapter, setCatActiveChapter] = useState<string>("");
+  const [catEditKey, setCatEditKey] = useState<string|null>(null);
+  const [catEditQ, setCatEditQ] = useState("");
+  const [catEditA, setCatEditA] = useState("");
+  const [catSaving, setCatSaving] = useState(false);
+  const [catSaved, setCatSaved] = useState(false);
+  const [catConfigSaving, setCatConfigSaving] = useState(false);
+  const [catConfigSaved, setCatConfigSaved] = useState(false);
+
+  // ── Civilitas state ──
+  const [civConfig, setCivConfig] = useState<Record<string, string>>({});
+  const [civLoading, setCivLoading] = useState(false);
+  const [civSaving, setCivSaving] = useState(false);
+  const [civSaved, setCivSaved] = useState(false);
+
   // ── Auth check ──
   useEffect(() => {
     fetch("/api/admin/check").then(r => r.json()).then(d => {
@@ -548,6 +571,24 @@ export default function AdminPage() {
     }
     if (section==="referral" && !shareSubject) { loadShareConfig(); }
     if (section==="bypass") { loadBypassCode(); }
+    if (section==="catechism" && catChapters.length===0) {
+      setCatLoading(true);
+      Promise.all([
+        fetch("/katechizm.json").then(r => r.json()),
+        fetch("/api/admin/catechism").then(r => r.json()),
+      ]).then(([chapters, adminData]) => {
+        setCatChapters(chapters ?? []);
+        setCatConfig(adminData.config ?? {});
+        setCatQaOverrides(adminData.qaOverrides ?? {});
+        if (chapters?.[0]) setCatActiveChapter(chapters[0].id);
+      }).finally(() => setCatLoading(false));
+    }
+    if (section==="civilitas" && !civConfig.pageTitle && !civLoading) {
+      setCivLoading(true);
+      fetch("/api/admin/civilitas").then(r => r.json()).then(d => {
+        setCivConfig(d.config ?? {});
+      }).finally(() => setCivLoading(false));
+    }
     if (section==="plinio" && plinioQuotes.length===0) {
       setPlinioLoading(true);
       fetch("/api/admin/plinio").then(r=>r.json()).then(d=>{
@@ -942,7 +983,8 @@ export default function AdminPage() {
   const TILE_LABELS: Record<string, string> = {
     notifications: "Powiadomienia", messages: "Wiadomości", users: "Użytkownicy",
     prayers: "Modlitwy", tiles: "Strona główna", modules: "Moduły",
-    plinio: "Myśl na dziś", referral: "Polecanie", bypass: "Kod dostępu", settings: "Kontakt",
+    plinio: "Myśl na dziś", catechism: "Katechizm", civilitas: "Civilitas",
+    referral: "Polecanie", bypass: "Kod dostępu", settings: "Kontakt",
     stats: "Statystyki", errors: "Błędy", login: "Ekran logowania",
   };
 
@@ -981,6 +1023,8 @@ export default function AdminPage() {
     { key:"tiles",         icon:<LayoutGrid size={22}/>, label:"Strona główna",  desc:"Kafelki, kolejność, kolory",  color:"linear-gradient(135deg,#1a0a2e,#2e1060)", accent:"#c084fc" },
     { key:"modules",       icon:<LayoutGrid size={22}/>, label:"Moduły",          desc:"Ikony, nazwy, nawigacja",     color:"linear-gradient(135deg,#0a1a2e,#0f2e50)", accent:"#38bdf8" },
     { key:"plinio",        icon:<BookMarked size={22}/>,label:"Myśl na dziś",    desc:"Cytaty i treści modułu",      color:"linear-gradient(135deg,#2a1800,#4a2e00)", accent:"#fbbf24" },
+    { key:"catechism",     icon:<BookMarked size={22}/>,label:"Katechizm",       desc:"Q&A i treści modułu",         color:"linear-gradient(135deg,#1a1000,#3a2800)", accent:"#f59e0b" },
+    { key:"civilitas",     icon:<BookMarked size={22}/>,label:"Civilitas",       desc:"Wstęp, zakończenie, tytuły",  color:"linear-gradient(135deg,#1a0a2e,#2e1060)", accent:"#c084fc" },
     { key:"referral",      icon:<Mail size={22}/>,      label:"Polecanie",        desc:"Treść maila polecającego",    color:"linear-gradient(135deg,#0f2800,#1e4a00)", accent:"#86efac" },
     { key:"bypass",        icon:<Lock size={22}/>,      label:"Kod dostępu",      desc:"Mój kod do panelu na desktop", color:"linear-gradient(135deg,#1a1a0a,#3a3a10)", accent:"#facc15" },
     { key:"stats",         icon:<BarChart2 size={22}/>,  label:"Statystyki",     desc:"Wyświetlenia, aktywność",     color:"linear-gradient(135deg,#042828,#074a4a)", accent:"#2dd4bf" },
@@ -2108,6 +2152,187 @@ export default function AdminPage() {
                 </p>
               </div>
             ))}
+          </div>
+        </>)}
+
+        {/* ── CATECHISM ── */}
+        {section==="catechism" && (<>
+          <SectionHeader title="Katechizm" subtitle="Edycja pytań, odpowiedzi i treści modułu" onBack={()=>setSection(null)}/>
+          <div className="flex gap-2 px-4 pb-4">
+            {(["qa","config"] as const).map(t=>(
+              <button key={t} onClick={()=>setCatTab(t)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${catTab===t?"text-white":"bg-slate-800 text-slate-400 hover:text-white"}`}
+                style={catTab===t?{background:"linear-gradient(135deg,#1a1000,#3a2800)"}:{}}>
+                {t==="qa"?<><BookMarked size={12}/>Pytania i odpowiedzi</>:<><Settings2 size={12}/>Treści strony</>}
+              </button>
+            ))}
+          </div>
+          <div className="px-4 pb-8 space-y-3">
+            {catLoading && <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-amber-400"/></div>}
+
+            {/* TAB: Q&A */}
+            {catTab==="qa" && !catLoading && (<>
+              {/* Wybór rozdziału */}
+              <div className={`${CARD} p-4`}>
+                <label className={labelCls}>Rozdział</label>
+                <select value={catActiveChapter} onChange={e=>setCatActiveChapter(e.target.value)} className={inputCls}>
+                  {catChapters.map(ch=>(
+                    <option key={ch.id} value={ch.id}>{ch.num}. {ch.title}</option>
+                  ))}
+                </select>
+              </div>
+              {/* Szukaj */}
+              <div className={`${CARD} p-4`}>
+                <label className={labelCls}>Szukaj w pytaniach i odpowiedziach</label>
+                <input value={catSearch} onChange={e=>setCatSearch(e.target.value)} className={inputCls} placeholder="Wpisz fragment pytania lub odpowiedzi..."/>
+              </div>
+              {/* Lista Q&A */}
+              {(() => {
+                const chapter = catChapters.find(ch=>ch.id===catActiveChapter);
+                if (!chapter) return null;
+                const searchLow = catSearch.toLowerCase().trim();
+                const items = searchLow.length > 1
+                  ? chapter.qa.filter(qa => qa.q.toLowerCase().includes(searchLow) || qa.a.toLowerCase().includes(searchLow))
+                  : chapter.qa;
+                const overrideKeys = Object.keys(catQaOverrides).filter(k=>k.startsWith(chapter.id+"_"));
+                return (<>
+                  {overrideKeys.length > 0 && !catSearch && (
+                    <p className="text-amber-500 text-xs px-1 flex items-center gap-1.5"><Pencil size={11}/> Edytowane w tym rozdziale: {overrideKeys.length}</p>
+                  )}
+                  {items.map(qa=>{
+                    const key = `${chapter.id}_${qa.n}`;
+                    const override = catQaOverrides[key];
+                    const isEditing = catEditKey===key;
+                    const isModified = !!override;
+                    return (
+                      <div key={key} className={`${CARD} p-4 ${isModified?"border-amber-700/40":""}`}>
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-amber-500 font-bold text-xs">#{qa.n}</span>
+                            {isModified && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-900/40 text-amber-400 border border-amber-800/40">edytowany</span>}
+                          </div>
+                          <div className="flex gap-1.5">
+                            {isModified && !isEditing && (
+                              <button onClick={async()=>{
+                                await fetch("/api/admin/catechism",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({key})});
+                                setCatQaOverrides(prev=>{const n={...prev};delete n[key];return n;});
+                              }} className="p-1.5 rounded-lg bg-red-900/30 hover:bg-red-900/50 text-red-400 transition-colors" title="Przywróć oryginał">
+                                <Trash2 size={12}/>
+                              </button>
+                            )}
+                            {!isEditing && (
+                              <button onClick={()=>{setCatEditKey(key);setCatEditQ(override?.q??qa.q);setCatEditA(override?.a??qa.a);}}
+                                className="p-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"><Pencil size={12}/></button>
+                            )}
+                          </div>
+                        </div>
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            <div>
+                              <label className="text-slate-400 text-[10px] uppercase tracking-wider mb-1 block">Pytanie</label>
+                              <input value={catEditQ} onChange={e=>setCatEditQ(e.target.value)} className={inputCls} placeholder="Pytanie"/>
+                            </div>
+                            <div>
+                              <label className="text-slate-400 text-[10px] uppercase tracking-wider mb-1 block">Odpowiedź</label>
+                              <textarea value={catEditA} onChange={e=>setCatEditA(e.target.value)} className={inputCls} rows={4} placeholder="Odpowiedź"/>
+                            </div>
+                            <div className="flex gap-2 mt-1">
+                              <button onClick={async()=>{
+                                setCatSaving(true);
+                                await fetch("/api/admin/catechism",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"qa",key,q:catEditQ,a:catEditA})});
+                                setCatQaOverrides(prev=>({...prev,[key]:{q:catEditQ,a:catEditA}}));
+                                setCatSaving(false); setCatSaved(true); setTimeout(()=>setCatSaved(false),2000);
+                                setCatEditKey(null);
+                              }} disabled={catSaving} className={`${BTN_PRIMARY} flex-1`} style={{background:"linear-gradient(135deg,#1a1000,#3a2800)"}}>
+                                {catSaving?<Loader2 size={13} className="animate-spin"/>:catSaved?<CheckCircle2 size={13} className="text-green-400"/>:<Save size={13}/>} Zapisz
+                              </button>
+                              <button onClick={()=>setCatEditKey(null)} className="px-4 py-2 rounded-xl text-slate-400 bg-slate-800 text-sm">Anuluj</button>
+                            </div>
+                          </div>
+                        ) : (<>
+                          <p className="text-white text-xs font-medium mb-1">{override?.q ?? qa.q}</p>
+                          <p className="text-slate-400 text-xs leading-relaxed line-clamp-2">{override?.a ?? qa.a}</p>
+                        </>)}
+                      </div>
+                    );
+                  })}
+                </>);
+              })()}
+            </>)}
+
+            {/* TAB: Treści strony */}
+            {catTab==="config" && !catLoading && (
+              <div className={`${CARD} p-4 space-y-4`}>
+                <div>
+                  <label className={labelCls}>Tytuł strony</label>
+                  <input value={catConfig.pageTitle??""} onChange={e=>setCatConfig(p=>({...p,pageTitle:e.target.value}))} className={inputCls} placeholder="Katechizm"/>
+                </div>
+                <div>
+                  <label className={labelCls}>Podtytuł</label>
+                  <input value={catConfig.pageSubtitle??""} onChange={e=>setCatConfig(p=>({...p,pageSubtitle:e.target.value}))} className={inputCls} placeholder="Kard. Gasparri • ... pytań i odpowiedzi"/>
+                </div>
+                <div>
+                  <label className={labelCls}>Cytat we wstępie</label>
+                  <textarea value={catConfig.introQuote??""} onChange={e=>setCatConfig(p=>({...p,introQuote:e.target.value}))} className={inputCls} rows={3} placeholder="Nauczanie katechizmu ma nie tylko ten cel..."/>
+                </div>
+                <div>
+                  <label className={labelCls}>Podpis pod cytatem</label>
+                  <input value={catConfig.introFooter??""} onChange={e=>setCatConfig(p=>({...p,introFooter:e.target.value}))} className={inputCls} placeholder="Z Przedmowy kard. Gasparriego"/>
+                </div>
+                <div>
+                  <label className={labelCls}>Tekst wstępu (akapity oddzielone pustą linią)</label>
+                  <textarea value={catConfig.introText??""} onChange={e=>setCatConfig(p=>({...p,introText:e.target.value}))} className={inputCls} rows={6} placeholder={"Katechizm katolicki dla osób dorosłych to dzieło...\n\nKatechizm wykłada najważniejsze zasady..."}/>
+                </div>
+                <button onClick={async()=>{
+                  setCatConfigSaving(true);
+                  await fetch("/api/admin/catechism",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"config",config:catConfig})});
+                  setCatConfigSaving(false); setCatConfigSaved(true); setTimeout(()=>setCatConfigSaved(false),2000);
+                }} disabled={catConfigSaving} className={`${BTN_PRIMARY} w-full`} style={{background:"linear-gradient(135deg,#1a1000,#3a2800)"}}>
+                  {catConfigSaving?<Loader2 size={14} className="animate-spin"/>:catConfigSaved?<CheckCircle2 size={14} className="text-green-400"/>:<Save size={14}/>}
+                  {catConfigSaved?"Zapisano!":"Zapisz treści"}
+                </button>
+              </div>
+            )}
+          </div>
+        </>)}
+
+        {/* ── CIVILITAS ── */}
+        {section==="civilitas" && (<>
+          <SectionHeader title="Civilitas" subtitle="Edycja treści modułu savoir-vivre" onBack={()=>setSection(null)}/>
+          <div className="px-4 pb-8 space-y-3">
+            {civLoading && <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-purple-400"/></div>}
+            {!civLoading && (
+              <div className={`${CARD} p-4 space-y-4`}>
+                <div>
+                  <label className={labelCls}>Tytuł strony</label>
+                  <input value={civConfig.pageTitle??""} onChange={e=>setCivConfig(p=>({...p,pageTitle:e.target.value}))} className={inputCls} placeholder="Katolicki savoir-vivre"/>
+                </div>
+                <div>
+                  <label className={labelCls}>Podtytuł</label>
+                  <input value={civConfig.pageSubtitle??""} onChange={e=>setCivConfig(p=>({...p,pageSubtitle:e.target.value}))} className={inputCls} placeholder="Poradnik etykiety katolickiej"/>
+                </div>
+                <div>
+                  <label className={labelCls}>Tekst wstępu (akapity oddzielone pustą linią)</label>
+                  <textarea value={civConfig.intro??""} onChange={e=>setCivConfig(p=>({...p,intro:e.target.value}))} className={inputCls} rows={6}
+                    placeholder={"Katolicki savoir-vivre nie jest jedynie zbiorem sztywnych reguł...\n\nDobre maniery w duchu katolickim..."}/>
+                  <p className="text-slate-600 text-[10px] mt-1">Wyświetlany na górze strony przed listą sekcji</p>
+                </div>
+                <div>
+                  <label className={labelCls}>Tekst zakończenia (akapity oddzielone pustą linią)</label>
+                  <textarea value={civConfig.conclusion??""} onChange={e=>setCivConfig(p=>({...p,conclusion:e.target.value}))} className={inputCls} rows={6}
+                    placeholder={"Katolicki savoir-vivre jest sztuką życia...\n\nCzłowiek dobrze wychowany..."}/>
+                  <p className="text-slate-600 text-[10px] mt-1">Wyświetlane pod ostatnią sekcją</p>
+                </div>
+                <button onClick={async()=>{
+                  setCivSaving(true);
+                  await fetch("/api/admin/civilitas",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({config:civConfig})});
+                  setCivSaving(false); setCivSaved(true); setTimeout(()=>setCivSaved(false),2000);
+                }} disabled={civSaving} className={`${BTN_PRIMARY} w-full`} style={{background:"linear-gradient(135deg,#1a0a2e,#2e1060)"}}>
+                  {civSaving?<Loader2 size={14} className="animate-spin"/>:civSaved?<CheckCircle2 size={14} className="text-green-400"/>:<Save size={14}/>}
+                  {civSaved?"Zapisano!":"Zapisz treści"}
+                </button>
+              </div>
+            )}
           </div>
         </>)}
 

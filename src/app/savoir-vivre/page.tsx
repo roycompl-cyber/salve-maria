@@ -22,11 +22,11 @@ type Block =
 const PO = "„"; // „
 const PC = "”"; // "
 
-const INTRO = `Katolicki savoir-vivre nie jest jedynie zbiorem sztywnych reguł. Jego istotą jest szacunek: wobec Boga, wobec miejsca świętego, wobec liturgii, wobec osób duchownych, wobec kobiet, osób starszych, chorych, dzieci i wszystkich bliźnich.
+const DEFAULT_INTRO = `Katolicki savoir-vivre nie jest jedynie zbiorem sztywnych reguł. Jego istotą jest szacunek: wobec Boga, wobec miejsca świętego, wobec liturgii, wobec osób duchownych, wobec kobiet, osób starszych, chorych, dzieci i wszystkich bliźnich.
 
 Dobre maniery w duchu katolickim wynikają z przekonania, że człowiek nie żyje wyłącznie dla siebie. W kościele, przy stole, w rozmowie, podczas uroczystości rodzinnych i parafialnych, katolik powinien łączyć kulturę osobistą z pokorą, taktem i delikatnością.`;
 
-const CONCLUSION = `Katolicki savoir-vivre jest sztuką życia w obecności Boga i ludzi. Wymaga szacunku, dyskrecji, cierpliwości i umiaru. Nie jest zbiorem pustych ceremonii, ale praktyczną szkołą miłości bliźniego.
+const DEFAULT_CONCLUSION = `Katolicki savoir-vivre jest sztuką życia w obecności Boga i ludzi. Wymaga szacunku, dyskrecji, cierpliwości i umiaru. Nie jest zbiorem pustych ceremonii, ale praktyczną szkołą miłości bliźniego.
 
 Człowiek dobrze wychowany nie musi stale przypominać innym o zasadach. Sam staje się znakiem ładu, pokoju i kultury. W kościele, przy stole, w rodzinie, wobec duchownych, kobiet, starszych i dzieci — wszędzie tam katolik powinien łączyć godność z prostotą, uprzejmość z prawdą, a dobre maniery z sercem.`;
 
@@ -529,12 +529,15 @@ function renderBlock(block: Block, i: number) {
   }
 }
 
+interface CivilitasConfig { pageTitle?: string; pageSubtitle?: string; intro?: string; conclusion?: string; }
+
 export default function SavoirVivrePage() {
   const router = useRouter();
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const tabsRef = useRef<HTMLDivElement>(null);
   const [isLight, setIsLight] = useState(false);
+  const [civConfig, setCivConfig] = useState<CivilitasConfig>({});
 
   useEffect(() => {
     setIsLight(document.documentElement.classList.contains("theme-light"));
@@ -543,6 +546,10 @@ export default function SavoirVivrePage() {
     );
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
     return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/civilitas").then(r => r.json()).then(d => setCivConfig(d ?? {})).catch(() => {});
   }, []);
 
   const searchLow = search.toLowerCase().trim();
@@ -594,16 +601,16 @@ export default function SavoirVivrePage() {
             </div>
             <div>
               <h1 className="text-white text-lg font-bold leading-tight" style={{ fontFamily: "Georgia, serif" }}>
-                Katolicki savoir-vivre
+                {civConfig.pageTitle || "Katolicki savoir-vivre"}
               </h1>
-              <p className="text-slate-400 text-xs mt-0.5">Poradnik etykiety katolickiej</p>
+              <p className="text-slate-400 text-xs mt-0.5">{civConfig.pageSubtitle || "Poradnik etykiety katolickiej"}</p>
             </div>
           </div>
         </div>
 
         <div className="mx-4 mb-4 rounded-2xl p-4" style={{ background: "#1a0a2e", border: "1px solid #c084fc22" }}>
           <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: accent }}>Wstęp</p>
-          {INTRO.split("\n\n").map((para, i) => (
+          {(civConfig.intro || DEFAULT_INTRO).split("\n\n").map((para, i) => (
             <p key={i} className="text-slate-300 text-sm leading-relaxed mb-2 last:mb-0">{para}</p>
           ))}
         </div>
@@ -676,7 +683,7 @@ export default function SavoirVivrePage() {
                       {isLast && (
                         <div className="mt-4 pt-3 border-t border-purple-500/20">
                           <p className="text-[10px] uppercase tracking-widest mb-2" style={{ color: accent }}>Zakończenie</p>
-                          {CONCLUSION.split("\n\n").map((para, i) => (
+                          {(civConfig.conclusion || DEFAULT_CONCLUSION).split("\n\n").map((para, i) => (
                             <p key={i} className="text-slate-300 text-sm leading-relaxed mb-2 last:mb-0">{para}</p>
                           ))}
                         </div>

@@ -8,6 +8,8 @@ export const ALL_TILE_KEYS = [
   "tiles",
   "modules",
   "plinio",
+  "catechism",
+  "civilitas",
   "referral",
   "bypass",
   "settings",

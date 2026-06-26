@@ -8,17 +8,25 @@ import ArticlePlayer from "@/components/ArticlePlayer";
 interface QA { n: number; q: string; a: string }
 interface Chapter { id: string; num: number; title: string; qa: QA[] }
 
-const CHAPTER_ICONS: Record<string, string> = {
+const CHAPTER_ICONS_DEFAULT: Record<string, string> = {
   I: "✝", II: "📖", III: "🕊", IV: "⚖", V: "⛪", VI: "💧",
   VII: "✨", VIII: "🙏", IX: "🕯", X: "❤", XI: "⚠", XII: "♾",
 };
 
-const INTRO_QUOTE = "Nauczanie katechizmu ma nie tylko ten cel, by oświecać rozum — lecz przede wszystkim by nakłonić wolę do życia zgodnego z przykazaniami nauki chrześcijańskiej.";
-const INTRO_TEXT = [
+const DEFAULT_INTRO_QUOTE = "Nauczanie katechizmu ma nie tylko ten cel, by oświecać rozum — lecz przede wszystkim by nakłonić wolę do życia zgodnego z przykazaniami nauki chrześcijańskiej.";
+const DEFAULT_INTRO_TEXT = [
   "Katechizm katolicki dla osób dorosłych to dzieło kardynała Pietra Gasparriego (1852–1934) — wybitnego kanonisty, Sekretarza Stanu Stolicy Apostolskiej za pontyfikatów Benedykta XV i Piusa XI. Pełny tytuł brzmi: Katechizm katolicki dla osób dorosłych, które pragną zdobyć pełniejszą znajomość nauki katolickiej.",
   "Katechizm wykłada najważniejsze zasady wiary, moralności i kultu, do których przestrzegania zobowiązani są wierni Kościoła katolickiego. Całość ujęta jest systematycznie, zwięźle i przejrzyście — bez zbędnych słów, bez zbędnych pytań.",
   "Forma pytań i odpowiedzi, od wieków stosowana w Kościele, chroni przed zamieszaniem myślowym, pozwala wyraźnie zobaczyć to, co najważniejsze, i ułatwia zapamiętanie. Każdy ustęp jest zamkniętą całością.",
 ];
+
+interface CatechismConfig {
+  pageTitle?: string;
+  pageSubtitle?: string;
+  introQuote?: string;
+  introText?: string;
+  introFooter?: string;
+}
 
 export default function CatechismPage() {
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -28,6 +36,8 @@ export default function CatechismPage() {
   const [expandedQA, setExpandedQA] = useState<number | null>(null);
   const [isLight, setIsLight] = useState(false);
   const tabsRef = useRef<HTMLDivElement>(null);
+  const [catConfig, setCatConfig] = useState<CatechismConfig>({});
+  const [qaOverrides, setQaOverrides] = useState<Record<string, {q: string; a: string}>>({});
 
   useEffect(() => {
     setIsLight(document.documentElement.classList.contains("theme-light"));
@@ -40,11 +50,25 @@ export default function CatechismPage() {
 
   useEffect(() => {
     fetch("/katechizm.json").then(r => r.json()).then(setChapters);
+    fetch("/api/catechism").then(r => r.json()).then(d => {
+      setCatConfig(d.config ?? {});
+      setQaOverrides(d.qaOverrides ?? {});
+    }).catch(() => {});
   }, []);
 
-  // Search across all chapters
+  const chaptersWithOverrides = useMemo(() => chapters.map(ch => ({
+    ...ch,
+    qa: ch.qa.map(qa => {
+      const ov = qaOverrides[`${ch.id}_${qa.n}`];
+      return ov ? { ...qa, q: ov.q, a: ov.a } : qa;
+    }),
+  })), [chapters, qaOverrides]);
+
+  const activeChapter = chaptersWithOverrides[activeTab];
+
+  // Search across all chapters (with overrides applied)
   const searchResults = search.trim().length > 1
-    ? chapters.flatMap(ch =>
+    ? chaptersWithOverrides.flatMap(ch =>
         ch.qa
           .filter(qa =>
             qa.q.toLowerCase().includes(search.toLowerCase()) ||
@@ -53,8 +77,6 @@ export default function CatechismPage() {
           .map(qa => ({ ...qa, chapter: ch }))
       )
     : [];
-
-  const activeChapter = chapters[activeTab];
 
   function scrollTabIntoView(idx: number) {
     const el = tabsRef.current?.children[idx] as HTMLElement | undefined;
@@ -81,9 +103,9 @@ export default function CatechismPage() {
           <div className="flex items-center justify-between mb-1">
             <div>
               <h1 className="text-xl font-bold text-white" style={{ fontFamily: "Georgia, serif" }}>
-                Katechizm
+                {catConfig.pageTitle || "Katechizm"}
               </h1>
-              <p className="text-slate-400 text-xs mt-0.5">Kard. Gasparri • {chapters.reduce((s, c) => s + c.qa.length, 0)} pytań i odpowiedzi</p>
+              <p className="text-slate-400 text-xs mt-0.5">{catConfig.pageSubtitle || `Kard. Gasparri • ${chapters.reduce((s, c) => s + c.qa.length, 0)} pytań i odpowiedzi`}</p>
             </div>
             <Link href="/" className="text-slate-500 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors">
               <Icon name="chevron-left" size={20} />
@@ -107,10 +129,10 @@ export default function CatechismPage() {
             {introOpen && (
               <div className="px-4 pb-4 space-y-3 border-t border-amber-900/30">
                 <blockquote className="mt-3 border-l-2 border-amber-600 pl-3 italic text-amber-200/80 text-sm leading-relaxed">
-                  {INTRO_QUOTE}
-                  <footer className="mt-1.5 text-amber-600/70 text-xs not-italic">— Z Przedmowy kard. Gasparriego</footer>
+                  {catConfig.introQuote || DEFAULT_INTRO_QUOTE}
+                  <footer className="mt-1.5 text-amber-600/70 text-xs not-italic">— {catConfig.introFooter || "Z Przedmowy kard. Gasparriego"}</footer>
                 </blockquote>
-                {INTRO_TEXT.map((p, i) => (
+                {(catConfig.introText ? catConfig.introText.split("\n\n") : DEFAULT_INTRO_TEXT).map((p, i) => (
                   <p key={i} className="text-amber-100/70 text-sm leading-relaxed">{p}</p>
                 ))}
               </div>
@@ -162,7 +184,7 @@ export default function CatechismPage() {
                       : { background: "#1e293b", color: "#94a3b8", border: "1px solid #334155" }
                 }
               >
-                <span className="text-base leading-none">{CHAPTER_ICONS[ch.id] ?? "§"}</span>
+                <span className="text-base leading-none">{CHAPTER_ICONS_DEFAULT[ch.id] ?? "§"}</span>
                 <span className="leading-tight text-center whitespace-nowrap max-w-[80px] truncate">{ch.id}</span>
               </button>
             ))}
@@ -203,7 +225,7 @@ export default function CatechismPage() {
                 : { background: "linear-gradient(135deg,#1e1a0e,#2d1f0a)", border: "1px solid rgba(196,130,40,0.25)" }}
             >
               <div className="flex items-center gap-3">
-                <span className="text-3xl">{CHAPTER_ICONS[activeChapter.id] ?? "§"}</span>
+                <span className="text-3xl">{CHAPTER_ICONS_DEFAULT[activeChapter.id] ?? "§"}</span>
                 <div>
                   <p className="text-xs font-medium tracking-widest uppercase mb-0.5" style={{ color: isLight ? "#92400e" : "#f59e0b" }}>
                     Rozdział {activeChapter.id}
