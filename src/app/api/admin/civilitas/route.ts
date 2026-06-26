@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { getEffectiveRole } from "@/lib/security";
+import { CIVILITAS_SECTIONS, blocksToText } from "@/lib/civilitas-sections";
 
 function adminDb() {
   return createAdminClient(
@@ -36,14 +37,57 @@ async function saveSetting(key: string, value: unknown) {
 }
 
 export async function GET() {
-  const config = await getSetting("civilitas_config");
-  return NextResponse.json({ config: config ?? {} });
+  const [config, sectionOverrides] = await Promise.all([
+    getSetting("civilitas_config"),
+    getSetting("civilitas_section_overrides"),
+  ]);
+
+  // Return sections with their default text representation + any override text
+  const overrides: Record<string, string> = sectionOverrides ?? {};
+  const sections = CIVILITAS_SECTIONS.map(s => ({
+    num: s.num,
+    title: s.title,
+    defaultText: blocksToText(s.content),
+    overrideText: overrides[s.num] ?? null,
+    titleOverride: (config as Record<string, string> | null)?.[`section_title_${s.num}`] ?? null,
+  }));
+
+  return NextResponse.json({ config: config ?? {}, sections, sectionOverrides: overrides });
 }
 
 export async function POST(req: NextRequest) {
   const user = await requireAdmin();
   if (!user) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 });
-  const body = await req.json() as { config: Record<string, string> };
-  await saveSetting("civilitas_config", body.config ?? {});
+
+  const body = await req.json() as {
+    type: "config" | "section";
+    config?: Record<string, string>;
+    sectionNum?: string;
+    text?: string;
+    titleOverride?: string;
+  };
+
+  if (body.type === "config") {
+    await saveSetting("civilitas_config", body.config ?? {});
+    return NextResponse.json({ ok: true });
+  }
+
+  if (body.type === "section" && body.sectionNum) {
+    const overrides = (await getSetting("civilitas_section_overrides")) ?? {};
+    if (body.text !== undefined) overrides[body.sectionNum] = body.text;
+    await saveSetting("civilitas_section_overrides", overrides);
+    return NextResponse.json({ ok: true });
+  }
+
+  return NextResponse.json({ error: "Nieznany typ" }, { status: 400 });
+}
+
+export async function DELETE(req: NextRequest) {
+  const user = await requireAdmin();
+  if (!user) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 });
+  const { sectionNum } = await req.json() as { sectionNum: string };
+  const overrides = (await getSetting("civilitas_section_overrides")) ?? {};
+  delete overrides[sectionNum];
+  await saveSetting("civilitas_section_overrides", overrides);
   return NextResponse.json({ ok: true });
 }

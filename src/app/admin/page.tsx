@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { ALL_TILE_KEYS } from "@/lib/admin-permissions";
 import type { AdminGroup } from "@/lib/admin-permissions";
+import { CIVILITAS_SECTIONS, blocksToText } from "@/lib/civilitas-sections";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface UserRow {
@@ -511,6 +512,12 @@ export default function AdminPage() {
   const [civLoading, setCivLoading] = useState(false);
   const [civSaving, setCivSaving] = useState(false);
   const [civSaved, setCivSaved] = useState(false);
+  const [civTab, setCivTab] = useState<"config"|"sections">("config");
+  const [civSectionOverrides, setCivSectionOverrides] = useState<Record<string, string>>({});
+  const [civActiveSectionNum, setCivActiveSectionNum] = useState<string>(CIVILITAS_SECTIONS[0].num);
+  const [civEditText, setCivEditText] = useState<string>("");
+  const [civSectionSaving, setCivSectionSaving] = useState(false);
+  const [civSectionSaved, setCivSectionSaved] = useState(false);
 
   // ── Auth check ──
   useEffect(() => {
@@ -587,6 +594,7 @@ export default function AdminPage() {
       setCivLoading(true);
       fetch("/api/admin/civilitas").then(r => r.json()).then(d => {
         setCivConfig(d.config ?? {});
+        setCivSectionOverrides(d.sectionOverrides ?? {});
       }).finally(() => setCivLoading(false));
     }
     if (section==="plinio" && plinioQuotes.length===0) {
@@ -2299,9 +2307,20 @@ export default function AdminPage() {
         {/* ── CIVILITAS ── */}
         {section==="civilitas" && (<>
           <SectionHeader title="Civilitas" subtitle="Edycja treści modułu savoir-vivre" onBack={()=>setSection(null)}/>
+          <div className="flex gap-2 px-4 pb-4">
+            {(["config","sections"] as const).map(t=>(
+              <button key={t} onClick={()=>setCivTab(t)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${civTab===t?"text-white":"bg-slate-800 text-slate-400 hover:text-white"}`}
+                style={civTab===t?{background:"linear-gradient(135deg,#1a0a2e,#2e1060)"}:{}}>
+                {t==="config"?<><Settings2 size={12}/>Treści strony</>:<><BookMarked size={12}/>Sekcje</>}
+              </button>
+            ))}
+          </div>
           <div className="px-4 pb-8 space-y-3">
             {civLoading && <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-purple-400"/></div>}
-            {!civLoading && (
+
+            {/* TAB: Treści strony */}
+            {!civLoading && civTab==="config" && (
               <div className={`${CARD} p-4 space-y-4`}>
                 <div>
                   <label className={labelCls}>Tytuł strony</label>
@@ -2333,6 +2352,69 @@ export default function AdminPage() {
                 </button>
               </div>
             )}
+
+            {/* TAB: Sekcje */}
+            {!civLoading && civTab==="sections" && (()=>{
+              const activeSec = CIVILITAS_SECTIONS.find(s=>s.num===civActiveSectionNum) ?? CIVILITAS_SECTIONS[0];
+              const hasOverride = !!civSectionOverrides[activeSec.num];
+              const defaultText = blocksToText(activeSec.content);
+              return (<>
+                <div className={`${CARD} p-3`}>
+                  <label className={labelCls}>Sekcja</label>
+                  <select value={civActiveSectionNum} onChange={e=>{
+                    setCivActiveSectionNum(e.target.value);
+                    const sec = CIVILITAS_SECTIONS.find(s=>s.num===e.target.value);
+                    if (sec) setCivEditText(civSectionOverrides[e.target.value] ?? blocksToText(sec.content));
+                  }} className={inputCls}>
+                    {CIVILITAS_SECTIONS.map(s=>(
+                      <option key={s.num} value={s.num}>{s.num}. {s.title}{civSectionOverrides[s.num]?" ✎":""}</option>
+                    ))}
+                  </select>
+                  {hasOverride && (
+                    <p className="text-purple-400 text-[10px] mt-1">Ta sekcja ma aktywną nadpisaną treść.</p>
+                  )}
+                </div>
+                <div className={`${CARD} p-4 space-y-3`}>
+                  <p className="text-slate-400 text-xs font-semibold">{activeSec.num}. {activeSec.title}</p>
+                  <div>
+                    <label className={labelCls}>Treść sekcji</label>
+                    <p className="text-slate-600 text-[10px] mb-1">Format: <code className="text-purple-400">## nagłówek</code> · <code className="text-purple-400">- punkt listy</code> · <code className="text-purple-400">1. lista num.</code> · <code className="text-purple-400">&gt; cytat</code> · zwykły tekst = akapit</p>
+                    <textarea
+                      value={civEditText || (civSectionOverrides[activeSec.num] ?? defaultText)}
+                      onChange={e=>setCivEditText(e.target.value)}
+                      onFocus={e=>{ if (!civEditText) setCivEditText(e.target.value); }}
+                      className={`${inputCls} font-mono text-xs`} rows={18}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={async()=>{
+                      setCivSectionSaving(true);
+                      const text = civEditText || (civSectionOverrides[activeSec.num] ?? defaultText);
+                      await fetch("/api/admin/civilitas",{method:"POST",headers:{"Content-Type":"application/json"},
+                        body:JSON.stringify({type:"section",sectionNum:activeSec.num,text})});
+                      setCivSectionOverrides(p=>({...p,[activeSec.num]:text}));
+                      setCivSectionSaving(false); setCivSectionSaved(true); setTimeout(()=>setCivSectionSaved(false),2000);
+                    }} disabled={civSectionSaving} className={`${BTN_PRIMARY} flex-1`} style={{background:"linear-gradient(135deg,#1a0a2e,#2e1060)"}}>
+                      {civSectionSaving?<Loader2 size={14} className="animate-spin"/>:civSectionSaved?<CheckCircle2 size={14} className="text-green-400"/>:<Save size={14}/>}
+                      {civSectionSaved?"Zapisano!":"Zapisz sekcję"}
+                    </button>
+                    {hasOverride && (
+                      <button onClick={async()=>{
+                        await fetch("/api/admin/civilitas",{method:"DELETE",headers:{"Content-Type":"application/json"},
+                          body:JSON.stringify({sectionNum:activeSec.num})});
+                        setCivSectionOverrides(p=>{ const n={...p}; delete n[activeSec.num]; return n; });
+                        setCivEditText(defaultText);
+                      }} className="px-3 py-2 rounded-xl text-xs bg-red-900/40 text-red-400 hover:bg-red-900/60 transition-colors">
+                        <RefreshCw size={13}/>
+                      </button>
+                    )}
+                  </div>
+                  {hasOverride && (
+                    <p className="text-slate-600 text-[10px]">Kliknij <RefreshCw size={10} className="inline"/> aby przywrócić domyślną treść tej sekcji.</p>
+                  )}
+                </div>
+              </>);
+            })()}
           </div>
         </>)}
 
