@@ -46,7 +46,7 @@ export default function PrayerPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <AppShell>
-      <div className="max-w-lg md:max-w-3xl mx-auto animate-fade-in">
+      <div className="max-w-lg md:max-w-3xl mx-auto animate-fade-in overflow-x-hidden">
         <div className="flex items-center justify-between px-4 py-3">
           <button onClick={() => router.back()} className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors">
             <ArrowLeft size={16} />
@@ -111,15 +111,15 @@ export default function PrayerPage({ params }: { params: Promise<{ id: string }>
               )}
             </div>
 
-            <h1 className="text-white text-2xl font-bold mb-4 leading-tight">{prayer.title}</h1>
+            <h1 className="text-white text-2xl font-bold mb-4 leading-tight break-words">{prayer.title}</h1>
 
             <ArticlePlayer title={prayer.title} content={prayer.content} lang={prayer.language === "la" ? "la" : "pl"} />
 
-            <div className={`${fontSizeClass} text-slate-200 leading-relaxed whitespace-pre-line font-serif space-y-1`}>
+            <div className="text-slate-200 leading-relaxed font-serif space-y-1 break-words overflow-x-hidden">
               {prayer.content.split("\n").map((line, i) => {
                 if (!line.trim()) return <div key={i} className="h-3" />;
-                if (line.match(/^[IVX]+\./)) return <p key={i} className="text-blue-300 font-bold mt-4 mb-1">{line}</p>;
-                return <p key={i}>{line}</p>;
+                if (line.match(/^[IVX]+\./)) return <p key={i} className={`text-blue-300 font-bold mt-4 mb-1 ${fontSizeClass}`}>{line}</p>;
+                return <p key={i} className={fontSizeClass}>{line}</p>;
               })}
             </div>
 
