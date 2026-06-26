@@ -50,7 +50,7 @@ interface PageSectionConfig { show?: boolean; title?: string; count?: number; }
 interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; }
 type TilesConfig = Record<string, TileOverride>;
 
-type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "referral" | "bypass" | "settings" | "stats" | "errors" | "login" | "access";
+type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "plinio" | "referral" | "bypass" | "settings" | "stats" | "errors" | "login" | "access";
 type NotifType = "news" | "action" | "prayer" | "article" | "petition";
 
 // ─── Color palettes ───────────────────────────────────────────────────────────
@@ -473,6 +473,22 @@ export default function AdminPage() {
   const [addMemberGroupId, setAddMemberGroupId] = useState<string>("");
   const [addMemberUserId, setAddMemberUserId] = useState<string>("");
 
+  // ── Plinio state ──
+  interface PlinioQuoteRow { day: number; quote: string; source: string; }
+  const [plinioQuotes, setPlinioQuotes] = useState<PlinioQuoteRow[]>([]);
+  const [plinioOverrides, setPlinioOverrides] = useState<Record<number, {quote: string; source: string}>>({});
+  const [plinioConfig, setPlinioConfig] = useState<Record<string, string>>({});
+  const [plinioLoading, setPlinioLoading] = useState(false);
+  const [plinioTab, setPlinioTab] = useState<"quotes"|"config">("quotes");
+  const [plinioSearch, setPlinioSearch] = useState("");
+  const [plinioEditDay, setPlinioEditDay] = useState<number|null>(null);
+  const [plinioEditQuote, setPlinioEditQuote] = useState("");
+  const [plinioEditSource, setPlinioEditSource] = useState("");
+  const [plinioSaving, setPlinioSaving] = useState(false);
+  const [plinioSaved, setPlinioSaved] = useState(false);
+  const [plinioConfigSaving, setPlinioConfigSaving] = useState(false);
+  const [plinioConfigSaved, setPlinioConfigSaved] = useState(false);
+
   // ── Auth check ──
   useEffect(() => {
     fetch("/api/admin/check").then(r => r.json()).then(d => {
@@ -532,6 +548,14 @@ export default function AdminPage() {
     }
     if (section==="referral" && !shareSubject) { loadShareConfig(); }
     if (section==="bypass") { loadBypassCode(); }
+    if (section==="plinio" && plinioQuotes.length===0) {
+      setPlinioLoading(true);
+      fetch("/api/admin/plinio").then(r=>r.json()).then(d=>{
+        setPlinioQuotes(d.quotes ?? []);
+        setPlinioOverrides(d.overrides ?? {});
+        setPlinioConfig(d.config ?? {});
+      }).finally(()=>setPlinioLoading(false));
+    }
     if ((section==="tiles" || section==="modules") && Object.keys(tilesConfig).length===0) {
       setTilesLoading(true);
       fetch("/api/admin/tiles").then(r=>r.json()).then(d=>{
@@ -918,7 +942,7 @@ export default function AdminPage() {
   const TILE_LABELS: Record<string, string> = {
     notifications: "Powiadomienia", messages: "Wiadomości", users: "Użytkownicy",
     prayers: "Modlitwy", tiles: "Strona główna", modules: "Moduły",
-    referral: "Polecanie", bypass: "Kod dostępu", settings: "Kontakt",
+    plinio: "Myśl na dziś", referral: "Polecanie", bypass: "Kod dostępu", settings: "Kontakt",
     stats: "Statystyki", errors: "Błędy", login: "Ekran logowania",
   };
 
@@ -956,6 +980,7 @@ export default function AdminPage() {
     { key:"prayers",       icon:<BookMarked size={22}/>, label:"Modlitwy",       desc:"Katalog modlitw",             color:"linear-gradient(135deg,#332500,#5c4500)", accent:"#facc15", badge:stats?.prayers },
     { key:"tiles",         icon:<LayoutGrid size={22}/>, label:"Strona główna",  desc:"Kafelki, kolejność, kolory",  color:"linear-gradient(135deg,#1a0a2e,#2e1060)", accent:"#c084fc" },
     { key:"modules",       icon:<LayoutGrid size={22}/>, label:"Moduły",          desc:"Ikony, nazwy, nawigacja",     color:"linear-gradient(135deg,#0a1a2e,#0f2e50)", accent:"#38bdf8" },
+    { key:"plinio",        icon:<BookMarked size={22}/>,label:"Myśl na dziś",    desc:"Cytaty i treści modułu",      color:"linear-gradient(135deg,#2a1800,#4a2e00)", accent:"#fbbf24" },
     { key:"referral",      icon:<Mail size={22}/>,      label:"Polecanie",        desc:"Treść maila polecającego",    color:"linear-gradient(135deg,#0f2800,#1e4a00)", accent:"#86efac" },
     { key:"bypass",        icon:<Lock size={22}/>,      label:"Kod dostępu",      desc:"Mój kod do panelu na desktop", color:"linear-gradient(135deg,#1a1a0a,#3a3a10)", accent:"#facc15" },
     { key:"stats",         icon:<BarChart2 size={22}/>,  label:"Statystyki",     desc:"Wyświetlenia, aktywność",     color:"linear-gradient(135deg,#042828,#074a4a)", accent:"#2dd4bf" },
@@ -2083,6 +2108,167 @@ export default function AdminPage() {
                 </p>
               </div>
             ))}
+          </div>
+        </>)}
+
+        {/* ── PLINIO ── */}
+        {section==="plinio" && (<>
+          <SectionHeader title="Myśl na dziś" subtitle="Edycja cytatów i treści modułu" onBack={()=>setSection(null)}/>
+          <div className="flex gap-2 px-4 pb-4">
+            {(["quotes","config"] as const).map(t=>(
+              <button key={t} onClick={()=>setPlinioTab(t)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${plinioTab===t?"text-white":"bg-slate-800 text-slate-400 hover:text-white"}`}
+                style={plinioTab===t?{background:"linear-gradient(135deg,#2a1800,#4a2e00)"}:{}}>
+                {t==="quotes"?<><BookMarked size={12}/>Cytaty</>:<><Settings2 size={12}/>Treści strony</>}
+              </button>
+            ))}
+          </div>
+          <div className="px-4 pb-8 space-y-3">
+            {plinioLoading && <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-amber-400"/></div>}
+
+            {/* TAB: Cytaty */}
+            {plinioTab==="quotes" && !plinioLoading && (<>
+              <div className={`${CARD} p-4`}>
+                <p className="text-slate-300 text-sm font-medium mb-2">Szukaj cytatu po numerze dnia (1–364)</p>
+                <input
+                  type="number" min={1} max={364}
+                  value={plinioSearch}
+                  onChange={e=>setPlinioSearch(e.target.value)}
+                  className={inputCls}
+                  placeholder="Wpisz numer dnia, np. 42"
+                />
+              </div>
+
+              {/* Lista — pokaż nadpisane lub wyniki wyszukiwania */}
+              {(() => {
+                const searchDay = parseInt(plinioSearch);
+                const showAll = !plinioSearch || isNaN(searchDay);
+                const overrideDays = Object.keys(plinioOverrides).map(Number);
+                const toShow = showAll
+                  ? (overrideDays.length > 0
+                      ? plinioQuotes.filter(q=>overrideDays.includes(q.day))
+                      : plinioQuotes.slice(0, 10))
+                  : plinioQuotes.filter(q=>q.day===searchDay);
+
+                if (!showAll && toShow.length===0) return (
+                  <div className={`${CARD} p-6 text-center`}>
+                    <p className="text-slate-500 text-sm">Brak cytatu na dzień {searchDay}</p>
+                  </div>
+                );
+
+                return (<>
+                  {showAll && overrideDays.length===0 && (
+                    <p className="text-slate-500 text-xs px-1 pb-1">Pokazuję pierwsze 10 cytatów. Wpisz numer dnia żeby wyszukać konkretny.</p>
+                  )}
+                  {showAll && overrideDays.length>0 && (
+                    <p className="text-amber-500 text-xs px-1 pb-1 flex items-center gap-1.5">
+                      <Pencil size={11}/> Edytowane cytaty ({overrideDays.length})
+                    </p>
+                  )}
+                  {toShow.map(q=>{
+                    const override = plinioOverrides[q.day];
+                    const isEditing = plinioEditDay===q.day;
+                    const isModified = !!override;
+                    return (
+                      <div key={q.day} className={`${CARD} p-4 ${isModified?"border-amber-700/40":""}`}>
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-amber-500 font-bold text-sm">Dzień {q.day}</span>
+                            {isModified && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-900/40 text-amber-400 border border-amber-800/40">edytowany</span>}
+                          </div>
+                          <div className="flex gap-1.5">
+                            {isModified && !isEditing && (
+                              <button onClick={async()=>{
+                                await fetch("/api/admin/plinio",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({day:q.day})});
+                                setPlinioOverrides(prev=>{const n={...prev};delete n[q.day];return n;});
+                              }} className="p-1.5 rounded-lg bg-red-900/30 hover:bg-red-900/50 text-red-400 transition-colors" title="Przywróć oryginał">
+                                <Trash2 size={12}/>
+                              </button>
+                            )}
+                            {!isEditing && (
+                              <button onClick={()=>{
+                                setPlinioEditDay(q.day);
+                                setPlinioEditQuote(override?.quote ?? q.quote);
+                                setPlinioEditSource(override?.source ?? q.source);
+                              }} className="p-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors">
+                                <Pencil size={12}/>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            <textarea value={plinioEditQuote} onChange={e=>setPlinioEditQuote(e.target.value)}
+                              className={inputCls} rows={5} placeholder="Treść cytatu"/>
+                            <input value={plinioEditSource} onChange={e=>setPlinioEditSource(e.target.value)}
+                              className={inputCls} placeholder="Źródło"/>
+                            <div className="flex gap-2 mt-1">
+                              <button onClick={async()=>{
+                                setPlinioSaving(true);
+                                await fetch("/api/admin/plinio",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"quote",day:q.day,quote:plinioEditQuote,source:plinioEditSource})});
+                                setPlinioOverrides(prev=>({...prev,[q.day]:{quote:plinioEditQuote,source:plinioEditSource}}));
+                                setPlinioSaving(false); setPlinioSaved(true);
+                                setTimeout(()=>setPlinioSaved(false),2000);
+                                setPlinioEditDay(null);
+                              }} disabled={plinioSaving} className={`${BTN_PRIMARY} flex-1`} style={{background:"linear-gradient(135deg,#2a1800,#4a2e00)"}}>
+                                {plinioSaving?<Loader2 size={13} className="animate-spin"/>:plinioSaved?<CheckCircle2 size={13} className="text-green-400"/>:<Save size={13}/>} Zapisz
+                              </button>
+                              <button onClick={()=>setPlinioEditDay(null)} className="px-4 py-2 rounded-xl text-slate-400 bg-slate-800 text-sm">Anuluj</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-slate-300 text-xs leading-relaxed line-clamp-3">
+                            {override?.quote ?? q.quote}
+                          </p>
+                        )}
+                        {!isEditing && (
+                          <p className="text-slate-600 text-[10px] mt-1.5 italic truncate">{override?.source ?? q.source}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </>);
+              })()}
+            </>)}
+
+            {/* TAB: Treści strony */}
+            {plinioTab==="config" && !plinioLoading && (
+              <div className={`${CARD} p-4 space-y-4`}>
+                <div>
+                  <label className={labelCls}>Tytuł strony</label>
+                  <input value={plinioConfig.pageTitle??""} onChange={e=>setPlinioConfig(p=>({...p,pageTitle:e.target.value}))}
+                    className={inputCls} placeholder="Myśl na dziś"/>
+                  <p className="text-slate-600 text-[10px] mt-1">Domyślnie: „Myśl na dziś"</p>
+                </div>
+                <div>
+                  <label className={labelCls}>Podtytuł (autor)</label>
+                  <input value={plinioConfig.pageSubtitle??""} onChange={e=>setPlinioConfig(p=>({...p,pageSubtitle:e.target.value}))}
+                    className={inputCls} placeholder="Plinio Corrêa de Oliveira"/>
+                  <p className="text-slate-600 text-[10px] mt-1">Domyślnie: „Plinio Corrêa de Oliveira"</p>
+                </div>
+                <div>
+                  <label className={labelCls}>Imię i nazwisko autora (synteza mowy)</label>
+                  <input value={plinioConfig.authorName??""} onChange={e=>setPlinioConfig(p=>({...p,authorName:e.target.value}))}
+                    className={inputCls} placeholder="Plinio Corrêa de Oliveira"/>
+                </div>
+                <div>
+                  <label className={labelCls}>Nota biograficzna autora</label>
+                  <textarea value={plinioConfig.authorBio??""} onChange={e=>setPlinioConfig(p=>({...p,authorBio:e.target.value}))}
+                    className={inputCls} rows={4}
+                    placeholder="Plinio Corrêa de Oliveira (1908–1995) — brazylijski myśliciel katolicki..."/>
+                  <p className="text-slate-600 text-[10px] mt-1">Wyświetlana w sekcji „Info o autorze" na stronie</p>
+                </div>
+                <button onClick={async()=>{
+                  setPlinioConfigSaving(true);
+                  await fetch("/api/admin/plinio",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"config",config:plinioConfig})});
+                  setPlinioConfigSaving(false); setPlinioConfigSaved(true);
+                  setTimeout(()=>setPlinioConfigSaved(false),2000);
+                }} disabled={plinioConfigSaving} className={`${BTN_PRIMARY} w-full`} style={{background:"linear-gradient(135deg,#2a1800,#4a2e00)"}}>
+                  {plinioConfigSaving?<Loader2 size={14} className="animate-spin"/>:plinioConfigSaved?<CheckCircle2 size={14} className="text-green-400"/>:<Save size={14}/>}
+                  {plinioConfigSaved?"Zapisano!":"Zapisz treści"}
+                </button>
+              </div>
+            )}
           </div>
         </>)}
 

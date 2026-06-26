@@ -7,6 +7,7 @@ export const ALL_TILE_KEYS = [
   "prayers",
   "tiles",
   "modules",
+  "plinio",
   "referral",
   "bypass",
   "settings",

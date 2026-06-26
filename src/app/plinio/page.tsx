@@ -11,6 +11,12 @@ interface PlinioQuote {
   quote: string;
   source: string;
   date: string;
+  config?: {
+    pageTitle?: string;
+    pageSubtitle?: string;
+    authorName?: string;
+    authorBio?: string;
+  };
 }
 
 function getDayLabel(day: number): string {
@@ -38,8 +44,8 @@ export default function PlinioPage() {
             <Icon name="arrow-left" size={20} />
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-white leading-tight">Myśl na dziś</h1>
-            <p className="text-xs text-slate-500">Plinio Corrêa de Oliveira</p>
+            <h1 className="text-xl font-bold text-white leading-tight">{data?.config?.pageTitle || "Myśl na dziś"}</h1>
+            <p className="text-xs text-slate-500">{data?.config?.pageSubtitle || "Plinio Corrêa de Oliveira"}</p>
           </div>
         </div>
 
@@ -60,7 +66,7 @@ export default function PlinioPage() {
         {!loading && data && (
           <div className="space-y-4">
             <ArticlePlayer
-              title="Myśl na dziś — Plinio Corrêa de Oliveira"
+              title={`${data.config?.pageTitle || "Myśl na dziś"} — ${data.config?.authorName || "Plinio Corrêa de Oliveira"}`}
               content={data.quote + "\n\n" + data.source}
             />
 
@@ -106,9 +112,8 @@ export default function PlinioPage() {
             <div className="rounded-2xl border border-slate-700/50 bg-slate-800/30 px-4 py-3 flex gap-3 items-start">
               <Icon name="info" size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-slate-500 leading-relaxed">
-                Plinio Corrêa de Oliveira (1908–1995) — brazylijski myśliciel katolicki,
-                założyciel Towarzystwa Obrony Tradycji, Rodziny i Własności (TFP),
-                autor dzieła <em className="text-slate-400">Rewolucja i Kontrrewolucja</em>.
+                {data.config?.authorBio ||
+                  "Plinio Corrêa de Oliveira (1908–1995) — brazylijski myśliciel katolicki, założyciel Towarzystwa Obrony Tradycji, Rodziny i Własności (TFP), autor dzieła Rewolucja i Kontrrewolucja."}
               </p>
             </div>
 
