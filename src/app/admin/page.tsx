@@ -7,8 +7,10 @@ import {
   Bell, RefreshCw, Trash2, Pencil, Plus, X, Loader2, ShieldAlert,
   ChevronDown, ChevronUp, Clock, MessageSquare, Settings2, Calendar,
   Mail, Play, Lock, BarChart2, LayoutGrid, Eye, EyeOff, ArrowLeft,
-  UserPlus, Home, AlertTriangle,
+  UserPlus, Home, AlertTriangle, Save, Shield,
 } from "lucide-react";
+import { ALL_TILE_KEYS } from "@/lib/admin-permissions";
+import type { AdminGroup } from "@/lib/admin-permissions";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface UserRow {
@@ -48,7 +50,7 @@ interface PageSectionConfig { show?: boolean; title?: string; count?: number; }
 interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; }
 type TilesConfig = Record<string, TileOverride>;
 
-type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "referral" | "bypass" | "settings" | "stats" | "errors" | "login";
+type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "referral" | "bypass" | "settings" | "stats" | "errors" | "login" | "groups" | "permissions";
 type NotifType = "news" | "action" | "prayer" | "article" | "petition";
 
 // ─── Color palettes ───────────────────────────────────────────────────────────
@@ -447,9 +449,42 @@ export default function AdminPage() {
   const [shareSaving, setShareSaving] = useState(false);
   const [shareSaved, setShareSaved] = useState(false);
 
+  // ── Permissions / role ──
+  const [myRole, setMyRole] = useState<string>("");
+  const [myTiles, setMyTiles] = useState<string[]>([]);
+  const [permLoading, setPermLoading] = useState(true);
+
+  // ── Groups state ──
+  const [groups, setGroups] = useState<AdminGroup[]>([]);
+  const [groupMembers, setGroupMembers] = useState<Record<string, string[]>>({});
+  const [groupPermissions, setGroupPermissions] = useState<Record<string, string[]>>({});
+  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [groupsTab, setGroupsTab] = useState<"groups"|"users">("groups");
+  const [addingGroup, setAddingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupDesc, setNewGroupDesc] = useState("");
+  const [groupSaving, setGroupSaving] = useState(false);
+  const [editingGroupId, setEditingGroupId] = useState<string|null>(null);
+  const [editGroupName, setEditGroupName] = useState("");
+  const [editGroupDesc, setEditGroupDesc] = useState("");
+  const [selectedPermGroupId, setSelectedPermGroupId] = useState<string>("");
+  const [permSaving, setPermSaving] = useState(false);
+  const [permSaved, setPermSaved] = useState(false);
+  const [addMemberGroupId, setAddMemberGroupId] = useState<string>("");
+  const [addMemberUserId, setAddMemberUserId] = useState<string>("");
+
   // ── Auth check ──
   useEffect(() => {
-    fetch("/api/admin/check").then(r => r.json()).then(d => setIsAdmin(d.admin===true)).catch(() => setIsAdmin(false));
+    fetch("/api/admin/check").then(r => r.json()).then(d => {
+      setIsAdmin(d.admin===true);
+    }).catch(() => setIsAdmin(false));
+  }, []);
+
+  // ── Load my permissions ──
+  useEffect(() => {
+    fetch("/api/admin/my-permissions").then(r => r.json()).then(d => {
+      if (d.role) { setMyRole(d.role); setMyTiles(d.tiles ?? []); }
+    }).catch(() => {}).finally(() => setPermLoading(false));
   }, []);
 
   // ── Load data on section switch ──
@@ -511,6 +546,7 @@ export default function AdminPage() {
     if (section===null && messages.length===0) {
       fetch("/api/contact").then(r=>r.json()).then(d=>{if(Array.isArray(d))setMessages(d);});
     }
+    if (section==="groups" || section==="permissions") { loadGroups(); }
   }, [section, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Notification send ──
@@ -823,6 +859,59 @@ export default function AdminPage() {
     });
   }
 
+  // ── Groups ──
+  function loadGroups() {
+    setGroupsLoading(true);
+    fetch("/api/admin/groups").then(r=>r.json()).then(d=>{
+      if (d.groups) setGroups(d.groups);
+      if (d.members) setGroupMembers(d.members);
+      if (d.permissions) setGroupPermissions(d.permissions);
+    }).catch(()=>{}).finally(()=>setGroupsLoading(false));
+  }
+
+  async function handleCreateGroup() {
+    if (!newGroupName.trim()) return;
+    setGroupSaving(true);
+    await fetch("/api/admin/groups",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:newGroupName,description:newGroupDesc})});
+    setGroupSaving(false); setAddingGroup(false); setNewGroupName(""); setNewGroupDesc(""); loadGroups();
+  }
+
+  async function handleUpdateGroup(id: string) {
+    setGroupSaving(true);
+    await fetch("/api/admin/groups",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,name:editGroupName,description:editGroupDesc})});
+    setGroupSaving(false); setEditingGroupId(null); loadGroups();
+  }
+
+  async function handleDeleteGroup(id: string) {
+    if (!confirm("Usunąć tę grupę?")) return;
+    await fetch("/api/admin/groups",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});
+    loadGroups();
+  }
+
+  async function handleAddMember() {
+    if (!addMemberGroupId || !addMemberUserId) return;
+    await fetch("/api/admin/groups/members",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({groupId:addMemberGroupId,userId:addMemberUserId})});
+    setAddMemberUserId(""); loadGroups();
+  }
+
+  async function handleRemoveMember(groupId: string, userId: string) {
+    await fetch("/api/admin/groups/members",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({groupId,userId})});
+    loadGroups();
+  }
+
+  async function handleSavePermissions(groupId: string, tiles: string[]) {
+    setPermSaving(true);
+    await fetch("/api/admin/groups/permissions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({groupId,tiles})});
+    setPermSaving(false); setPermSaved(true); setTimeout(()=>setPermSaved(false),2000);
+    setGroupPermissions(prev=>({...prev,[groupId]:tiles}));
+  }
+
+  // ── Permission check ──
+  function canAccess(key: string): boolean {
+    if (myRole === "superadmin") return true;
+    return myTiles.includes(key);
+  }
+
   // ── Auth guard ──
   if (isAdmin===null) return <AppShell><div className="flex justify-center py-24"><Loader2 size={28} className="text-red-400 animate-spin"/></div></AppShell>;
   if (!isAdmin) return (
@@ -845,7 +934,7 @@ export default function AdminPage() {
   ];
 
   // ── Dashboard section tiles ──
-  const dashTiles: { key: Section; icon: React.ReactNode; label: string; desc: string; badge?: number|string; color: string; accent: string }[] = [
+  const allDashTiles: { key: Section; icon: React.ReactNode; label: string; desc: string; badge?: number|string; color: string; accent: string; superadminOnly?: boolean }[] = [
     { key:"notifications", icon:<Bell size={22}/>,       label:"Powiadomienia",  desc:"Push, zaplanowane",           color:"linear-gradient(135deg,#3d1a00,#7a3200)", accent:"#fb923c", badge:scheduled.length||undefined },
     { key:"messages",      icon:<MessageSquare size={22}/>,label:"Wiadomości",   desc:"Formularz kontaktowy",        color:"linear-gradient(135deg,#07203b,#0f3470)", accent:"#60a5fa", badge:unreadCount||undefined },
     { key:"users",         icon:<Users size={22}/>,      label:"Użytkownicy",    desc:"Konta, role, hasła",          color:"linear-gradient(135deg,#052a10,#0a4a1e)", accent:"#4ade80", badge:stats?.users },
@@ -858,7 +947,14 @@ export default function AdminPage() {
     { key:"errors",        icon:<AlertTriangle size={22}/>,label:"Błędy",         desc:"Monitoring produkcji",        color:"linear-gradient(135deg,#3b0909,#6b1111)", accent:"#f87171", badge:stats?.errors24h||undefined },
     { key:"settings",      icon:<Settings2 size={22}/>,  label:"Kontakt",        desc:"Ustawienia kontaktu",         color:"linear-gradient(135deg,#0f0a28,#1e1550)", accent:"#818cf8" },
     { key:"login",         icon:<Lock size={22}/>,       label:"Ekran logowania", desc:"Magic Link i inne opcje",     color:"linear-gradient(135deg,#1a0a0a,#3b1010)", accent:"#f87171" },
+    { key:"groups",        icon:<Users size={22}/>,      label:"Grupy adminów",   desc:"Zarządzanie grupami",         color:"linear-gradient(135deg,#0a2820,#103d30)", accent:"#34d399", superadminOnly:true },
+    { key:"permissions",   icon:<ShieldAlert size={22}/>,label:"Uprawnienia",     desc:"Dostęp do kafelków",          color:"linear-gradient(135deg,#1a0f00,#3a2200)", accent:"#fbbf24", superadminOnly:true },
   ];
+  const dashTiles = allDashTiles.filter(t => {
+    if (t.superadminOnly) return myRole === "superadmin";
+    if (permLoading) return true; // optimistic: show all while loading
+    return canAccess(t.key as string);
+  });
 
   return (
     <AppShell>
@@ -871,7 +967,10 @@ export default function AdminPage() {
         {section===null && (<>
           <div className="px-4 pt-4 pb-4">
             <p className="text-slate-500 text-[10px] uppercase tracking-widest mb-0.5">Salve Maria</p>
-            <h1 className="text-white text-2xl font-bold" style={{fontFamily:"Georgia,serif"}}>Panel admina</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-white text-2xl font-bold" style={{fontFamily:"Georgia,serif"}}>Panel admina</h1>
+              {myRole==="superadmin" && <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-900/50 text-emerald-400 border border-emerald-800/50 font-semibold">superadmin</span>}
+            </div>
           </div>
           <div className="px-4 pb-8 grid grid-cols-1 md:grid-cols-3 gap-3">
             {dashTiles.map(t=>(
@@ -1970,6 +2069,186 @@ export default function AdminPage() {
                 </p>
               </div>
             ))}
+          </div>
+        </>)}
+
+        {/* ── GROUPS ── */}
+        {section==="groups" && (<>
+          <SectionHeader title="Grupy adminów" subtitle="Zarządzanie grupami i członkami" onBack={()=>setSection(null)}/>
+          <div className="flex gap-2 px-4 pb-4">
+            {(["groups","users"] as const).map(t=>(
+              <button key={t} onClick={()=>setGroupsTab(t)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${groupsTab===t?"text-white":"bg-slate-800 text-slate-400 hover:text-white"}`}
+                style={groupsTab===t?{background:"linear-gradient(135deg,#0a2820,#103d30)"}:{}}>
+                {t==="groups"?<><Shield size={12}/>Grupy ({groups.length})</>:<><Users size={12}/>Użytkownicy</>}
+              </button>
+            ))}
+          </div>
+          <div className="px-4 pb-8 space-y-3">
+            {groupsLoading && <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-emerald-400"/></div>}
+
+            {groupsTab==="groups" && !groupsLoading && (<>
+              {groups.map(g=>(
+                <div key={g.id} className={`${CARD} p-4`}>
+                  {editingGroupId===g.id ? (
+                    <div className="space-y-2">
+                      <input value={editGroupName} onChange={e=>setEditGroupName(e.target.value)} className={inputCls} placeholder="Nazwa grupy"/>
+                      <input value={editGroupDesc} onChange={e=>setEditGroupDesc(e.target.value)} className={inputCls} placeholder="Opis (opcjonalny)"/>
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={()=>handleUpdateGroup(g.id)} disabled={groupSaving} className={`${BTN_PRIMARY} flex-1`} style={{background:"linear-gradient(135deg,#0a2820,#103d30)"}}>
+                          {groupSaving?<Loader2 size={14} className="animate-spin"/>:<Save size={14}/>} Zapisz
+                        </button>
+                        <button onClick={()=>setEditingGroupId(null)} className="px-4 py-2 rounded-xl text-slate-400 bg-slate-800 text-sm">Anuluj</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-white font-semibold text-sm">{g.name}</p>
+                          {g.description && <p className="text-slate-400 text-xs mt-0.5">{g.description}</p>}
+                        </div>
+                        <div className="flex gap-1.5 ml-2">
+                          <button onClick={()=>{setEditingGroupId(g.id);setEditGroupName(g.name);setEditGroupDesc(g.description??"");}}
+                            className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"><Pencil size={13}/></button>
+                          <button onClick={()=>handleDeleteGroup(g.id)}
+                            className="p-2 rounded-lg bg-red-900/30 hover:bg-red-900/50 text-red-400 transition-colors"><Trash2 size={13}/></button>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {(groupPermissions[g.id]??[]).map(tile=>(
+                          <span key={tile} className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-400 border border-emerald-800/40">{tile}</span>
+                        ))}
+                        {(groupPermissions[g.id]??[]).length===0 && <span className="text-[10px] text-slate-600">brak uprawnień</span>}
+                      </div>
+                      <p className="text-slate-500 text-xs mt-2">
+                        Członkowie: {(groupMembers[g.id]??[]).length}
+                        <button onClick={()=>{setSection("permissions");setSelectedPermGroupId(g.id);}}
+                          className="ml-3 text-amber-400 hover:text-amber-300 transition-colors">Edytuj uprawnienia →</button>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {addingGroup ? (
+                <div className={`${CARD} p-4 space-y-2`}>
+                  <p className="text-white text-sm font-semibold mb-2">Nowa grupa</p>
+                  <input value={newGroupName} onChange={e=>setNewGroupName(e.target.value)} className={inputCls} placeholder="Nazwa grupy *"/>
+                  <input value={newGroupDesc} onChange={e=>setNewGroupDesc(e.target.value)} className={inputCls} placeholder="Opis (opcjonalny)"/>
+                  <div className="flex gap-2 mt-2">
+                    <button onClick={handleCreateGroup} disabled={groupSaving||!newGroupName.trim()} className={`${BTN_PRIMARY} flex-1`} style={{background:"linear-gradient(135deg,#0a2820,#103d30)"}}>
+                      {groupSaving?<Loader2 size={14} className="animate-spin"/>:<Plus size={14}/>} Utwórz grupę
+                    </button>
+                    <button onClick={()=>{setAddingGroup(false);setNewGroupName("");setNewGroupDesc("");}} className="px-4 py-2 rounded-xl text-slate-400 bg-slate-800 text-sm">Anuluj</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={()=>setAddingGroup(true)} className={`${BTN_PRIMARY} w-full`} style={{background:"linear-gradient(135deg,#0a2820,#103d30)"}}>
+                  <Plus size={16}/> Dodaj grupę
+                </button>
+              )}
+            </>)}
+
+            {groupsTab==="users" && !groupsLoading && (<>
+              <div className={`${CARD} p-4`}>
+                <p className="text-white text-sm font-semibold mb-3">Dodaj użytkownika do grupy</p>
+                <div className="space-y-2">
+                  <select value={addMemberGroupId} onChange={e=>setAddMemberGroupId(e.target.value)} className={inputCls}>
+                    <option value="">Wybierz grupę...</option>
+                    {groups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                  <select value={addMemberUserId} onChange={e=>setAddMemberUserId(e.target.value)} className={inputCls}>
+                    <option value="">Wybierz użytkownika...</option>
+                    {users.filter(u=>u.role==="admin").map(u=>(
+                      <option key={u.id} value={u.id}>{u.first_name} {u.last_name} ({u.email})</option>
+                    ))}
+                  </select>
+                  <button onClick={handleAddMember} disabled={!addMemberGroupId||!addMemberUserId} className={`${BTN_PRIMARY} w-full`} style={{background:"linear-gradient(135deg,#0a2820,#103d30)"}}>
+                    <UserPlus size={14}/> Dodaj do grupy
+                  </button>
+                </div>
+              </div>
+
+              {groups.map(g=>(
+                <div key={g.id} className={`${CARD} p-4`}>
+                  <p className="text-white font-semibold text-sm mb-2">{g.name}</p>
+                  {(groupMembers[g.id]??[]).length===0 && <p className="text-slate-500 text-xs">Brak członków</p>}
+                  <div className="space-y-1.5">
+                    {(groupMembers[g.id]??[]).map(uid=>{
+                      const u = users.find(x=>x.id===uid);
+                      return (
+                        <div key={uid} className="flex items-center justify-between py-1">
+                          <span className="text-slate-300 text-xs">{u ? `${u.first_name??""} ${u.last_name??""} (${u.email})` : uid}</span>
+                          <button onClick={()=>handleRemoveMember(g.id,uid)} className="p-1.5 rounded-lg bg-red-900/20 hover:bg-red-900/40 text-red-400 transition-colors">
+                            <X size={12}/>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </>)}
+          </div>
+        </>)}
+
+        {/* ── PERMISSIONS ── */}
+        {section==="permissions" && (<>
+          <SectionHeader title="Uprawnienia" subtitle="Dostęp do kafelków dla grup" onBack={()=>setSection(null)}/>
+          <div className="px-4 pb-8 space-y-4">
+            {groupsLoading && <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-amber-400"/></div>}
+            {!groupsLoading && (<>
+              <div className={`${CARD} p-4`}>
+                <label className={labelCls}>Wybierz grupę</label>
+                <select value={selectedPermGroupId} onChange={e=>setSelectedPermGroupId(e.target.value)} className={inputCls}>
+                  <option value="">— wybierz grupę —</option>
+                  {groups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              </div>
+
+              {selectedPermGroupId && (() => {
+                const TILE_LABELS: Record<string,string> = {
+                  notifications:"Powiadomienia", messages:"Wiadomości", users:"Użytkownicy",
+                  prayers:"Modlitwy", tiles:"Strona główna", modules:"Moduły",
+                  referral:"Polecanie", bypass:"Kod dostępu", settings:"Kontakt",
+                  stats:"Statystyki", errors:"Błędy", login:"Ekran logowania",
+                };
+                const currentTiles = groupPermissions[selectedPermGroupId] ?? [];
+                const toggle = (key: string) => {
+                  const next = currentTiles.includes(key) ? currentTiles.filter(t=>t!==key) : [...currentTiles, key];
+                  setGroupPermissions(prev=>({...prev,[selectedPermGroupId]:next}));
+                };
+                return (
+                  <div className={`${CARD} p-4`}>
+                    <p className="text-white font-semibold text-sm mb-3">
+                      Kafelki dla: <span className="text-amber-400">{groups.find(g=>g.id===selectedPermGroupId)?.name}</span>
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                      {ALL_TILE_KEYS.map(key=>{
+                        const active = currentTiles.includes(key);
+                        return (
+                          <button key={key} onClick={()=>toggle(key)}
+                            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium border transition-all text-left ${active?"text-white border-amber-500/40":"bg-slate-800/60 text-slate-400 border-slate-700 hover:border-slate-600"}`}
+                            style={active?{background:"linear-gradient(135deg,#1a0f00,#3a2200)",borderColor:"#fbbf24aa"}:{}}>
+                            <span className={`w-3.5 h-3.5 rounded-sm border flex-shrink-0 flex items-center justify-center ${active?"bg-amber-500 border-amber-500":"border-slate-600"}`}>
+                              {active && <CheckCircle2 size={10} className="text-black"/>}
+                            </span>
+                            {TILE_LABELS[key] ?? key}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button onClick={()=>handleSavePermissions(selectedPermGroupId, groupPermissions[selectedPermGroupId]??[])}
+                      disabled={permSaving}
+                      className={`${BTN_PRIMARY} w-full`} style={{background:"linear-gradient(135deg,#1a0f00,#3a2200)"}}>
+                      {permSaving?<Loader2 size={14} className="animate-spin"/>:permSaved?<CheckCircle2 size={14} className="text-green-400"/>:<Save size={14}/>}
+                      {permSaved?"Zapisano!":"Zapisz uprawnienia"}
+                    </button>
+                  </div>
+                );
+              })()}
+            </>)}
           </div>
         </>)}
 

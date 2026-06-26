@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
-import { isLastAdmin } from "@/lib/security";
+import { isLastAdmin, getEffectiveRole } from "@/lib/security";
 
 async function requireAdmin() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const { data } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  return data?.role === "admin" ? supabase : null;
+  const role = await getEffectiveRole(user.id, data?.role);
+  return (role === "admin" || role === "superadmin") ? supabase : null;
 }
 
 export async function GET() {

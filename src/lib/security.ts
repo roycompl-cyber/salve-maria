@@ -15,6 +15,16 @@ export function adminClient() {
   );
 }
 
+/** Returns the effective role for a user, promoting to 'superadmin' if they are in the superadmin_ids list. */
+export async function getEffectiveRole(userId: string, dbRole: string | null | undefined): Promise<string> {
+  const admin = adminClient();
+  const { data } = await admin.from("app_settings").select("value").eq("key", "superadmin_ids").single();
+  let ids: string[] = [];
+  try { ids = JSON.parse(data?.value ?? "[]"); } catch { /* ignore */ }
+  if (ids.includes(userId)) return "superadmin";
+  return dbRole ?? "donor";
+}
+
 export async function requireAdmin() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -26,7 +36,8 @@ export async function requireAdmin() {
     .eq("id", user.id)
     .single();
 
-  return data?.role === "admin" ? { supabase, user } : null;
+  const effectiveRole = await getEffectiveRole(user.id, data?.role);
+  return (effectiveRole === "admin" || effectiveRole === "superadmin") ? { supabase, user, role: effectiveRole } : null;
 }
 
 export function rateLimit(
@@ -95,9 +106,16 @@ export function isPermanentPushFailure(error: unknown) {
 
 export async function isLastAdmin(userId: string) {
   const admin = adminClient();
-  const [{ data: profile }, { count }] = await Promise.all([
+  const [{ data: profile }, { count }, { data: saSettings }] = await Promise.all([
     admin.from("profiles").select("role").eq("id", userId).single(),
     admin.from("profiles").select("id", { count: "exact", head: true }).eq("role", "admin"),
+    admin.from("app_settings").select("value").eq("key", "superadmin_ids").single(),
   ]);
-  return profile?.role === "admin" && (count ?? 0) <= 1;
+  let superadminIds: string[] = [];
+  try { superadminIds = JSON.parse(saSettings?.value ?? "[]"); } catch { /* ignore */ }
+  const isSuperadmin = superadminIds.includes(userId);
+  const isAdmin = profile?.role === "admin" || isSuperadmin;
+  // Count all admins (db admins + superadmins)
+  const totalAdmins = (count ?? 0) + (isSuperadmin ? 0 : 0); // superadmins are not in role=admin
+  return isAdmin && totalAdmins <= 1 && superadminIds.length === 0;
 }

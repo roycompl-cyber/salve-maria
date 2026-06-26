@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { getEffectiveRole } from "@/lib/security";
 
 import { type ShareConfig, DEFAULT_SHARE_CONFIG } from "@/lib/share-config";
 
@@ -9,7 +10,8 @@ async function requireAdmin() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const { data } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  return data?.role === "admin" ? supabase : null;
+  const role = await getEffectiveRole(user.id, data?.role);
+  return (role === "admin" || role === "superadmin") ? supabase : null;
 }
 
 export async function GET() {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { getEffectiveRole } from "@/lib/security";
 
 function adminDb() {
   return createAdminClient(
@@ -14,7 +15,8 @@ async function getAdminUser() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const { data } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  return data?.role === "admin" ? user : null;
+  const role = await getEffectiveRole(user.id, data?.role);
+  return (role === "admin" || role === "superadmin") ? user : null;
 }
 
 async function getCodesMap(): Promise<Record<string, string>> {
