@@ -546,7 +546,13 @@ export default function AdminPage() {
     if (section===null && messages.length===0) {
       fetch("/api/contact").then(r=>r.json()).then(d=>{if(Array.isArray(d))setMessages(d);});
     }
-    if (section==="groups" || section==="permissions") { loadGroups(); }
+    if (section==="groups" || section==="permissions") {
+      loadGroups();
+      if (users.length === 0) {
+        setUsersLoading(true);
+        fetch("/api/admin/users").then(r=>r.json()).then(d=>{if(Array.isArray(d))setUsers(d);}).finally(()=>setUsersLoading(false));
+      }
+    }
   }, [section, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Notification send ──
@@ -907,6 +913,13 @@ export default function AdminPage() {
   }
 
   // ── Permission check ──
+  const TILE_LABELS: Record<string, string> = {
+    notifications: "Powiadomienia", messages: "Wiadomości", users: "Użytkownicy",
+    prayers: "Modlitwy", tiles: "Strona główna", modules: "Moduły",
+    referral: "Polecanie", bypass: "Kod dostępu", settings: "Kontakt",
+    stats: "Statystyki", errors: "Błędy", login: "Ekran logowania",
+  };
+
   function canAccess(key: string): boolean {
     if (myRole === "superadmin") return true;
     return myTiles.includes(key);
@@ -2117,7 +2130,7 @@ export default function AdminPage() {
                       </div>
                       <div className="mt-2 flex flex-wrap gap-1">
                         {(groupPermissions[g.id]??[]).map(tile=>(
-                          <span key={tile} className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-400 border border-emerald-800/40">{tile}</span>
+                          <span key={tile} className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-400 border border-emerald-800/40">{TILE_LABELS[tile]??tile}</span>
                         ))}
                         {(groupPermissions[g.id]??[]).length===0 && <span className="text-[10px] text-slate-600">brak uprawnień</span>}
                       </div>
@@ -2160,8 +2173,8 @@ export default function AdminPage() {
                   </select>
                   <select value={addMemberUserId} onChange={e=>setAddMemberUserId(e.target.value)} className={inputCls}>
                     <option value="">Wybierz użytkownika...</option>
-                    {users.filter(u=>u.role==="admin").map(u=>(
-                      <option key={u.id} value={u.id}>{u.first_name} {u.last_name} ({u.email})</option>
+                    {users.filter(u=>u.role==="admin"||u.role==="superadmin").map(u=>(
+                      <option key={u.id} value={u.id}>{u.first_name} {u.last_name} — {u.email}</option>
                     ))}
                   </select>
                   <button onClick={handleAddMember} disabled={!addMemberGroupId||!addMemberUserId} className={`${BTN_PRIMARY} w-full`} style={{background:"linear-gradient(135deg,#0a2820,#103d30)"}}>
@@ -2208,12 +2221,6 @@ export default function AdminPage() {
               </div>
 
               {selectedPermGroupId && (() => {
-                const TILE_LABELS: Record<string,string> = {
-                  notifications:"Powiadomienia", messages:"Wiadomości", users:"Użytkownicy",
-                  prayers:"Modlitwy", tiles:"Strona główna", modules:"Moduły",
-                  referral:"Polecanie", bypass:"Kod dostępu", settings:"Kontakt",
-                  stats:"Statystyki", errors:"Błędy", login:"Ekran logowania",
-                };
                 const currentTiles = groupPermissions[selectedPermGroupId] ?? [];
                 const toggle = (key: string) => {
                   const next = currentTiles.includes(key) ? currentTiles.filter(t=>t!==key) : [...currentTiles, key];
