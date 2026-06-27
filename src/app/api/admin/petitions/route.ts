@@ -35,7 +35,7 @@ async function requireAdmin() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const { data } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  return data?.role === "admin" ? supabase : null;
+  return (data?.role === "admin" || data?.role === "superadmin") ? supabase : null;
 }
 
 function slugify(title: string): string {
