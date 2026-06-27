@@ -58,7 +58,7 @@ export async function GET() {
       data: articles,
       updated_at: new Date().toISOString(),
     });
-    return NextResponse.json(applyMeta(articles as Record<string, unknown>[], meta));
+    return NextResponse.json(applyMeta(articles as unknown as Record<string, unknown>[], meta));
   } catch (e) {
     if (cached) return NextResponse.json(applyMeta(cached.data as Record<string, unknown>[], meta));
     return NextResponse.json({ error: String(e) }, { status: 500 });
