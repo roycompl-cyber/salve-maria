@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { title, body, type, url } = await req.json();
+  const { title, body, type, url, cities } = await req.json();
   if (
     typeof title !== "string" || title.trim().length < 1 || title.length > 120 ||
     typeof body !== "string" || body.trim().length < 1 || body.length > 1000 ||
@@ -39,14 +39,37 @@ export async function POST(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  let query = adminClient.from("push_subscriptions").select("*");
-  if (type === "news") query = query.eq("news_notifications", true);
-  if (type === "action") query = query.eq("action_notifications", true);
+  const filterCities = Array.isArray(cities) && cities.length > 0 ? cities as string[] : null;
 
-  const { data: subscriptions } = await query;
+  let subscriptions: { endpoint: string; p256dh: string; auth: string; user_id?: string }[] = [];
+
+  if (filterCities) {
+    // Geographic filter: get user_ids with matching city from profiles, then filter subscriptions
+    const { data: profileMatches } = await adminClient
+      .from("profiles")
+      .select("id")
+      .in("city", filterCities);
+    const userIds = (profileMatches ?? []).map((p: { id: string }) => p.id);
+    if (userIds.length === 0) {
+      return NextResponse.json({ sent: 0 });
+    }
+    let geoQuery = adminClient.from("push_subscriptions").select("*").in("user_id", userIds);
+    if (type === "news") geoQuery = geoQuery.eq("news_notifications", true);
+    if (type === "action") geoQuery = geoQuery.eq("action_notifications", true);
+    const { data } = await geoQuery;
+    subscriptions = data ?? [];
+  } else {
+    let query = adminClient.from("push_subscriptions").select("*");
+    if (type === "news") query = query.eq("news_notifications", true);
+    if (type === "action") query = query.eq("action_notifications", true);
+    const { data } = await query;
+    subscriptions = data ?? [];
+  }
+
   if (!subscriptions?.length) {
     return NextResponse.json({ sent: 0 });
   }
+  const allSubs = subscriptions;
 
   const payload = JSON.stringify({
     title,
@@ -61,7 +84,7 @@ export async function POST(req: NextRequest) {
   const failed: string[] = [];
 
   await Promise.allSettled(
-    subscriptions.map(async (sub) => {
+    allSubs.map(async (sub) => {
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },

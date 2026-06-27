@@ -7,7 +7,7 @@ import {
   Bell, RefreshCw, Trash2, Pencil, Plus, X, Loader2, ShieldAlert,
   ChevronDown, ChevronUp, Clock, MessageSquare, Settings2, Calendar,
   Mail, Play, Lock, BarChart2, LayoutGrid, Eye, EyeOff, ArrowLeft,
-  UserPlus, Home, AlertTriangle, Save, Shield,
+  UserPlus, Home, AlertTriangle, Save, Shield, Video, MapPin, TrendingUp,
 } from "lucide-react";
 import { ALL_TILE_KEYS } from "@/lib/admin-permissions";
 import type { AdminGroup } from "@/lib/admin-permissions";
@@ -51,8 +51,27 @@ interface PageSectionConfig { show?: boolean; title?: string; count?: number; }
 interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; }
 type TilesConfig = Record<string, TileOverride>;
 
-type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "plinio" | "catechism" | "civilitas" | "referral" | "bypass" | "settings" | "stats" | "errors" | "login" | "access";
+type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "plinio" | "catechism" | "civilitas" | "referral" | "bypass" | "settings" | "stats" | "errors" | "login" | "access" | "articles" | "petitions" | "videos" | "push-stats";
 type NotifType = "news" | "action" | "prayer" | "article" | "petition";
+
+interface ManualArticle {
+  id: string; title: string; content: string; excerpt: string;
+  category: string; image_url: string; author: string;
+  published_at: string; manual: boolean;
+}
+interface ManualPetition {
+  id: string; title: string; content: string; excerpt: string;
+  image_url: string; source_url: string; signature_count: number;
+  notification_threshold: number; active: boolean; manual: boolean;
+}
+interface VideoRow {
+  id: string; title: string; youtube_id: string; description: string;
+  category: string; tags: string[]; thumbnail_url: string; active: boolean; created_at: string;
+}
+interface PushStats {
+  active_subscriptions: number; sent_last_7_days: number;
+  history: { id: string; title: string; body: string; type: string; url: string; created_at: string }[];
+}
 
 // ─── Color palettes ───────────────────────────────────────────────────────────
 const COLOR_PALETTES = [
@@ -503,6 +522,40 @@ export default function AdminPage() {
   const [civSectionSaving, setCivSectionSaving] = useState(false);
   const [civSectionSaved, setCivSectionSaved] = useState(false);
 
+  // ── Articles (manual) state ──
+  const [manualArticles, setManualArticles] = useState<ManualArticle[]>([]);
+  const [articlesLoading, setArticlesLoading] = useState(false);
+  const [editingArticle, setEditingArticle] = useState<ManualArticle|null>(null);
+  const [addingArticle, setAddingArticle] = useState(false);
+  const [articleSaving, setArticleSaving] = useState(false);
+  const [articleForm, setArticleForm] = useState<Partial<ManualArticle>>({});
+
+  // ── Petitions (manual) state ──
+  const [manualPetitions, setManualPetitions] = useState<ManualPetition[]>([]);
+  const [petitionsAdminLoading, setPetitionsAdminLoading] = useState(false);
+  const [editingPetition, setEditingPetition] = useState<ManualPetition|null>(null);
+  const [addingPetition, setAddingPetition] = useState(false);
+  const [petitionSaving, setPetitionSaving] = useState(false);
+  const [petitionForm, setPetitionForm] = useState<Partial<ManualPetition>>({});
+
+  // ── Videos state ──
+  const [videos, setVideos] = useState<VideoRow[]>([]);
+  const [videosLoading, setVideosLoading] = useState(false);
+  const [editingVideo, setEditingVideo] = useState<VideoRow|null>(null);
+  const [addingVideo, setAddingVideo] = useState(false);
+  const [videoSaving, setVideoSaving] = useState(false);
+  const [videoForm, setVideoForm] = useState<Partial<VideoRow>>({});
+  const [videoFilter, setVideoFilter] = useState("Wszystkie");
+
+  // ── Push stats state ──
+  const [pushStats, setPushStats] = useState<PushStats|null>(null);
+  const [pushStatsLoading, setPushStatsLoading] = useState(false);
+
+  // ── Push geographic segmentation state ──
+  const [pushCities, setPushCities] = useState<string[]>([]);
+  const [pushSelectedCities, setPushSelectedCities] = useState<string[]>([]);
+  const [pushCityFilter, setPushCityFilter] = useState(false);
+
   // ── Auth check ──
   useEffect(() => {
     fetch("/api/admin/check").then(r => r.json()).then(d => {
@@ -610,13 +663,34 @@ export default function AdminPage() {
         fetch("/api/admin/users").then(r=>r.json()).then(d=>{if(Array.isArray(d))setUsers(d);}).finally(()=>setUsersLoading(false));
       }
     }
+    if (section==="articles") {
+      setArticlesLoading(true);
+      fetch("/api/admin/articles").then(r=>r.json()).then(d=>{if(Array.isArray(d))setManualArticles(d);}).finally(()=>setArticlesLoading(false));
+    }
+    if (section==="petitions") {
+      setPetitionsAdminLoading(true);
+      fetch("/api/admin/petitions").then(r=>r.json()).then(d=>{if(Array.isArray(d))setManualPetitions(d);}).finally(()=>setPetitionsAdminLoading(false));
+    }
+    if (section==="videos") {
+      setVideosLoading(true);
+      fetch("/api/admin/videos").then(r=>r.json()).then(d=>{if(Array.isArray(d))setVideos(d);}).finally(()=>setVideosLoading(false));
+    }
+    if (section==="push-stats") {
+      setPushStatsLoading(true);
+      fetch("/api/admin/push-stats").then(r=>r.json()).then(d=>setPushStats(d)).finally(()=>setPushStatsLoading(false));
+    }
+    if (section==="notifications") {
+      // Load cities for geo-segmentation
+      fetch("/api/admin/push-cities").then(r=>r.json()).then(d=>{if(Array.isArray(d))setPushCities(d);}).catch(()=>{});
+    }
   }, [section, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Notification send ──
   async function handleSendNotif(e: React.FormEvent) {
     e.preventDefault();
     setNotifSending(true); setNotifError(""); setNotifResult(null);
-    const res = await fetch("/api/push/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(notif)});
+    const payload = pushCityFilter && pushSelectedCities.length > 0 ? {...notif, cities: pushSelectedCities} : notif;
+    const res = await fetch("/api/push/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
     setNotifSending(false);
     if (!res.ok){const d=await res.json();setNotifError(d.error??"Błąd wysyłania");return;}
     const d=await res.json();setNotifResult(d);
@@ -644,6 +718,70 @@ export default function AdminPage() {
   async function handleDeletePrayer(id: string) {
     if (!confirm("Usunąć tę modlitwę?")) return;
     await fetch(`/api/admin/prayers/${id}`,{method:"DELETE"}); reloadPrayers();
+  }
+
+  // ── Articles CRUD ──
+  const reloadArticles = useCallback(()=>{
+    setArticlesLoading(true);
+    fetch("/api/admin/articles").then(r=>r.json()).then(d=>{if(Array.isArray(d))setManualArticles(d);}).finally(()=>setArticlesLoading(false));
+  },[]);
+  async function handleSaveArticle() {
+    setArticleSaving(true);
+    if (editingArticle) {
+      await fetch("/api/admin/articles",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({...articleForm,id:editingArticle.id})});
+      setEditingArticle(null);
+    } else {
+      await fetch("/api/admin/articles",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(articleForm)});
+      setAddingArticle(false);
+    }
+    setArticleForm({}); setArticleSaving(false); reloadArticles();
+  }
+  async function handleDeleteArticle(id: string) {
+    if (!confirm("Usunąć ten artykuł?")) return;
+    await fetch(`/api/admin/articles?id=${id}`,{method:"DELETE"}); reloadArticles();
+  }
+
+  // ── Petitions CRUD ──
+  const reloadPetitionsAdmin = useCallback(()=>{
+    setPetitionsAdminLoading(true);
+    fetch("/api/admin/petitions").then(r=>r.json()).then(d=>{if(Array.isArray(d))setManualPetitions(d);}).finally(()=>setPetitionsAdminLoading(false));
+  },[]);
+  async function handleSavePetition() {
+    setPetitionSaving(true);
+    if (editingPetition) {
+      await fetch("/api/admin/petitions",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({...petitionForm,id:editingPetition.id})});
+      setEditingPetition(null);
+    } else {
+      await fetch("/api/admin/petitions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(petitionForm)});
+      setAddingPetition(false);
+    }
+    setPetitionForm({}); setPetitionSaving(false); reloadPetitionsAdmin();
+  }
+  async function handleDeletePetition(id: string) {
+    if (!confirm("Usunąć tę petycję?")) return;
+    await fetch(`/api/admin/petitions?id=${id}`,{method:"DELETE"}); reloadPetitionsAdmin();
+  }
+
+  // ── Videos CRUD ──
+  const reloadVideos = useCallback(()=>{
+    setVideosLoading(true);
+    fetch("/api/admin/videos").then(r=>r.json()).then(d=>{if(Array.isArray(d))setVideos(d);}).finally(()=>setVideosLoading(false));
+  },[]);
+  async function handleSaveVideo() {
+    setVideoSaving(true);
+    const payload = {...videoForm, tags: typeof videoForm.tags === "string" ? (videoForm.tags as string).split(",").map((t:string)=>t.trim()).filter(Boolean) : (videoForm.tags ?? [])};
+    if (editingVideo) {
+      await fetch("/api/admin/videos",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({...payload,id:editingVideo.id})});
+      setEditingVideo(null);
+    } else {
+      await fetch("/api/admin/videos",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      setAddingVideo(false);
+    }
+    setVideoForm({}); setVideoSaving(false); reloadVideos();
+  }
+  async function handleDeleteVideo(id: string) {
+    if (!confirm("Usunąć ten film?")) return;
+    await fetch(`/api/admin/videos?id=${id}`,{method:"DELETE"}); reloadVideos();
   }
 
   // ── Cache refresh ──
@@ -1024,6 +1162,10 @@ export default function AdminPage() {
     { key:"settings",      icon:<Settings2 size={22}/>,  label:"Kontakt",        desc:"Ustawienia kontaktu",         color:"linear-gradient(135deg,#0f0a28,#1e1550)", accent:"#818cf8" },
     { key:"login",         icon:<Lock size={22}/>,       label:"Ekran logowania", desc:"Magic Link i inne opcje",     color:"linear-gradient(135deg,#1a0a0a,#3b1010)", accent:"#f87171" },
     { key:"access",        icon:<Shield size={22}/>,     label:"Dostęp adminów",  desc:"Grupy, uprawnienia, członkowie", color:"linear-gradient(135deg,#0a1a30,#102040)", accent:"#38bdf8", superadminOnly:true },
+    { key:"articles",      icon:<Newspaper size={22}/>,  label:"Artykuły",        desc:"Zarządzaj artykułami",          color:"linear-gradient(135deg,#071b3b,#0d2d5e)", accent:"#60a5fa" },
+    { key:"petitions",     icon:<Megaphone size={22}/>,  label:"Petycje",         desc:"Zarządzaj petycjami",           color:"linear-gradient(135deg,#2a1200,#4a2000)", accent:"#f59e0b", badge: manualPetitions.filter(p=>p.signature_count>=p.notification_threshold).length||undefined },
+    { key:"videos",        icon:<Video size={22}/>,      label:"Wideo",           desc:"Filmy YouTube",                 color:"linear-gradient(135deg,#1a0505,#3b0a0a)", accent:"#f87171" },
+    { key:"push-stats",    icon:<TrendingUp size={22}/>, label:"Statystyki push",  desc:"Historia i aktywne subskrypcje", color:"linear-gradient(135deg,#042828,#085050)", accent:"#34d399" },
   ];
   const dashTiles = allDashTiles.filter(t => {
     if (t.superadminOnly) return myRole === "superadmin";
@@ -1171,8 +1313,33 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                <div className={`${CARD} px-4 py-3 flex items-center gap-2 text-slate-400 text-sm`}>
-                  <Users size={15}/> Odbiorcy: <span className="text-white font-medium ml-1">Wszyscy użytkownicy</span>
+                <div className={`${CARD} p-4 space-y-3`}>
+                  <div className="flex items-center gap-2 text-slate-400 text-sm">
+                    <Users size={15}/>
+                    <span>Odbiorcy:</span>
+                    <span className="text-white font-medium">{pushCityFilter && pushSelectedCities.length > 0 ? `Wybrane miejscowości (${pushSelectedCities.length})` : "Wszyscy użytkownicy"}</span>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                    <input type="checkbox" checked={pushCityFilter} onChange={e=>{ setPushCityFilter(e.target.checked); if(!e.target.checked) setPushSelectedCities([]); }}
+                      className="rounded border-slate-600 bg-slate-700 text-red-600"/>
+                    <MapPin size={13}/> Wyślij do wybranych miejscowości
+                  </label>
+                  {pushCityFilter && (
+                    <div>
+                      {pushCities.length === 0
+                        ? <p className="text-slate-500 text-xs">Ładowanie miejscowości…</p>
+                        : <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                            {pushCities.map(city=>(
+                              <button key={city} type="button"
+                                onClick={()=>setPushSelectedCities(prev=>prev.includes(city)?prev.filter(c=>c!==city):[...prev,city])}
+                                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${pushSelectedCities.includes(city)?"bg-red-700 border-red-600 text-white":"bg-slate-700 border-slate-600 text-slate-300 hover:border-slate-500"}`}>
+                                {city}
+                              </button>
+                            ))}
+                          </div>
+                      }
+                    </div>
+                  )}
                 </div>
                 <div><label className={labelCls}>Tytuł *</label>
                   <input className={inputCls} value={notif.title} onChange={e=>setNotif(p=>({...p,title:e.target.value}))} required maxLength={80} placeholder="Tytuł powiadomienia…"/>
@@ -2569,6 +2736,274 @@ export default function AdminPage() {
                 </button>
               </div>
             )}
+          </div>
+        </>)}
+
+        {/* ── ARTICLES (MANUAL) ── */}
+        {section==="articles" && (<>
+          <SectionHeader title="Artykuły" subtitle={`${manualArticles.length} artykułów ręcznych`} onBack={()=>{setSection(null);setAddingArticle(false);setEditingArticle(null);}}/>
+          <div className="px-4 pb-2 flex justify-end">
+            {!addingArticle&&!editingArticle&&(
+              <button onClick={()=>{setAddingArticle(true);setArticleForm({category:"Ogólne",author:"Redakcja",published_at:new Date().toISOString().slice(0,10)});}}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+                style={{background:"linear-gradient(135deg,#071b3b,#0f3470)"}}>
+                <Plus size={15}/> Dodaj artykuł
+              </button>
+            )}
+          </div>
+          <div className="px-4 pb-8 space-y-3 mt-2">
+            {(addingArticle||editingArticle) && (
+              <div className={`${CARD} p-4 space-y-3`}>
+                <p className="text-blue-400 font-semibold text-sm">{editingArticle?"Edytuj artykuł":"Nowy artykuł"}</p>
+                <div><label className={labelCls}>Tytuł *</label>
+                  <input className={inputCls} value={articleForm.title??""} onChange={e=>setArticleForm(p=>({...p,title:e.target.value}))} placeholder="Tytuł artykułu"/>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><label className={labelCls}>Kategoria</label>
+                    <input className={inputCls} value={articleForm.category??""} onChange={e=>setArticleForm(p=>({...p,category:e.target.value}))} placeholder="np. Wiara"/>
+                  </div>
+                  <div><label className={labelCls}>Autor</label>
+                    <input className={inputCls} value={articleForm.author??""} onChange={e=>setArticleForm(p=>({...p,author:e.target.value}))} placeholder="Redakcja"/>
+                  </div>
+                </div>
+                <div><label className={labelCls}>Data publikacji</label>
+                  <input type="date" className={inputCls} value={articleForm.published_at?.slice(0,10)??""} onChange={e=>setArticleForm(p=>({...p,published_at:e.target.value}))}/>
+                </div>
+                <div><label className={labelCls}>URL zdjęcia</label>
+                  <input className={inputCls} value={articleForm.image_url??""} onChange={e=>setArticleForm(p=>({...p,image_url:e.target.value}))} placeholder="https://…/obraz.jpg"/>
+                </div>
+                <div><label className={labelCls}>Zajawka (excerpt)</label>
+                  <textarea className={inputCls} rows={2} value={articleForm.excerpt??""} onChange={e=>setArticleForm(p=>({...p,excerpt:e.target.value}))} placeholder="Krótki opis…"/>
+                </div>
+                <div><label className={labelCls}>Treść *</label>
+                  <textarea className={inputCls} rows={8} value={articleForm.content??""} onChange={e=>setArticleForm(p=>({...p,content:e.target.value}))} placeholder="Pełna treść artykułu…"/>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleSaveArticle} disabled={articleSaving||!articleForm.title||!articleForm.content}
+                    className={`flex-1 ${BTN_PRIMARY}`} style={{background:"linear-gradient(135deg,#071b3b,#0f3470)"}}>
+                    {articleSaving?<Loader2 size={15} className="animate-spin"/>:<CheckCircle2 size={15}/>} Zapisz
+                  </button>
+                  <button onClick={()=>{setAddingArticle(false);setEditingArticle(null);setArticleForm({});}}
+                    className="px-4 py-2.5 rounded-xl text-slate-400 bg-slate-700 hover:bg-slate-600 text-sm"><X size={15}/></button>
+                </div>
+              </div>
+            )}
+            {articlesLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-blue-400 animate-spin"/></div>}
+            {manualArticles.length===0&&!articlesLoading&&<p className="text-slate-500 text-sm text-center py-8">Brak artykułów ręcznych.</p>}
+            {manualArticles.map(a=>(
+              <div key={a.id} className={`${CARD} p-4`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-white font-semibold text-sm">{a.title}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">{a.category} · {a.author} · {new Date(a.published_at).toLocaleDateString("pl-PL")}</p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button onClick={()=>{setEditingArticle(a);setArticleForm({...a});setAddingArticle(false);}} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-amber-400"><Pencil size={14}/></button>
+                    <button onClick={()=>handleDeleteArticle(a.id)} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-red-400"><Trash2 size={14}/></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>)}
+
+        {/* ── PETITIONS (MANUAL) ── */}
+        {section==="petitions" && (<>
+          <SectionHeader title="Petycje" subtitle={`${manualPetitions.length} petycji ręcznych`} onBack={()=>{setSection(null);setAddingPetition(false);setEditingPetition(null);}}/>
+          {manualPetitions.some(p=>p.signature_count>=p.notification_threshold) && (
+            <div className="mx-4 mb-3 flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 text-amber-400 text-xs">
+              <ShieldAlert size={14}/> Uwaga: {manualPetitions.filter(p=>p.signature_count>=p.notification_threshold).length} petycja/e osiągnęła próg powiadomień
+            </div>
+          )}
+          <div className="px-4 pb-2 flex justify-end">
+            {!addingPetition&&!editingPetition&&(
+              <button onClick={()=>{setAddingPetition(true);setPetitionForm({signature_count:0,notification_threshold:10000,active:true});}}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+                style={{background:"linear-gradient(135deg,#2a1200,#4a2000)"}}>
+                <Plus size={15}/> Dodaj petycję
+              </button>
+            )}
+          </div>
+          <div className="px-4 pb-8 space-y-3 mt-2">
+            {(addingPetition||editingPetition) && (
+              <div className={`${CARD} p-4 space-y-3`}>
+                <p className="text-amber-400 font-semibold text-sm">{editingPetition?"Edytuj petycję":"Nowa petycja"}</p>
+                <div><label className={labelCls}>Tytuł *</label>
+                  <input className={inputCls} value={petitionForm.title??""} onChange={e=>setPetitionForm(p=>({...p,title:e.target.value}))} placeholder="Tytuł petycji"/>
+                </div>
+                <div><label className={labelCls}>URL podpisu (link do podpisania)</label>
+                  <input className={inputCls} value={petitionForm.source_url??""} onChange={e=>setPetitionForm(p=>({...p,source_url:e.target.value}))} placeholder="https://…"/>
+                </div>
+                <div><label className={labelCls}>URL zdjęcia</label>
+                  <input className={inputCls} value={petitionForm.image_url??""} onChange={e=>setPetitionForm(p=>({...p,image_url:e.target.value}))} placeholder="https://…/obraz.jpg"/>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><label className={labelCls}>Licznik podpisów</label>
+                    <input type="number" className={inputCls} value={petitionForm.signature_count??0} onChange={e=>setPetitionForm(p=>({...p,signature_count:Number(e.target.value)}))}/>
+                  </div>
+                  <div><label className={labelCls}>Próg powiadomień</label>
+                    <input type="number" className={inputCls} value={petitionForm.notification_threshold??10000} onChange={e=>setPetitionForm(p=>({...p,notification_threshold:Number(e.target.value)}))}/>
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                  <input type="checkbox" checked={petitionForm.active??true} onChange={e=>setPetitionForm(p=>({...p,active:e.target.checked}))} className="rounded border-slate-600 bg-slate-700"/>
+                  Aktywna
+                </label>
+                <div><label className={labelCls}>Zajawka</label>
+                  <textarea className={inputCls} rows={2} value={petitionForm.excerpt??""} onChange={e=>setPetitionForm(p=>({...p,excerpt:e.target.value}))} placeholder="Krótki opis…"/>
+                </div>
+                <div><label className={labelCls}>Treść</label>
+                  <textarea className={inputCls} rows={6} value={petitionForm.content??""} onChange={e=>setPetitionForm(p=>({...p,content:e.target.value}))} placeholder="Pełna treść petycji…"/>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleSavePetition} disabled={petitionSaving||!petitionForm.title}
+                    className={`flex-1 ${BTN_PRIMARY}`} style={{background:"linear-gradient(135deg,#2a1200,#4a2000)"}}>
+                    {petitionSaving?<Loader2 size={15} className="animate-spin"/>:<CheckCircle2 size={15}/>} Zapisz
+                  </button>
+                  <button onClick={()=>{setAddingPetition(false);setEditingPetition(null);setPetitionForm({});}}
+                    className="px-4 py-2.5 rounded-xl text-slate-400 bg-slate-700 hover:bg-slate-600 text-sm"><X size={15}/></button>
+                </div>
+              </div>
+            )}
+            {petitionsAdminLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-amber-400 animate-spin"/></div>}
+            {manualPetitions.length===0&&!petitionsAdminLoading&&<p className="text-slate-500 text-sm text-center py-8">Brak petycji ręcznych.</p>}
+            {manualPetitions.map(p=>(
+              <div key={p.id} className={`${CARD} p-4 ${p.signature_count>=p.notification_threshold?"border-amber-600/40":""}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-white font-semibold text-sm">{p.title}</p>
+                      {p.signature_count>=p.notification_threshold && <ShieldAlert size={13} className="text-amber-400 flex-shrink-0"/>}
+                    </div>
+                    <p className="text-slate-500 text-xs mt-0.5">{p.signature_count.toLocaleString("pl-PL")} / {p.notification_threshold.toLocaleString("pl-PL")} · {p.active?"aktywna":"nieaktywna"}</p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button onClick={()=>{setEditingPetition(p);setPetitionForm({...p});setAddingPetition(false);}} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-amber-400"><Pencil size={14}/></button>
+                    <button onClick={()=>handleDeletePetition(p.id)} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-red-400"><Trash2 size={14}/></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>)}
+
+        {/* ── VIDEOS ── */}
+        {section==="videos" && (<>
+          <SectionHeader title="Wideo" subtitle={`${videos.length} filmów`} onBack={()=>{setSection(null);setAddingVideo(false);setEditingVideo(null);}}/>
+          <div className="px-4 pb-2 flex justify-end">
+            {!addingVideo&&!editingVideo&&(
+              <button onClick={()=>{setAddingVideo(true);setVideoForm({active:true,category:"Ogólne",tags:[]});}}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+                style={{background:"linear-gradient(135deg,#1a0505,#3b0a0a)"}}>
+                <Plus size={15}/> Dodaj film
+              </button>
+            )}
+          </div>
+          <div className="px-4 pb-8 space-y-3 mt-2">
+            {(addingVideo||editingVideo) && (
+              <div className={`${CARD} p-4 space-y-3`}>
+                <p className="text-red-400 font-semibold text-sm">{editingVideo?"Edytuj film":"Nowy film"}</p>
+                <div><label className={labelCls}>Tytuł *</label>
+                  <input className={inputCls} value={videoForm.title??""} onChange={e=>setVideoForm(p=>({...p,title:e.target.value}))} placeholder="Tytuł filmu"/>
+                </div>
+                <div><label className={labelCls}>YouTube ID *</label>
+                  <input className={inputCls+" font-mono"} value={videoForm.youtube_id??""} onChange={e=>setVideoForm(p=>({...p,youtube_id:e.target.value}))} placeholder="np. dQw4w9WgXcQ"/>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><label className={labelCls}>Kategoria</label>
+                    <input className={inputCls} value={videoForm.category??""} onChange={e=>setVideoForm(p=>({...p,category:e.target.value}))} placeholder="np. Pro-Life"/>
+                  </div>
+                  <div><label className={labelCls}>Tagi (csv)</label>
+                    <input className={inputCls} value={Array.isArray(videoForm.tags)?videoForm.tags.join(", "):""} onChange={e=>setVideoForm(p=>({...p,tags:e.target.value.split(",").map(t=>t.trim()).filter(Boolean)}))} placeholder="np. modlitwa, rosja"/>
+                  </div>
+                </div>
+                <div><label className={labelCls}>Opis</label>
+                  <textarea className={inputCls} rows={2} value={videoForm.description??""} onChange={e=>setVideoForm(p=>({...p,description:e.target.value}))} placeholder="Krótki opis…"/>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                  <input type="checkbox" checked={videoForm.active??true} onChange={e=>setVideoForm(p=>({...p,active:e.target.checked}))} className="rounded border-slate-600 bg-slate-700"/>
+                  Aktywny (widoczny dla użytkowników)
+                </label>
+                <div className="flex gap-2">
+                  <button onClick={handleSaveVideo} disabled={videoSaving||!videoForm.title||!videoForm.youtube_id}
+                    className={`flex-1 ${BTN_PRIMARY}`} style={{background:"linear-gradient(135deg,#1a0505,#3b0a0a)"}}>
+                    {videoSaving?<Loader2 size={15} className="animate-spin"/>:<CheckCircle2 size={15}/>} Zapisz
+                  </button>
+                  <button onClick={()=>{setAddingVideo(false);setEditingVideo(null);setVideoForm({});}}
+                    className="px-4 py-2.5 rounded-xl text-slate-400 bg-slate-700 hover:bg-slate-600 text-sm"><X size={15}/></button>
+                </div>
+              </div>
+            )}
+            {/* Filter by category */}
+            {!addingVideo&&!editingVideo&&videos.length>0&&(
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {["Wszystkie",...Array.from(new Set(videos.map(v=>v.category).filter(Boolean)))].map(cat=>(
+                  <button key={cat} onClick={()=>setVideoFilter(cat)}
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${videoFilter===cat?"bg-red-700 text-white":"bg-slate-800 text-slate-400 hover:text-slate-200"}`}>
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+            {videosLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-red-400 animate-spin"/></div>}
+            {videos.length===0&&!videosLoading&&<p className="text-slate-500 text-sm text-center py-8">Brak filmów w bazie.</p>}
+            {videos.filter(v=>videoFilter==="Wszystkie"||v.category===videoFilter).map(v=>(
+              <div key={v.id} className={`${CARD} p-4 ${!v.active?"opacity-50":""}`}>
+                <div className="flex items-start gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`https://img.youtube.com/vi/${v.youtube_id}/default.jpg`} alt="" className="w-16 h-12 object-cover rounded-lg flex-shrink-0 bg-slate-700"/>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-semibold text-sm leading-tight">{v.title}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">{v.category}{v.tags?.length>0&&` · ${v.tags.join(", ")}`}</p>
+                    <p className="text-slate-600 text-[10px] font-mono mt-0.5">{v.youtube_id}</p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button onClick={()=>{setEditingVideo(v);setVideoForm({...v});setAddingVideo(false);}} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-amber-400"><Pencil size={14}/></button>
+                    <button onClick={()=>handleDeleteVideo(v.id)} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-red-400"><Trash2 size={14}/></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>)}
+
+        {/* ── PUSH STATS ── */}
+        {section==="push-stats" && (<>
+          <SectionHeader title="Statystyki push" subtitle="Historia i aktywne subskrypcje" onBack={()=>setSection(null)}/>
+          <div className="px-4 pb-8 space-y-4">
+            {pushStatsLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-teal-400 animate-spin"/></div>}
+            {pushStats && (<>
+              <div className="grid grid-cols-2 gap-3">
+                <div className={`${CARD} p-4 text-center`}>
+                  <p className="text-3xl font-bold text-teal-400">{pushStats.active_subscriptions}</p>
+                  <p className="text-slate-400 text-xs mt-1">Aktywne subskrypcje</p>
+                </div>
+                <div className={`${CARD} p-4 text-center`}>
+                  <p className="text-3xl font-bold text-green-400">{pushStats.sent_last_7_days}</p>
+                  <p className="text-slate-400 text-xs mt-1">Wysłane (ostatnie 7 dni)</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-slate-400 text-xs uppercase tracking-wider mb-2">Historia powiadomień</p>
+                {pushStats.history.length===0&&<p className="text-slate-500 text-sm text-center py-6">Brak historii powiadomień</p>}
+                <div className="space-y-2">
+                  {pushStats.history.map(h=>(
+                    <div key={h.id} className={`${CARD} px-4 py-3`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-white text-sm font-medium">{h.title}</p>
+                          <p className="text-slate-500 text-xs mt-0.5 truncate">{h.body}</p>
+                        </div>
+                        <div className="flex-shrink-0 text-right">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-700 text-slate-400">{h.type}</span>
+                          <p className="text-slate-600 text-[10px] mt-1">{new Date(h.created_at).toLocaleString("pl-PL",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>)}
           </div>
         </>)}
 

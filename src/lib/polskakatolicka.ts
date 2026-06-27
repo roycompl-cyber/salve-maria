@@ -1,3 +1,4 @@
+// scraper works without Cheerio — regex-based parsing
 const BASE_URL = "http://polskakatolicka.org";
 
 export interface PKArticle {

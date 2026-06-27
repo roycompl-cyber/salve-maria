@@ -2,6 +2,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Play, Pause, Square, Volume2 } from "lucide-react";
 
+// Use the native WakeLockSentinel if available, otherwise define a minimal type
+type WakeLockSentinelLike = { release(): Promise<void> };
+type NavigatorWakeLock = { request(type: "screen"): Promise<WakeLockSentinelLike> };
+
 interface Props {
   title: string;
   content: string;
@@ -72,8 +76,12 @@ export default function ArticlePlayer({ title, content, lang = "pl", onParagraph
   const [currentPara, setCurrentPara] = useState(-1);
   const [voiceReady, setVoiceReady] = useState(false);
   const [voiceLabel, setVoiceLabel] = useState("");
+  const [wakeLockSupported, setWakeLockSupported] = useState(true);
   const utterancesRef = useRef<SpeechSynthesisUtterance[]>([]);
   const currentIdxRef = useRef(0);
+  const wakeLockRef = useRef<WakeLockSentinelLike | null>(null);
+  const silentIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   const isLatin = lang === "la";
   const accentColor = isLatin ? "#d97706" : "#3b82f6"; // bursztyn dla łaciny, niebieski dla PL
@@ -83,6 +91,9 @@ export default function ArticlePlayer({ title, content, lang = "pl", onParagraph
   useEffect(() => {
     if (!("speechSynthesis" in window)) return;
     setSupported(true);
+    if (!("wakeLock" in navigator)) {
+      setWakeLockSupported(false);
+    }
     const loadVoices = () => {
       const voices = window.speechSynthesis.getVoices();
       if (voices.length > 0) {
@@ -96,8 +107,70 @@ export default function ArticlePlayer({ title, content, lang = "pl", onParagraph
   }, [lang]);
 
   useEffect(() => {
-    return () => { window.speechSynthesis?.cancel(); };
+    return () => {
+      window.speechSynthesis?.cancel();
+      wakeLockRef.current?.release().catch(() => {});
+      wakeLockRef.current = null;
+      if (silentIntervalRef.current !== null) {
+        clearInterval(silentIntervalRef.current);
+        silentIntervalRef.current = null;
+      }
+    };
   }, []);
+
+  // Silent audio keep-alive when page is hidden and TTS is playing
+  useEffect(() => {
+    const playSilentTone = () => {
+      try {
+        if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
+          audioCtxRef.current = new AudioContext();
+        }
+        const ctx = audioCtxRef.current;
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        gainNode.gain.value = 0.001;
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        oscillator.start();
+        oscillator.stop(ctx.currentTime + 0.1);
+      } catch {
+        // ignore audio errors
+      }
+    };
+
+    const startSilentInterval = () => {
+      if (silentIntervalRef.current !== null) return;
+      silentIntervalRef.current = setInterval(playSilentTone, 20000);
+    };
+
+    const stopSilentInterval = () => {
+      if (silentIntervalRef.current !== null) {
+        clearInterval(silentIntervalRef.current);
+        silentIntervalRef.current = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden" && playing) {
+        startSilentInterval();
+      } else {
+        stopSilentInterval();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    // If already hidden when playing starts, begin interval
+    if (document.visibilityState === "hidden" && playing) {
+      startSilentInterval();
+    } else if (!playing) {
+      stopSilentInterval();
+    }
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (!playing) stopSilentInterval();
+    };
+  }, [playing]);
 
   const speakFrom = useCallback((startIdx: number) => {
     window.speechSynthesis.cancel();
@@ -135,17 +208,45 @@ export default function ArticlePlayer({ title, content, lang = "pl", onParagraph
     setPaused(false);
   }, [paragraphs, lang, isLatin]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const acquireWakeLock = async () => {
+    const wl = (navigator as Navigator & { wakeLock?: NavigatorWakeLock }).wakeLock;
+    if (!wl) return;
+    try {
+      wakeLockRef.current = await wl.request("screen");
+    } catch {
+      // ignore wake lock errors
+    }
+  };
+
+  const releaseWakeLock = () => {
+    wakeLockRef.current?.release().catch(() => {});
+    wakeLockRef.current = null;
+  };
+
   function handlePlay() {
     if (!voiceReady) return;
-    if (paused) { window.speechSynthesis.resume(); setPlaying(true); setPaused(false); }
-    else speakFrom(0);
+    if (paused) {
+      window.speechSynthesis.resume();
+      setPlaying(true);
+      setPaused(false);
+      acquireWakeLock();
+    } else {
+      speakFrom(0);
+      acquireWakeLock();
+    }
   }
-  function handlePause() { window.speechSynthesis.pause(); setPlaying(false); setPaused(true); }
+  function handlePause() {
+    window.speechSynthesis.pause();
+    setPlaying(false);
+    setPaused(true);
+    releaseWakeLock();
+  }
   function handleStop() {
     window.speechSynthesis.cancel();
     setPlaying(false); setPaused(false);
     setCurrentPara(-1); onParagraphChange?.(-1);
     currentIdxRef.current = 0;
+    releaseWakeLock();
   }
 
   if (!supported) return null;
@@ -196,6 +297,11 @@ export default function ArticlePlayer({ title, content, lang = "pl", onParagraph
             </button>
           </div>
         </div>
+        {playing && !wakeLockSupported && (
+          <div className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 mt-2">
+            Aby słuchać przy wygaszonym ekranie, wyłącz automatyczne wygaszanie w ustawieniach telefonu.
+          </div>
+        )}
       </div>
 
       <style>{`

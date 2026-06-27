@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Share2, Users, PenLine, ExternalLink, Loader2,
-  CheckCircle2, Heart,
+  CheckCircle2, Heart, Type,
 } from "lucide-react";
 import ArticlePlayer from "@/components/ArticlePlayer";
 import RichLinks from "@/components/RichLinks";
@@ -39,9 +39,15 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
 
   const [alreadySigned, setAlreadySigned] = useState(false);
   const [currentPara, setCurrentPara] = useState(-1);
+  const [fontSize, setFontSize] = useState<"sm" | "base" | "lg">("base");
 
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("petition_font_size");
+    if (saved === "sm" || saved === "base" || saved === "lg") setFontSize(saved);
+  }, []);
 
   useEffect(() => {
     fetch(`/api/petitions/slug?slug=${encodeURIComponent(id)}`)
@@ -51,6 +57,14 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
       .finally(() => setLoading(false));
     setAlreadySigned(!!getSignedMap()[id]);
   }, [id]);
+
+  const fontSizeClass = { sm: "text-sm", base: "text-base", lg: "text-lg" }[fontSize];
+
+  function cycleFontSize() {
+    const next = fontSize === "sm" ? "base" : fontSize === "base" ? "lg" : "sm";
+    setFontSize(next);
+    localStorage.setItem("petition_font_size", next);
+  }
 
   async function handleShare() {
     if (!petition) return;
@@ -91,6 +105,13 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
             Powróć
           </button>
           <div className="flex items-center gap-1">
+            <button
+              onClick={cycleFontSize}
+              className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+              title="Zmień rozmiar tekstu"
+            >
+              <Type size={16} />
+            </button>
             {petition && (
               <a href={`/viewer?url=${encodeURIComponent(petition.source_url)}`}
                 className="text-slate-400 hover:text-amber-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
@@ -169,7 +190,7 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
                       <p
                         key={absIdx}
                         id={`para-${absIdx}`}
-                        className="text-slate-300 text-sm leading-relaxed rounded-xl transition-all duration-300"
+                        className={`text-slate-300 ${fontSizeClass} leading-relaxed rounded-xl transition-all duration-300`}
                         style={currentPara === absIdx ? { backgroundColor: "rgba(180,83,9,0.15)", padding: "8px 10px", color: "#fcd9a0" } : {}}
                       >
                         {para}

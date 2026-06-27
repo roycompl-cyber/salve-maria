@@ -13,17 +13,22 @@ export default function ArticlesPage() {
   const { t } = useLocale();
   const { articles, loading, offline, cachedAt } = useOfflineArticles();
   const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("Wszystkie");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
+  const categories = ["Wszystkie", ...Array.from(new Set(articles.map((a) => a.category).filter(Boolean)))];
+
   const q = search.toLowerCase();
-  const filtered = articles.filter(
-    (a) =>
+  const filtered = articles.filter((a) => {
+    const matchesSearch =
       !search ||
       a.title.toLowerCase().includes(q) ||
       a.excerpt.toLowerCase().includes(q) ||
-      a.content.toLowerCase().includes(q)
-  );
-  const visible = search ? filtered : filtered.slice(0, visibleCount);
+      a.content.toLowerCase().includes(q);
+    const matchesCategory = selectedCategory === "Wszystkie" || a.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+  const visible = search || selectedCategory !== "Wszystkie" ? filtered : filtered.slice(0, visibleCount);
 
   return (
     <AppShell>
@@ -65,6 +70,25 @@ export default function ArticlesPage() {
             className="w-full bg-slate-800 border border-slate-700 rounded-xl py-2.5 pl-9 pr-4 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500"
           />
         </div>
+
+        {/* Category filter bar */}
+        {categories.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => { setSelectedCategory(cat); setVisibleCount(PAGE_SIZE); }}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  selectedCategory === cat
+                    ? "bg-[#2563eb] text-white"
+                    : "bg-slate-800 text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Loading — tylko gdy nie ma żadnych danych */}
         {loading && articles.length === 0 && (

@@ -7,7 +7,7 @@ import { formatDate } from "@/lib/utils";
 import ArticlePlayer from "@/components/ArticlePlayer";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Share2, Calendar, User, ExternalLink, Loader2, WifiOff } from "lucide-react";
+import { ArrowLeft, Share2, Calendar, User, ExternalLink, Loader2, WifiOff, Type } from "lucide-react";
 import { getArticleFromCache } from "@/hooks/useOfflineArticles";
 import RichLinks from "@/components/RichLinks";
 
@@ -20,6 +20,12 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
   const [error, setError] = useState("");
   const [offline, setOffline] = useState(false);
   const [currentPara, setCurrentPara] = useState(-1);
+  const [fontSize, setFontSize] = useState<"sm" | "base" | "lg">("base");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("article_font_size");
+    if (saved === "sm" || saved === "base" || saved === "lg") setFontSize(saved);
+  }, []);
 
   useEffect(() => {
     // Natychmiast pokaż z cache jeśli dostępny
@@ -39,6 +45,14 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  const fontSizeClass = { sm: "text-sm", base: "text-base", lg: "text-lg" }[fontSize];
+
+  function cycleFontSize() {
+    const next = fontSize === "sm" ? "base" : fontSize === "base" ? "lg" : "sm";
+    setFontSize(next);
+    localStorage.setItem("article_font_size", next);
+  }
 
   async function handleShare() {
     if (!article) return;
@@ -64,6 +78,13 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
             {t("articles.back")}
           </button>
           <div className="flex items-center gap-1">
+            <button
+              onClick={cycleFontSize}
+              className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+              title="Zmień rozmiar tekstu"
+            >
+              <Type size={16} />
+            </button>
             {article && (
               <a
                 href={`/viewer?url=${encodeURIComponent(article.source_url)}`}
@@ -158,7 +179,7 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
                   <p
                     key={absIdx}
                     id={`para-${absIdx}`}
-                    className="text-slate-300 text-sm leading-relaxed rounded-xl transition-all duration-300"
+                    className={`text-slate-300 ${fontSizeClass} leading-relaxed rounded-xl transition-all duration-300`}
                     style={
                       currentPara === absIdx
                         ? { backgroundColor: "rgba(59,130,246,0.12)", padding: "8px 10px", color: "#e2e8f0" }

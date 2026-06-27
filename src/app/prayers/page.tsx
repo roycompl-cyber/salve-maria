@@ -111,6 +111,32 @@ function PrayersContent() {
       </div>
 
       {!loading && (
+        <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+          {[
+            { cat: "Różaniec", emoji: "📿" },
+            { cat: "Koronki", emoji: "✝" },
+            { cat: "Litanie", emoji: "📖" },
+            { cat: "Nabożeństwa", emoji: "⛪" },
+            { cat: "Modlitwy za Ojczyznę", emoji: "🇵🇱" },
+          ].map(({ cat, emoji }) => {
+            const isActive = activeCategory === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => { setActiveCategory(cat); setSearch(""); }}
+                className={`flex-shrink-0 bg-slate-800 rounded-2xl p-3 text-center flex flex-col items-center gap-1.5 min-w-[72px] transition-colors ${isActive ? "bg-blue-600/20 border border-blue-500/30" : "border border-transparent"}`}
+              >
+                <div className="w-9 h-9 rounded-full bg-slate-700/60 flex items-center justify-center text-lg leading-none">
+                  {emoji}
+                </div>
+                <span className="text-[10px] text-slate-400 leading-tight">{cat}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {!loading && (
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           {allCategories.map(cat => {
             const isActive = activeCategory === cat;
