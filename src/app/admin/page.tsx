@@ -529,6 +529,10 @@ export default function AdminPage() {
   const [addingArticle, setAddingArticle] = useState(false);
   const [articleSaving, setArticleSaving] = useState(false);
   const [articleForm, setArticleForm] = useState<Partial<ManualArticle>>({});
+  const [articlesTab, setArticlesTab] = useState<"scraped"|"manual">("scraped");
+  const [scrapedArticles, setScrapedArticles] = useState<Record<string,unknown>[]>([]);
+  const [scrapedArticlesMeta, setScrapedArticlesMeta] = useState<{order:string[];hidden:string[]}>({order:[],hidden:[]});
+  const [scrapedArticlesSaving, setScrapedArticlesSaving] = useState(false);
 
   // ── Petitions (manual) state ──
   const [manualPetitions, setManualPetitions] = useState<ManualPetition[]>([]);
@@ -537,6 +541,10 @@ export default function AdminPage() {
   const [addingPetition, setAddingPetition] = useState(false);
   const [petitionSaving, setPetitionSaving] = useState(false);
   const [petitionForm, setPetitionForm] = useState<Partial<ManualPetition>>({});
+  const [petitionsTab, setPetitionsTab] = useState<"scraped"|"manual">("scraped");
+  const [scrapedPetitions, setScrapedPetitions] = useState<Record<string,unknown>[]>([]);
+  const [scrapedPetitionsMeta, setScrapedPetitionsMeta] = useState<{order:string[];hidden:string[]}>({order:[],hidden:[]});
+  const [scrapedPetitionsSaving, setScrapedPetitionsSaving] = useState(false);
 
   // ── Videos state ──
   const [videos, setVideos] = useState<VideoRow[]>([]);
@@ -665,11 +673,23 @@ export default function AdminPage() {
     }
     if (section==="articles") {
       setArticlesLoading(true);
-      fetch("/api/admin/articles").then(r=>r.json()).then(d=>{if(Array.isArray(d))setManualArticles(d);}).finally(()=>setArticlesLoading(false));
+      Promise.all([
+        fetch("/api/admin/articles").then(r=>r.json()),
+        fetch("/api/admin/scraped-content?type=articles").then(r=>r.json()),
+      ]).then(([manual, scraped]) => {
+        if (Array.isArray(manual)) setManualArticles(manual);
+        if (scraped?.items) { setScrapedArticles(scraped.items); setScrapedArticlesMeta(scraped.meta); }
+      }).finally(()=>setArticlesLoading(false));
     }
     if (section==="petitions") {
       setPetitionsAdminLoading(true);
-      fetch("/api/admin/petitions").then(r=>r.json()).then(d=>{if(Array.isArray(d))setManualPetitions(d);}).finally(()=>setPetitionsAdminLoading(false));
+      Promise.all([
+        fetch("/api/admin/petitions").then(r=>r.json()),
+        fetch("/api/admin/scraped-content?type=petitions").then(r=>r.json()),
+      ]).then(([manual, scraped]) => {
+        if (Array.isArray(manual)) setManualPetitions(manual);
+        if (scraped?.items) { setScrapedPetitions(scraped.items); setScrapedPetitionsMeta(scraped.meta); }
+      }).finally(()=>setPetitionsAdminLoading(false));
     }
     if (section==="videos") {
       setVideosLoading(true);
@@ -2792,150 +2812,300 @@ export default function AdminPage() {
 
         {/* ── ARTICLES (MANUAL) ── */}
         {section==="articles" && (<>
-          <SectionHeader title="Artykuły" subtitle={`${manualArticles.length} artykułów ręcznych`} onBack={()=>{setSection(null);setAddingArticle(false);setEditingArticle(null);}}/>
-          <div className="px-4 pb-2 flex justify-end">
-            {!addingArticle&&!editingArticle&&(
-              <button onClick={()=>{setAddingArticle(true);setArticleForm({category:"Ogólne",author:"Redakcja",published_at:new Date().toISOString().slice(0,10)});}}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white"
-                style={{background:"linear-gradient(135deg,#071b3b,#0f3470)"}}>
-                <Plus size={15}/> Dodaj artykuł
+          <SectionHeader title="Artykuły" subtitle="Zarządzanie listą i kolejnością" onBack={()=>{setSection(null);setAddingArticle(false);setEditingArticle(null);}}/>
+
+          {/* Zakładki */}
+          <div className="flex gap-2 px-4 pb-3">
+            {(["scraped","manual"] as const).map(tab=>(
+              <button key={tab} onClick={()=>setArticlesTab(tab)}
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${articlesTab===tab?"text-white":"bg-slate-800 text-slate-400 hover:text-white"}`}
+                style={articlesTab===tab?{background:"linear-gradient(135deg,#071b3b,#0f3470)"}:{}}>
+                {tab==="scraped"?`Pobrane (${scrapedArticles.length})`:`Ręczne (${manualArticles.length})`}
               </button>
-            )}
-          </div>
-          <div className="px-4 pb-8 space-y-3 mt-2">
-            {(addingArticle||editingArticle) && (
-              <div className={`${CARD} p-4 space-y-3`}>
-                <p className="text-blue-400 font-semibold text-sm">{editingArticle?"Edytuj artykuł":"Nowy artykuł"}</p>
-                <div><label className={labelCls}>Tytuł *</label>
-                  <input className={inputCls} value={articleForm.title??""} onChange={e=>setArticleForm(p=>({...p,title:e.target.value}))} placeholder="Tytuł artykułu"/>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div><label className={labelCls}>Kategoria</label>
-                    <input className={inputCls} value={articleForm.category??""} onChange={e=>setArticleForm(p=>({...p,category:e.target.value}))} placeholder="np. Wiara"/>
-                  </div>
-                  <div><label className={labelCls}>Autor</label>
-                    <input className={inputCls} value={articleForm.author??""} onChange={e=>setArticleForm(p=>({...p,author:e.target.value}))} placeholder="Redakcja"/>
-                  </div>
-                </div>
-                <div><label className={labelCls}>Data publikacji</label>
-                  <input type="date" className={inputCls} value={articleForm.published_at?.slice(0,10)??""} onChange={e=>setArticleForm(p=>({...p,published_at:e.target.value}))}/>
-                </div>
-                <div><label className={labelCls}>URL zdjęcia</label>
-                  <input className={inputCls} value={articleForm.image_url??""} onChange={e=>setArticleForm(p=>({...p,image_url:e.target.value}))} placeholder="https://…/obraz.jpg"/>
-                </div>
-                <div><label className={labelCls}>Zajawka (excerpt)</label>
-                  <textarea className={inputCls} rows={2} value={articleForm.excerpt??""} onChange={e=>setArticleForm(p=>({...p,excerpt:e.target.value}))} placeholder="Krótki opis…"/>
-                </div>
-                <div><label className={labelCls}>Treść *</label>
-                  <textarea className={inputCls} rows={8} value={articleForm.content??""} onChange={e=>setArticleForm(p=>({...p,content:e.target.value}))} placeholder="Pełna treść artykułu…"/>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={handleSaveArticle} disabled={articleSaving||!articleForm.title||!articleForm.content}
-                    className={`flex-1 ${BTN_PRIMARY}`} style={{background:"linear-gradient(135deg,#071b3b,#0f3470)"}}>
-                    {articleSaving?<Loader2 size={15} className="animate-spin"/>:<CheckCircle2 size={15}/>} Zapisz
-                  </button>
-                  <button onClick={()=>{setAddingArticle(false);setEditingArticle(null);setArticleForm({});}}
-                    className="px-4 py-2.5 rounded-xl text-slate-400 bg-slate-700 hover:bg-slate-600 text-sm"><X size={15}/></button>
-                </div>
-              </div>
-            )}
-            {articlesLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-blue-400 animate-spin"/></div>}
-            {manualArticles.length===0&&!articlesLoading&&<p className="text-slate-500 text-sm text-center py-8">Brak artykułów ręcznych.</p>}
-            {manualArticles.map(a=>(
-              <div key={a.id} className={`${CARD} p-4`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-white font-semibold text-sm">{a.title}</p>
-                    <p className="text-slate-500 text-xs mt-0.5">{a.category} · {a.author} · {new Date(a.published_at).toLocaleDateString("pl-PL")}</p>
-                  </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <button onClick={()=>{setEditingArticle(a);setArticleForm({...a});setAddingArticle(false);}} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-amber-400"><Pencil size={14}/></button>
-                    <button onClick={()=>handleDeleteArticle(a.id)} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-red-400"><Trash2 size={14}/></button>
-                  </div>
-                </div>
-              </div>
             ))}
           </div>
-        </>)}
 
-        {/* ── PETITIONS (MANUAL) ── */}
-        {section==="petitions" && (<>
-          <SectionHeader title="Petycje" subtitle={`${manualPetitions.length} petycji ręcznych`} onBack={()=>{setSection(null);setAddingPetition(false);setEditingPetition(null);}}/>
-          {manualPetitions.some(p=>p.signature_count>=p.notification_threshold) && (
-            <div className="mx-4 mb-3 flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 text-amber-400 text-xs">
-              <ShieldAlert size={14}/> Uwaga: {manualPetitions.filter(p=>p.signature_count>=p.notification_threshold).length} petycja/e osiągnęła próg powiadomień
+          {articlesLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-blue-400 animate-spin"/></div>}
+
+          {/* ZAKŁADKA: POBRANE */}
+          {!articlesLoading && articlesTab==="scraped" && (
+            <div className="px-4 pb-8 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-slate-500 text-xs">Przeciągnij wiersze aby zmienić kolejność. Ukryj artykuły których nie chcesz pokazywać.</p>
+                <button
+                  disabled={scrapedArticlesSaving}
+                  onClick={()=>{
+                    setScrapedArticlesSaving(true);
+                    const keyOf=(i:Record<string,unknown>)=>(i.slug||i.id||i.url||"") as string;
+                    fetch("/api/admin/scraped-content",{method:"PUT",headers:{"Content-Type":"application/json"},
+                      body:JSON.stringify({type:"articles",order:scrapedArticles.map(keyOf),hidden:scrapedArticlesMeta.hidden})})
+                      .finally(()=>setScrapedArticlesSaving(false));
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
+                  style={{background:"linear-gradient(135deg,#071b3b,#0f3470)"}}>
+                  {scrapedArticlesSaving?<Loader2 size={12} className="animate-spin"/>:<CheckCircle2 size={12}/>} Zapisz kolejność
+                </button>
+              </div>
+              {scrapedArticles.length===0&&<p className="text-slate-500 text-sm text-center py-8">Brak pobranych artykułów w cache.</p>}
+              {scrapedArticles.map((a,idx)=>{
+                const key=(a.slug||a.id||a.url||idx) as string;
+                const hidden=scrapedArticlesMeta.hidden.includes(key);
+                return (
+                  <div key={key} className={`${CARD} p-3 flex items-center gap-3 ${hidden?"opacity-40":""}`}
+                    draggable
+                    onDragStart={e=>e.dataTransfer.setData("text/plain",String(idx))}
+                    onDragOver={e=>e.preventDefault()}
+                    onDrop={e=>{
+                      e.preventDefault();
+                      const from=Number(e.dataTransfer.getData("text/plain"));
+                      if(from===idx)return;
+                      const arr=[...scrapedArticles];
+                      const [item]=arr.splice(from,1);
+                      arr.splice(idx,0,item);
+                      setScrapedArticles(arr);
+                    }}>
+                    <div className="text-slate-600 cursor-grab active:cursor-grabbing flex-shrink-0">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><circle cx="4" cy="3" r="1.2"/><circle cx="4" cy="7" r="1.2"/><circle cx="4" cy="11" r="1.2"/><circle cx="10" cy="3" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="10" cy="11" r="1.2"/></svg>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-white text-xs font-medium leading-snug line-clamp-2">{a.title as string}</p>
+                      <p className="text-slate-600 text-[10px] mt-0.5">{a.category as string||""} · {a.date as string||""}</p>
+                    </div>
+                    <button
+                      onClick={()=>{
+                        const h=scrapedArticlesMeta.hidden;
+                        setScrapedArticlesMeta({...scrapedArticlesMeta,hidden:hidden?h.filter(x=>x!==key):[...h,key]});
+                      }}
+                      className={`flex-shrink-0 p-1.5 rounded-lg transition-colors ${hidden?"text-green-400 hover:bg-green-900/30":"text-slate-500 hover:bg-slate-700 hover:text-red-400"}`}
+                      title={hidden?"Pokaż":"Ukryj"}>
+                      {hidden?<Eye size={14}/>:<EyeOff size={14}/>}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
-          <div className="px-4 pb-2 flex justify-end">
-            {!addingPetition&&!editingPetition&&(
-              <button onClick={()=>{setAddingPetition(true);setPetitionForm({signature_count:0,notification_threshold:10000,active:true});}}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white"
-                style={{background:"linear-gradient(135deg,#2a1200,#4a2000)"}}>
-                <Plus size={15}/> Dodaj petycję
-              </button>
-            )}
-          </div>
-          <div className="px-4 pb-8 space-y-3 mt-2">
-            {(addingPetition||editingPetition) && (
-              <div className={`${CARD} p-4 space-y-3`}>
-                <p className="text-amber-400 font-semibold text-sm">{editingPetition?"Edytuj petycję":"Nowa petycja"}</p>
-                <div><label className={labelCls}>Tytuł *</label>
-                  <input className={inputCls} value={petitionForm.title??""} onChange={e=>setPetitionForm(p=>({...p,title:e.target.value}))} placeholder="Tytuł petycji"/>
-                </div>
-                <div><label className={labelCls}>URL podpisu (link do podpisania)</label>
-                  <input className={inputCls} value={petitionForm.source_url??""} onChange={e=>setPetitionForm(p=>({...p,source_url:e.target.value}))} placeholder="https://…"/>
-                </div>
-                <div><label className={labelCls}>URL zdjęcia</label>
-                  <input className={inputCls} value={petitionForm.image_url??""} onChange={e=>setPetitionForm(p=>({...p,image_url:e.target.value}))} placeholder="https://…/obraz.jpg"/>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div><label className={labelCls}>Licznik podpisów</label>
-                    <input type="number" className={inputCls} value={petitionForm.signature_count??0} onChange={e=>setPetitionForm(p=>({...p,signature_count:Number(e.target.value)}))}/>
-                  </div>
-                  <div><label className={labelCls}>Próg powiadomień</label>
-                    <input type="number" className={inputCls} value={petitionForm.notification_threshold??10000} onChange={e=>setPetitionForm(p=>({...p,notification_threshold:Number(e.target.value)}))}/>
-                  </div>
-                </div>
-                <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                  <input type="checkbox" checked={petitionForm.active??true} onChange={e=>setPetitionForm(p=>({...p,active:e.target.checked}))} className="rounded border-slate-600 bg-slate-700"/>
-                  Aktywna
-                </label>
-                <div><label className={labelCls}>Zajawka</label>
-                  <textarea className={inputCls} rows={2} value={petitionForm.excerpt??""} onChange={e=>setPetitionForm(p=>({...p,excerpt:e.target.value}))} placeholder="Krótki opis…"/>
-                </div>
-                <div><label className={labelCls}>Treść</label>
-                  <textarea className={inputCls} rows={6} value={petitionForm.content??""} onChange={e=>setPetitionForm(p=>({...p,content:e.target.value}))} placeholder="Pełna treść petycji…"/>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={handleSavePetition} disabled={petitionSaving||!petitionForm.title}
-                    className={`flex-1 ${BTN_PRIMARY}`} style={{background:"linear-gradient(135deg,#2a1200,#4a2000)"}}>
-                    {petitionSaving?<Loader2 size={15} className="animate-spin"/>:<CheckCircle2 size={15}/>} Zapisz
+
+          {/* ZAKŁADKA: RĘCZNE */}
+          {!articlesLoading && articlesTab==="manual" && (
+            <div className="px-4 pb-8 space-y-3">
+              <div className="flex justify-end">
+                {!addingArticle&&!editingArticle&&(
+                  <button onClick={()=>{setAddingArticle(true);setArticleForm({category:"Ogólne",author:"Redakcja",published_at:new Date().toISOString().slice(0,10)});}}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+                    style={{background:"linear-gradient(135deg,#071b3b,#0f3470)"}}>
+                    <Plus size={15}/> Dodaj artykuł
                   </button>
-                  <button onClick={()=>{setAddingPetition(false);setEditingPetition(null);setPetitionForm({});}}
-                    className="px-4 py-2.5 rounded-xl text-slate-400 bg-slate-700 hover:bg-slate-600 text-sm"><X size={15}/></button>
-                </div>
+                )}
               </div>
-            )}
-            {petitionsAdminLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-amber-400 animate-spin"/></div>}
-            {manualPetitions.length===0&&!petitionsAdminLoading&&<p className="text-slate-500 text-sm text-center py-8">Brak petycji ręcznych.</p>}
-            {manualPetitions.map(p=>(
-              <div key={p.id} className={`${CARD} p-4 ${p.signature_count>=p.notification_threshold?"border-amber-600/40":""}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-white font-semibold text-sm">{p.title}</p>
-                      {p.signature_count>=p.notification_threshold && <ShieldAlert size={13} className="text-amber-400 flex-shrink-0"/>}
+              {(addingArticle||editingArticle) && (
+                <div className={`${CARD} p-4 space-y-3`}>
+                  <p className="text-blue-400 font-semibold text-sm">{editingArticle?"Edytuj artykuł":"Nowy artykuł"}</p>
+                  <div><label className={labelCls}>Tytuł *</label>
+                    <input className={inputCls} value={articleForm.title??""} onChange={e=>setArticleForm(p=>({...p,title:e.target.value}))} placeholder="Tytuł artykułu"/>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><label className={labelCls}>Kategoria</label>
+                      <input className={inputCls} value={articleForm.category??""} onChange={e=>setArticleForm(p=>({...p,category:e.target.value}))} placeholder="np. Wiara"/>
                     </div>
-                    <p className="text-slate-500 text-xs mt-0.5">{p.signature_count.toLocaleString("pl-PL")} / {p.notification_threshold.toLocaleString("pl-PL")} · {p.active?"aktywna":"nieaktywna"}</p>
+                    <div><label className={labelCls}>Autor</label>
+                      <input className={inputCls} value={articleForm.author??""} onChange={e=>setArticleForm(p=>({...p,author:e.target.value}))} placeholder="Redakcja"/>
+                    </div>
                   </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <button onClick={()=>{setEditingPetition(p);setPetitionForm({...p});setAddingPetition(false);}} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-amber-400"><Pencil size={14}/></button>
-                    <button onClick={()=>handleDeletePetition(p.id)} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-red-400"><Trash2 size={14}/></button>
+                  <div><label className={labelCls}>Data publikacji</label>
+                    <input type="date" className={inputCls} value={articleForm.published_at?.slice(0,10)??""} onChange={e=>setArticleForm(p=>({...p,published_at:e.target.value}))}/>
+                  </div>
+                  <div><label className={labelCls}>URL zdjęcia</label>
+                    <input className={inputCls} value={articleForm.image_url??""} onChange={e=>setArticleForm(p=>({...p,image_url:e.target.value}))} placeholder="https://…/obraz.jpg"/>
+                  </div>
+                  <div><label className={labelCls}>Zajawka (excerpt)</label>
+                    <textarea className={inputCls} rows={2} value={articleForm.excerpt??""} onChange={e=>setArticleForm(p=>({...p,excerpt:e.target.value}))} placeholder="Krótki opis…"/>
+                  </div>
+                  <div><label className={labelCls}>Treść *</label>
+                    <textarea className={inputCls} rows={8} value={articleForm.content??""} onChange={e=>setArticleForm(p=>({...p,content:e.target.value}))} placeholder="Pełna treść artykułu…"/>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={handleSaveArticle} disabled={articleSaving||!articleForm.title||!articleForm.content}
+                      className={`flex-1 ${BTN_PRIMARY}`} style={{background:"linear-gradient(135deg,#071b3b,#0f3470)"}}>
+                      {articleSaving?<Loader2 size={15} className="animate-spin"/>:<CheckCircle2 size={15}/>} Zapisz
+                    </button>
+                    <button onClick={()=>{setAddingArticle(false);setEditingArticle(null);setArticleForm({});}}
+                      className="px-4 py-2.5 rounded-xl text-slate-400 bg-slate-700 hover:bg-slate-600 text-sm"><X size={15}/></button>
                   </div>
                 </div>
-              </div>
+              )}
+              {manualArticles.length===0&&!addingArticle&&<p className="text-slate-500 text-sm text-center py-8">Brak artykułów ręcznych.</p>}
+              {manualArticles.map(a=>(
+                <div key={a.id} className={`${CARD} p-4`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-white font-semibold text-sm">{a.title}</p>
+                      <p className="text-slate-500 text-xs mt-0.5">{a.category} · {a.author} · {new Date(a.published_at).toLocaleDateString("pl-PL")}</p>
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button onClick={()=>{setEditingArticle(a);setArticleForm({...a});setAddingArticle(false);}} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-amber-400"><Pencil size={14}/></button>
+                      <button onClick={()=>handleDeleteArticle(a.id)} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-red-400"><Trash2 size={14}/></button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>)}
+
+        {/* ── PETITIONS ── */}
+        {section==="petitions" && (<>
+          <SectionHeader title="Petycje" subtitle="Zarządzanie listą i kolejnością" onBack={()=>{setSection(null);setAddingPetition(false);setEditingPetition(null);}}/>
+          {manualPetitions.some(p=>p.signature_count>=p.notification_threshold) && (
+            <div className="mx-4 mb-2 flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 text-amber-400 text-xs">
+              <ShieldAlert size={14}/> {manualPetitions.filter(p=>p.signature_count>=p.notification_threshold).length} petycja/e osiągnęła próg powiadomień
+            </div>
+          )}
+
+          {/* Zakładki */}
+          <div className="flex gap-2 px-4 pb-3">
+            {(["scraped","manual"] as const).map(tab=>(
+              <button key={tab} onClick={()=>setPetitionsTab(tab)}
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${petitionsTab===tab?"text-white":"bg-slate-800 text-slate-400 hover:text-white"}`}
+                style={petitionsTab===tab?{background:"linear-gradient(135deg,#2a1200,#4a2000)"}:{}}>
+                {tab==="scraped"?`Pobrane (${scrapedPetitions.length})`:`Ręczne (${manualPetitions.length})`}
+              </button>
             ))}
           </div>
+
+          {petitionsAdminLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-amber-400 animate-spin"/></div>}
+
+          {/* ZAKŁADKA: POBRANE */}
+          {!petitionsAdminLoading && petitionsTab==="scraped" && (
+            <div className="px-4 pb-8 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-slate-500 text-xs">Przeciągnij wiersze aby zmienić kolejność. Ukryj petycje których nie chcesz pokazywać.</p>
+                <button
+                  disabled={scrapedPetitionsSaving}
+                  onClick={()=>{
+                    setScrapedPetitionsSaving(true);
+                    const keyOf=(i:Record<string,unknown>)=>(i.slug||i.id||i.url||"") as string;
+                    fetch("/api/admin/scraped-content",{method:"PUT",headers:{"Content-Type":"application/json"},
+                      body:JSON.stringify({type:"petitions",order:scrapedPetitions.map(keyOf),hidden:scrapedPetitionsMeta.hidden})})
+                      .finally(()=>setScrapedPetitionsSaving(false));
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
+                  style={{background:"linear-gradient(135deg,#2a1200,#4a2000)"}}>
+                  {scrapedPetitionsSaving?<Loader2 size={12} className="animate-spin"/>:<CheckCircle2 size={12}/>} Zapisz kolejność
+                </button>
+              </div>
+              {scrapedPetitions.length===0&&<p className="text-slate-500 text-sm text-center py-8">Brak pobranych petycji w cache.</p>}
+              {scrapedPetitions.map((p,idx)=>{
+                const key=(p.slug||p.id||p.url||idx) as string;
+                const hidden=scrapedPetitionsMeta.hidden.includes(key);
+                return (
+                  <div key={key} className={`${CARD} p-3 flex items-center gap-3 ${hidden?"opacity-40":""}`}
+                    draggable
+                    onDragStart={e=>e.dataTransfer.setData("text/plain",String(idx))}
+                    onDragOver={e=>e.preventDefault()}
+                    onDrop={e=>{
+                      e.preventDefault();
+                      const from=Number(e.dataTransfer.getData("text/plain"));
+                      if(from===idx)return;
+                      const arr=[...scrapedPetitions];
+                      const [item]=arr.splice(from,1);
+                      arr.splice(idx,0,item);
+                      setScrapedPetitions(arr);
+                    }}>
+                    <div className="text-slate-600 cursor-grab active:cursor-grabbing flex-shrink-0">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><circle cx="4" cy="3" r="1.2"/><circle cx="4" cy="7" r="1.2"/><circle cx="4" cy="11" r="1.2"/><circle cx="10" cy="3" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="10" cy="11" r="1.2"/></svg>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-white text-xs font-medium leading-snug line-clamp-2">{p.title as string}</p>
+                      <p className="text-slate-600 text-[10px] mt-0.5">{(p.signature_count as number|undefined)?.toLocaleString("pl-PL")||""} podpisów</p>
+                    </div>
+                    <button
+                      onClick={()=>{
+                        const h=scrapedPetitionsMeta.hidden;
+                        setScrapedPetitionsMeta({...scrapedPetitionsMeta,hidden:hidden?h.filter(x=>x!==key):[...h,key]});
+                      }}
+                      className={`flex-shrink-0 p-1.5 rounded-lg transition-colors ${hidden?"text-green-400 hover:bg-green-900/30":"text-slate-500 hover:bg-slate-700 hover:text-red-400"}`}
+                      title={hidden?"Pokaż":"Ukryj"}>
+                      {hidden?<Eye size={14}/>:<EyeOff size={14}/>}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ZAKŁADKA: RĘCZNE */}
+          {!petitionsAdminLoading && petitionsTab==="manual" && (
+            <div className="px-4 pb-8 space-y-3">
+              <div className="flex justify-end">
+                {!addingPetition&&!editingPetition&&(
+                  <button onClick={()=>{setAddingPetition(true);setPetitionForm({signature_count:0,notification_threshold:10000,active:true});}}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+                    style={{background:"linear-gradient(135deg,#2a1200,#4a2000)"}}>
+                    <Plus size={15}/> Dodaj petycję
+                  </button>
+                )}
+              </div>
+              {(addingPetition||editingPetition) && (
+                <div className={`${CARD} p-4 space-y-3`}>
+                  <p className="text-amber-400 font-semibold text-sm">{editingPetition?"Edytuj petycję":"Nowa petycja"}</p>
+                  <div><label className={labelCls}>Tytuł *</label>
+                    <input className={inputCls} value={petitionForm.title??""} onChange={e=>setPetitionForm(p=>({...p,title:e.target.value}))} placeholder="Tytuł petycji"/>
+                  </div>
+                  <div><label className={labelCls}>URL podpisu</label>
+                    <input className={inputCls} value={petitionForm.source_url??""} onChange={e=>setPetitionForm(p=>({...p,source_url:e.target.value}))} placeholder="https://…"/>
+                  </div>
+                  <div><label className={labelCls}>URL zdjęcia</label>
+                    <input className={inputCls} value={petitionForm.image_url??""} onChange={e=>setPetitionForm(p=>({...p,image_url:e.target.value}))} placeholder="https://…/obraz.jpg"/>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><label className={labelCls}>Licznik podpisów</label>
+                      <input type="number" className={inputCls} value={petitionForm.signature_count??0} onChange={e=>setPetitionForm(p=>({...p,signature_count:Number(e.target.value)}))}/>
+                    </div>
+                    <div><label className={labelCls}>Próg powiadomień</label>
+                      <input type="number" className={inputCls} value={petitionForm.notification_threshold??10000} onChange={e=>setPetitionForm(p=>({...p,notification_threshold:Number(e.target.value)}))}/>
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                    <input type="checkbox" checked={petitionForm.active??true} onChange={e=>setPetitionForm(p=>({...p,active:e.target.checked}))} className="rounded border-slate-600 bg-slate-700"/>
+                    Aktywna
+                  </label>
+                  <div><label className={labelCls}>Zajawka</label>
+                    <textarea className={inputCls} rows={2} value={petitionForm.excerpt??""} onChange={e=>setPetitionForm(p=>({...p,excerpt:e.target.value}))} placeholder="Krótki opis…"/>
+                  </div>
+                  <div><label className={labelCls}>Treść</label>
+                    <textarea className={inputCls} rows={6} value={petitionForm.content??""} onChange={e=>setPetitionForm(p=>({...p,content:e.target.value}))} placeholder="Pełna treść petycji…"/>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={handleSavePetition} disabled={petitionSaving||!petitionForm.title}
+                      className={`flex-1 ${BTN_PRIMARY}`} style={{background:"linear-gradient(135deg,#2a1200,#4a2000)"}}>
+                      {petitionSaving?<Loader2 size={15} className="animate-spin"/>:<CheckCircle2 size={15}/>} Zapisz
+                    </button>
+                    <button onClick={()=>{setAddingPetition(false);setEditingPetition(null);setPetitionForm({});}}
+                      className="px-4 py-2.5 rounded-xl text-slate-400 bg-slate-700 hover:bg-slate-600 text-sm"><X size={15}/></button>
+                  </div>
+                </div>
+              )}
+              {manualPetitions.length===0&&!addingPetition&&<p className="text-slate-500 text-sm text-center py-8">Brak petycji ręcznych.</p>}
+              {manualPetitions.map(p=>(
+                <div key={p.id} className={`${CARD} p-4 ${p.signature_count>=p.notification_threshold?"border-amber-600/40":""}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-white font-semibold text-sm">{p.title}</p>
+                        {p.signature_count>=p.notification_threshold && <ShieldAlert size={13} className="text-amber-400 flex-shrink-0"/>}
+                      </div>
+                      <p className="text-slate-500 text-xs mt-0.5">{p.signature_count.toLocaleString("pl-PL")} / {p.notification_threshold.toLocaleString("pl-PL")} · {p.active?"aktywna":"nieaktywna"}</p>
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button onClick={()=>{setEditingPetition(p);setPetitionForm({...p});setAddingPetition(false);}} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-amber-400"><Pencil size={14}/></button>
+                      <button onClick={()=>handleDeletePetition(p.id)} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-red-400"><Trash2 size={14}/></button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </>)}
 
         {/* ── VIDEOS ── */}
