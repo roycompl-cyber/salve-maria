@@ -91,6 +91,7 @@ export default function ArticlesPage() {
                   <img
                     src={article.image_url}
                     alt=""
+                    referrerPolicy="no-referrer"
                     className="w-20 h-20 rounded-xl object-cover flex-shrink-0 bg-slate-700"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />

@@ -116,7 +116,7 @@ export default function Home2Page() {
               <div className="relative h-52 md:h-72 bg-slate-800">
                 {featuredArticle.image_url && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={featuredArticle.image_url} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" />
+                  <img src={featuredArticle.image_url} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/35 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-5">
@@ -137,7 +137,7 @@ export default function Home2Page() {
               <div className="flex gap-4 items-center">
                 {featuredPetition.image_url && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={featuredPetition.image_url} alt="" className="w-24 h-24 rounded-2xl object-cover flex-shrink-0 border border-amber-500/20" />
+                  <img src={featuredPetition.image_url} alt="" referrerPolicy="no-referrer" className="w-24 h-24 rounded-2xl object-cover flex-shrink-0 border border-amber-500/20" />
                 )}
                 <div className="min-w-0 flex-1">
                   <span className="text-amber-400 text-[10px] uppercase tracking-wider">Aktywna petycja</span>
@@ -161,7 +161,7 @@ export default function Home2Page() {
                 <Link key={article.slug} href={`/articles/${article.slug}`} className="flex md:block gap-3 rounded-2xl border border-slate-700/70 bg-slate-800/55 p-3 hover:bg-slate-800 transition-colors">
                   {article.image_url && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={article.image_url} alt="" className="w-20 h-20 md:w-full md:h-28 rounded-xl object-cover flex-shrink-0" />
+                    <img src={article.image_url} alt="" referrerPolicy="no-referrer" className="w-20 h-20 md:w-full md:h-28 rounded-xl object-cover flex-shrink-0" />
                   )}
                   <div className="min-w-0 md:mt-3">
                     <h3 className="text-sm font-bold text-white leading-tight line-clamp-3">{article.title}</h3>
@@ -181,7 +181,7 @@ export default function Home2Page() {
                 <Link key={petition.slug} href={`/petitions/${petition.slug}`} className="flex items-center gap-3 rounded-2xl border border-slate-700/70 bg-slate-800/55 p-3 hover:bg-slate-800 transition-colors">
                   {petition.image_url && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={petition.image_url} alt="" className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
+                    <img src={petition.image_url} alt="" referrerPolicy="no-referrer" className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
                   )}
                   <p className="flex-1 text-sm font-bold text-white leading-tight line-clamp-2">{petition.title}</p>
                   <Icon name="chevron-right" size={16} className="text-amber-500 flex-shrink-0" />
