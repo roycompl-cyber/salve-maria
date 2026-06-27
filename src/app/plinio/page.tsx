@@ -143,11 +143,6 @@ export default function PlinioPage() {
 
         {!loading && data && (
           <div className="space-y-4">
-            <ArticlePlayer
-              title={`${data.config?.pageTitle || "Myśl na dziś"} — ${data.config?.authorName || "Plinio Corrêa de Oliveira"}`}
-              content={data.quote + "\n\n" + data.source}
-            />
-
             {/* Etykieta dnia */}
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-widest text-amber-500">
@@ -179,8 +174,16 @@ export default function PlinioPage() {
                 „
               </span>
 
+              {/* Lektor */}
+              <div className="relative z-10 mt-4">
+                <ArticlePlayer
+                  title={`${data.config?.pageTitle || "Myśl na dziś"} — ${data.config?.authorName || "Plinio Corrêa de Oliveira"}`}
+                  content={data.quote + "\n\n" + data.source}
+                />
+              </div>
+
               {/* Przyciski akcji */}
-              <div className="relative z-10 flex items-center gap-2 mt-4">
+              <div className="relative z-10 flex items-center gap-2 mt-3">
                 <button
                   onClick={toggleFavorite}
                   aria-label={isFavorited() ? "Usuń z ulubionych" : "Dodaj do ulubionych"}
