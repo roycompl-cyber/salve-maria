@@ -420,3 +420,38 @@ export async function fetchPetition(slug: string): Promise<PKPetition | null> {
     return null;
   }
 }
+
+export interface PKVideo {
+  id: string;       // youtube_id
+  youtube_id: string;
+  title: string;
+  thumbnail_url: string;
+}
+
+export async function fetchVideoList(): Promise<PKVideo[]> {
+  const res = await fetch("https://polskakatolicka.org", {
+    next: { revalidate: 3600 },
+  });
+  const html = await res.text();
+
+  const videos: PKVideo[] = [];
+  const seen = new Set<string>();
+
+  // Match single-video blocks: href="...youtube.com/watch?v=ID" title="TITLE"
+  const re = /single-video[\s\S]{0,400}?href=["']https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([\w-]+)["'][^>]*title=["']([^"']+)["']/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const youtube_id = m[1];
+    if (seen.has(youtube_id)) continue;
+    seen.add(youtube_id);
+    const title = m[2].replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").trim();
+    videos.push({
+      id: youtube_id,
+      youtube_id,
+      title,
+      thumbnail_url: `https://img.youtube.com/vi/${youtube_id}/hqdefault.jpg`,
+    });
+  }
+
+  return videos;
+}

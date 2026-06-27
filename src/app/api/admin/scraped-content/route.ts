@@ -27,7 +27,7 @@ async function requireAdmin() {
   return data?.role === "admin" || data?.role === "superadmin";
 }
 
-type ContentType = "articles" | "petitions" | "videos";
+type ContentType = "articles" | "petitions" | "videos" | "scraped_videos";
 type Meta = { order: string[]; hidden: string[] };
 
 function metaKey(type: ContentType): string {
@@ -41,10 +41,28 @@ export async function GET(req: NextRequest) {
   if (!ok) return NextResponse.json({ error: "Brak dostępu" }, { status: 403 });
 
   const type = req.nextUrl.searchParams.get("type") as ContentType | null;
-  if (type !== "articles" && type !== "petitions" && type !== "videos")
+  if (type !== "articles" && type !== "petitions" && type !== "videos" && type !== "scraped_videos")
     return NextResponse.json({ error: "Nieprawidłowy typ" }, { status: 400 });
 
   const db = adminClient();
+
+  // For scraped_videos, fetch from content_cache key "scraped_videos"
+  if (type === "scraped_videos") {
+    const { data: svCached } = await db.from("content_cache").select("data").eq("key", "scraped_videos").single();
+    const { data: svMeta } = await db.from("content_cache").select("data").eq("key", "scraped_videos_meta").single();
+    const meta: Meta = (svMeta?.data as Meta) ?? { order: [], hidden: [] };
+    const items: Record<string, unknown>[] = Array.isArray(svCached?.data) ? svCached.data : [];
+    const keyOf = (item: Record<string, unknown>) => (item.id as string) || (item.youtube_id as string) || "";
+    const ordered = [...items].sort((a, b) => {
+      const ai = meta.order.indexOf(keyOf(a));
+      const bi = meta.order.indexOf(keyOf(b));
+      if (ai === -1 && bi === -1) return 0;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+    return NextResponse.json({ items: ordered, meta });
+  }
 
   // For videos, fetch from DB instead of content_cache
   if (type === "videos") {
@@ -106,7 +124,7 @@ export async function PUT(req: NextRequest) {
   const body = await req.json();
   const { type, order, hidden } = body as { type: ContentType; order?: string[]; hidden?: string[] };
 
-  if (type !== "articles" && type !== "petitions" && type !== "videos")
+  if (type !== "articles" && type !== "petitions" && type !== "videos" && type !== "scraped_videos")
     return NextResponse.json({ error: "Nieprawidłowy typ" }, { status: 400 });
 
   const db = adminClient();

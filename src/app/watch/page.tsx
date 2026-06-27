@@ -52,11 +52,11 @@ export default function WatchPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    fetch("/api/admin/videos")
+    fetch("/api/videos")
       .then(r => r.ok ? r.json() : Promise.reject())
       .then((data: Video[]) => {
         if (Array.isArray(data) && data.length > 0) {
-          setVideos(data.filter(v => v.active));
+          setVideos(data);
         }
       })
       .catch(() => {/* use fallback */})

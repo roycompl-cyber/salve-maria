@@ -547,6 +547,10 @@ export default function AdminPage() {
   const [scrapedPetitionsSaving, setScrapedPetitionsSaving] = useState(false);
 
   // ── Videos state ──
+  const [videosTab, setVideosTab] = useState<"scraped"|"manual">("scraped");
+  const [scrapedVideos, setScrapedVideos] = useState<Record<string,unknown>[]>([]);
+  const [scrapedVideosMeta, setScrapedVideosMeta] = useState<{order:string[];hidden:string[]}>({order:[],hidden:[]});
+  const [scrapedVideosSaving, setScrapedVideosSaving] = useState(false);
   const [videos, setVideos] = useState<VideoRow[]>([]);
   const [videosLoading, setVideosLoading] = useState(false);
   const [editingVideo, setEditingVideo] = useState<VideoRow|null>(null);
@@ -554,7 +558,6 @@ export default function AdminPage() {
   const [videoSaving, setVideoSaving] = useState(false);
   const [videoForm, setVideoForm] = useState<Partial<VideoRow>>({});
   const [videoFilter, setVideoFilter] = useState("Wszystkie");
-  const [videosMeta, setVideosMeta] = useState<{order:string[];hidden:string[]}>({order:[],hidden:[]});
   const [videosSaving, setVideosSaving] = useState(false);
 
   // ── Push stats state ──
@@ -697,19 +700,11 @@ export default function AdminPage() {
       setVideosLoading(true);
       Promise.all([
         fetch("/api/admin/videos").then(r=>r.json()),
-        fetch("/api/admin/scraped-content?type=videos").then(r=>r.json()),
+        fetch("/api/admin/scraped-content?type=scraped_videos").then(r=>r.json()),
       ]).then(([vids, sc])=>{
         if(Array.isArray(vids)) setVideos(vids);
-        if(sc?.meta) setVideosMeta(sc.meta);
-        // apply order from meta to videos list
-        if(Array.isArray(vids) && sc?.meta?.order?.length) {
-          const ord = sc.meta.order as string[];
-          setVideos([...vids].sort((a,b)=>{
-            const ai=ord.indexOf(a.id), bi=ord.indexOf(b.id);
-            if(ai===-1&&bi===-1)return 0; if(ai===-1)return 1; if(bi===-1)return -1;
-            return ai-bi;
-          }));
-        }
+        if(sc?.items) setScrapedVideos(sc.items);
+        if(sc?.meta) setScrapedVideosMeta(sc.meta);
       }).finally(()=>setVideosLoading(false));
     }
     if (section==="push-stats") {
@@ -3129,126 +3124,155 @@ export default function AdminPage() {
         {section==="videos" && (<>
           <SectionHeader title="Wideo" subtitle="Zarządzanie filmami i kolejnością" onBack={()=>{setSection(null);setAddingVideo(false);setEditingVideo(null);}}/>
 
+          {/* Zakładki */}
+          <div className="flex gap-2 px-4 pb-3">
+            {(["scraped","manual"] as const).map(tab=>(
+              <button key={tab} onClick={()=>setVideosTab(tab)}
+                className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${videosTab===tab?"text-white":"bg-slate-800 text-slate-400 hover:text-white"}`}
+                style={videosTab===tab?{background:"linear-gradient(135deg,#1a0505,#3b0a0a)"}:{}}>
+                {tab==="scraped"?`Pobrane (${scrapedVideos.length})`:`Ręczne (${videos.length})`}
+              </button>
+            ))}
+          </div>
+
           {videosLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-red-400 animate-spin"/></div>}
 
-          {!videosLoading && (<div className="px-4 pb-8 space-y-3">
-            {/* Toolbar */}
-            <div className="flex items-center justify-between gap-2">
-              <button onClick={()=>{setAddingVideo(true);setVideoForm({active:true,category:"Ogólne",tags:[]});setEditingVideo(null);}}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white"
-                style={{background:"linear-gradient(135deg,#1a0505,#3b0a0a)"}}>
-                <Plus size={13}/> Dodaj film
-              </button>
-              <button
-                disabled={videosSaving}
-                onClick={()=>{
-                  setVideosSaving(true);
-                  fetch("/api/admin/scraped-content",{method:"PUT",headers:{"Content-Type":"application/json"},
-                    body:JSON.stringify({type:"videos",order:videos.map(v=>v.id),hidden:videosMeta.hidden})})
-                    .finally(()=>setVideosSaving(false));
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
-                style={{background:"linear-gradient(135deg,#1a0505,#3b0a0a)"}}>
-                {videosSaving?<Loader2 size={12} className="animate-spin"/>:<CheckCircle2 size={12}/>} Zapisz kolejność
-              </button>
+          {/* ZAKŁADKA: POBRANE */}
+          {!videosLoading && videosTab==="scraped" && (
+            <div className="px-4 pb-8 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-slate-500 text-xs">Przeciągnij aby zmienić kolejność. Ukryj filmy których nie chcesz pokazywać.</p>
+                <button
+                  disabled={scrapedVideosSaving}
+                  onClick={()=>{
+                    setScrapedVideosSaving(true);
+                    const keyOf=(i:Record<string,unknown>)=>(i.id||i.youtube_id||"") as string;
+                    fetch("/api/admin/scraped-content",{method:"PUT",headers:{"Content-Type":"application/json"},
+                      body:JSON.stringify({type:"scraped_videos",order:scrapedVideos.map(keyOf),hidden:scrapedVideosMeta.hidden})})
+                      .finally(()=>setScrapedVideosSaving(false));
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white disabled:opacity-50"
+                  style={{background:"linear-gradient(135deg,#1a0505,#3b0a0a)"}}>
+                  {scrapedVideosSaving?<Loader2 size={12} className="animate-spin"/>:<CheckCircle2 size={12}/>} Zapisz kolejność
+                </button>
+              </div>
+              {scrapedVideos.length===0&&<p className="text-slate-500 text-sm text-center py-8">Brak pobranych filmów — odwiedź stronę Zobacz aby wyzwolić scraping.</p>}
+              {scrapedVideos.map((v,idx)=>{
+                const key=(v.id||v.youtube_id||idx) as string;
+                const ytId=(v.youtube_id||v.id||"") as string;
+                const hidden=scrapedVideosMeta.hidden.includes(key);
+                return (
+                  <div key={key}
+                    className={`${CARD} p-3 flex items-center gap-3 ${hidden?"opacity-40":""}`}
+                    draggable
+                    onDragStart={e=>e.dataTransfer.setData("text/plain",String(idx))}
+                    onDragOver={e=>e.preventDefault()}
+                    onDrop={e=>{
+                      e.preventDefault();
+                      const from=Number(e.dataTransfer.getData("text/plain"));
+                      if(from===idx)return;
+                      const arr=[...scrapedVideos];
+                      const [item]=arr.splice(from,1);
+                      arr.splice(idx,0,item);
+                      setScrapedVideos(arr);
+                    }}>
+                    <div className="text-slate-600 cursor-grab active:cursor-grabbing flex-shrink-0">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><circle cx="4" cy="3" r="1.2"/><circle cx="4" cy="7" r="1.2"/><circle cx="4" cy="11" r="1.2"/><circle cx="10" cy="3" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="10" cy="11" r="1.2"/></svg>
+                    </div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`https://img.youtube.com/vi/${ytId}/default.jpg`} alt="" className="w-14 h-10 object-cover rounded-lg flex-shrink-0 bg-slate-700"/>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-xs font-medium leading-snug line-clamp-2">{v.title as string}</p>
+                      <p className="text-slate-600 text-[10px] font-mono mt-0.5">{ytId}</p>
+                    </div>
+                    <button
+                      onClick={()=>{
+                        const h=scrapedVideosMeta.hidden;
+                        setScrapedVideosMeta({...scrapedVideosMeta,hidden:hidden?h.filter(x=>x!==key):[...h,key]});
+                      }}
+                      className={`flex-shrink-0 p-1.5 rounded-lg transition-colors ${hidden?"text-green-400 hover:bg-green-900/30":"text-slate-500 hover:bg-slate-700 hover:text-red-400"}`}
+                      title={hidden?"Pokaż":"Ukryj"}>
+                      {hidden?<Eye size={13}/>:<EyeOff size={13}/>}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
+          )}
 
-            {/* Add/Edit form */}
-            {(addingVideo||editingVideo) && (
-              <div className={`${CARD} p-4 space-y-3`}>
-                <p className="text-red-400 font-semibold text-sm">{editingVideo?"Edytuj film":"Nowy film"}</p>
-                <div><label className={labelCls}>Tytuł *</label>
-                  <input className={inputCls} value={videoForm.title??""} onChange={e=>setVideoForm(p=>({...p,title:e.target.value}))} placeholder="Tytuł filmu"/>
-                </div>
-                <div><label className={labelCls}>YouTube ID *</label>
-                  <input className={inputCls+" font-mono"} value={videoForm.youtube_id??""} onChange={e=>setVideoForm(p=>({...p,youtube_id:e.target.value}))} placeholder="np. dQw4w9WgXcQ"/>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div><label className={labelCls}>Kategoria</label>
-                    <input className={inputCls} value={videoForm.category??""} onChange={e=>setVideoForm(p=>({...p,category:e.target.value}))} placeholder="np. Pro-Life"/>
+          {/* ZAKŁADKA: RĘCZNE */}
+          {!videosLoading && videosTab==="manual" && (
+            <div className="px-4 pb-8 space-y-3">
+              <div className="flex justify-end">
+                {!addingVideo&&!editingVideo&&(
+                  <button onClick={()=>{setAddingVideo(true);setVideoForm({active:true,category:"Ogólne",tags:[]});setEditingVideo(null);}}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+                    style={{background:"linear-gradient(135deg,#1a0505,#3b0a0a)"}}>
+                    <Plus size={15}/> Dodaj film
+                  </button>
+                )}
+              </div>
+              {(addingVideo||editingVideo) && (
+                <div className={`${CARD} p-4 space-y-3`}>
+                  <p className="text-red-400 font-semibold text-sm">{editingVideo?"Edytuj film":"Nowy film"}</p>
+                  <div><label className={labelCls}>Tytuł *</label>
+                    <input className={inputCls} value={videoForm.title??""} onChange={e=>setVideoForm(p=>({...p,title:e.target.value}))} placeholder="Tytuł filmu"/>
                   </div>
-                  <div><label className={labelCls}>Tagi (csv)</label>
-                    <input className={inputCls} value={Array.isArray(videoForm.tags)?videoForm.tags.join(", "):""} onChange={e=>setVideoForm(p=>({...p,tags:e.target.value.split(",").map(t=>t.trim()).filter(Boolean)}))} placeholder="np. modlitwa, rosja"/>
+                  <div><label className={labelCls}>YouTube ID *</label>
+                    <input className={inputCls+" font-mono"} value={videoForm.youtube_id??""} onChange={e=>setVideoForm(p=>({...p,youtube_id:e.target.value}))} placeholder="np. dQw4w9WgXcQ"/>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><label className={labelCls}>Kategoria</label>
+                      <input className={inputCls} value={videoForm.category??""} onChange={e=>setVideoForm(p=>({...p,category:e.target.value}))} placeholder="np. Pro-Life"/>
+                    </div>
+                    <div><label className={labelCls}>Tagi (csv)</label>
+                      <input className={inputCls} value={Array.isArray(videoForm.tags)?videoForm.tags.join(", "):""} onChange={e=>setVideoForm(p=>({...p,tags:e.target.value.split(",").map(t=>t.trim()).filter(Boolean)}))} placeholder="np. modlitwa, rosja"/>
+                    </div>
+                  </div>
+                  <div><label className={labelCls}>Opis</label>
+                    <textarea className={inputCls} rows={2} value={videoForm.description??""} onChange={e=>setVideoForm(p=>({...p,description:e.target.value}))} placeholder="Krótki opis…"/>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                    <input type="checkbox" checked={videoForm.active??true} onChange={e=>setVideoForm(p=>({...p,active:e.target.checked}))} className="rounded border-slate-600 bg-slate-700"/>
+                    Aktywny (widoczny dla użytkowników)
+                  </label>
+                  <div className="flex gap-2">
+                    <button onClick={handleSaveVideo} disabled={videoSaving||!videoForm.title||!videoForm.youtube_id}
+                      className={`flex-1 ${BTN_PRIMARY}`} style={{background:"linear-gradient(135deg,#1a0505,#3b0a0a)"}}>
+                      {videoSaving?<Loader2 size={15} className="animate-spin"/>:<CheckCircle2 size={15}/>} Zapisz
+                    </button>
+                    <button onClick={()=>{setAddingVideo(false);setEditingVideo(null);setVideoForm({});}}
+                      className="px-4 py-2.5 rounded-xl text-slate-400 bg-slate-700 hover:bg-slate-600 text-sm"><X size={15}/></button>
                   </div>
                 </div>
-                <div><label className={labelCls}>Opis</label>
-                  <textarea className={inputCls} rows={2} value={videoForm.description??""} onChange={e=>setVideoForm(p=>({...p,description:e.target.value}))} placeholder="Krótki opis…"/>
+              )}
+              {videos.length>0&&(
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {["Wszystkie",...Array.from(new Set(videos.map(v=>v.category).filter(Boolean)))].map(cat=>(
+                    <button key={cat} onClick={()=>setVideoFilter(cat)}
+                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${videoFilter===cat?"bg-red-700 text-white":"bg-slate-800 text-slate-400 hover:text-slate-200"}`}>
+                      {cat}
+                    </button>
+                  ))}
                 </div>
-                <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                  <input type="checkbox" checked={videoForm.active??true} onChange={e=>setVideoForm(p=>({...p,active:e.target.checked}))} className="rounded border-slate-600 bg-slate-700"/>
-                  Aktywny (widoczny dla użytkowników)
-                </label>
-                <div className="flex gap-2">
-                  <button onClick={handleSaveVideo} disabled={videoSaving||!videoForm.title||!videoForm.youtube_id}
-                    className={`flex-1 ${BTN_PRIMARY}`} style={{background:"linear-gradient(135deg,#1a0505,#3b0a0a)"}}>
-                    {videoSaving?<Loader2 size={15} className="animate-spin"/>:<CheckCircle2 size={15}/>} Zapisz
-                  </button>
-                  <button onClick={()=>{setAddingVideo(false);setEditingVideo(null);setVideoForm({});}}
-                    className="px-4 py-2.5 rounded-xl text-slate-400 bg-slate-700 hover:bg-slate-600 text-sm"><X size={15}/></button>
+              )}
+              {videos.length===0&&!addingVideo&&<p className="text-slate-500 text-sm text-center py-8">Brak filmów ręcznych.</p>}
+              {videos.filter(v=>videoFilter==="Wszystkie"||v.category===videoFilter).map(v=>(
+                <div key={v.id} className={`${CARD} p-3 flex items-center gap-3 ${!v.active?"opacity-40":""}`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`https://img.youtube.com/vi/${v.youtube_id}/default.jpg`} alt="" className="w-14 h-10 object-cover rounded-lg flex-shrink-0 bg-slate-700"/>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-semibold text-xs leading-tight line-clamp-2">{v.title}</p>
+                    <p className="text-slate-500 text-[10px] mt-0.5">{v.category}{v.tags?.length>0&&` · ${v.tags.join(", ")}`}</p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button onClick={()=>{setEditingVideo(v);setVideoForm({...v});setAddingVideo(false);}} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-amber-400"><Pencil size={13}/></button>
+                    <button onClick={()=>handleDeleteVideo(v.id)} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-red-400"><Trash2 size={13}/></button>
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {/* Category filter */}
-            {videos.length>0&&(
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                {["Wszystkie",...Array.from(new Set(videos.map(v=>v.category).filter(Boolean)))].map(cat=>(
-                  <button key={cat} onClick={()=>setVideoFilter(cat)}
-                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${videoFilter===cat?"bg-red-700 text-white":"bg-slate-800 text-slate-400 hover:text-slate-200"}`}>
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {videos.length===0&&<p className="text-slate-500 text-sm text-center py-8">Brak filmów w bazie.</p>}
-
-            {/* Draggable video list */}
-            {videos.filter(v=>videoFilter==="Wszystkie"||v.category===videoFilter).map((v,idx)=>(
-              <div key={v.id}
-                className={`${CARD} p-3 flex items-center gap-3 ${!v.active?"opacity-40":""}`}
-                draggable
-                onDragStart={e=>e.dataTransfer.setData("text/plain",String(idx))}
-                onDragOver={e=>e.preventDefault()}
-                onDrop={e=>{
-                  e.preventDefault();
-                  const from=Number(e.dataTransfer.getData("text/plain"));
-                  if(from===idx)return;
-                  const filtered=videos.filter(v=>videoFilter==="Wszystkie"||v.category===videoFilter);
-                  const all=[...videos];
-                  const fromId=filtered[from].id;
-                  const toId=filtered[idx].id;
-                  const fi=all.findIndex(x=>x.id===fromId);
-                  const ti=all.findIndex(x=>x.id===toId);
-                  const [item]=all.splice(fi,1);
-                  all.splice(ti,0,item);
-                  setVideos(all);
-                }}>
-                <div className="text-slate-600 cursor-grab active:cursor-grabbing flex-shrink-0">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><circle cx="4" cy="3" r="1.2"/><circle cx="4" cy="7" r="1.2"/><circle cx="4" cy="11" r="1.2"/><circle cx="10" cy="3" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="10" cy="11" r="1.2"/></svg>
-                </div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`https://img.youtube.com/vi/${v.youtube_id}/default.jpg`} alt="" className="w-14 h-10 object-cover rounded-lg flex-shrink-0 bg-slate-700"/>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-semibold text-xs leading-tight line-clamp-2">{v.title}</p>
-                  <p className="text-slate-500 text-[10px] mt-0.5">{v.category}{v.tags?.length>0&&` · ${v.tags.join(", ")}`}</p>
-                </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  <button
-                    onClick={async()=>{
-                      await fetch("/api/admin/videos",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:v.id,active:!v.active})});
-                      setVideos(prev=>prev.map(x=>x.id===v.id?{...x,active:!v.active}:x));
-                    }}
-                    className={`p-1.5 rounded-lg transition-colors ${v.active?"text-slate-500 hover:bg-slate-700 hover:text-red-400":"text-green-400 hover:bg-green-900/30"}`}
-                    title={v.active?"Ukryj":"Pokaż"}>
-                    {v.active?<EyeOff size={13}/>:<Eye size={13}/>}
-                  </button>
-                  <button onClick={()=>{setEditingVideo(v);setVideoForm({...v});setAddingVideo(false);}} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-amber-400"><Pencil size={13}/></button>
-                  <button onClick={()=>handleDeleteVideo(v.id)} className="text-slate-400 p-1.5 rounded-lg hover:bg-slate-700 hover:text-red-400"><Trash2 size={13}/></button>
-                </div>
-              </div>
-            ))}
-          </div>)}
+              ))}
+            </div>
+          )}
         </>)}
 
         {/* ── PUSH STATS ── */}
