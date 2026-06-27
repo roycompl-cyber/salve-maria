@@ -1144,34 +1144,78 @@ export default function AdminPage() {
     {key:"petition" as NotifType, icon:<Megaphone size={17}/>,   label:"Podpisz petycję", color:"text-pink-400 bg-pink-400/10"},
   ];
 
-  // ── Dashboard section tiles ──
-  const allDashTiles: { key: Section; icon: React.ReactNode; label: string; desc: string; badge?: number|string; color: string; accent: string; superadminOnly?: boolean }[] = [
-    { key:"notifications", icon:<Bell size={22}/>,       label:"Powiadomienia",  desc:"Push, zaplanowane",           color:"linear-gradient(135deg,#3d1a00,#7a3200)", accent:"#fb923c", badge:scheduled.length||undefined },
-    { key:"messages",      icon:<MessageSquare size={22}/>,label:"Wiadomości",   desc:"Formularz kontaktowy",        color:"linear-gradient(135deg,#07203b,#0f3470)", accent:"#60a5fa", badge:unreadCount||undefined },
-    { key:"users",         icon:<Users size={22}/>,      label:"Użytkownicy",    desc:"Konta, role, hasła",          color:"linear-gradient(135deg,#052a10,#0a4a1e)", accent:"#4ade80", badge:stats?.users },
-    { key:"prayers",       icon:<BookMarked size={22}/>, label:"Modlitwy",       desc:"Katalog modlitw",             color:"linear-gradient(135deg,#332500,#5c4500)", accent:"#facc15", badge:stats?.prayers },
-    { key:"tiles",         icon:<LayoutGrid size={22}/>, label:"Strona główna",  desc:"Kafelki, kolejność, kolory",  color:"linear-gradient(135deg,#1a0a2e,#2e1060)", accent:"#c084fc" },
-    { key:"modules",       icon:<LayoutGrid size={22}/>, label:"Moduły",          desc:"Ikony, nazwy, nawigacja",     color:"linear-gradient(135deg,#0a1a2e,#0f2e50)", accent:"#38bdf8" },
-    { key:"plinio",        icon:<BookMarked size={22}/>,label:"Myśl na dziś",    desc:"Cytaty i treści modułu",      color:"linear-gradient(135deg,#2a1800,#4a2e00)", accent:"#fbbf24" },
-    { key:"catechism",     icon:<BookMarked size={22}/>,label:"Katechizm",       desc:"Q&A i treści modułu",         color:"linear-gradient(135deg,#1a1000,#3a2800)", accent:"#f59e0b" },
-    { key:"civilitas",     icon:<BookMarked size={22}/>,label:"Civilitas",       desc:"Wstęp, zakończenie, tytuły",  color:"linear-gradient(135deg,#1a0a2e,#2e1060)", accent:"#c084fc" },
-    { key:"referral",      icon:<Mail size={22}/>,      label:"Polecanie",        desc:"Treść maila polecającego",    color:"linear-gradient(135deg,#0f2800,#1e4a00)", accent:"#86efac" },
-    { key:"bypass",        icon:<Lock size={22}/>,      label:"Kod dostępu",      desc:"Mój kod do panelu na desktop", color:"linear-gradient(135deg,#1a1a0a,#3a3a10)", accent:"#facc15" },
-    { key:"stats",         icon:<BarChart2 size={22}/>,  label:"Statystyki",     desc:"Wyświetlenia, aktywność",     color:"linear-gradient(135deg,#042828,#074a4a)", accent:"#2dd4bf" },
-    { key:"errors",        icon:<AlertTriangle size={22}/>,label:"Błędy",         desc:"Monitoring produkcji",        color:"linear-gradient(135deg,#3b0909,#6b1111)", accent:"#f87171", badge:stats?.errors24h||undefined },
-    { key:"settings",      icon:<Settings2 size={22}/>,  label:"Kontakt",        desc:"Ustawienia kontaktu",         color:"linear-gradient(135deg,#0f0a28,#1e1550)", accent:"#818cf8" },
-    { key:"login",         icon:<Lock size={22}/>,       label:"Ekran logowania", desc:"Magic Link i inne opcje",     color:"linear-gradient(135deg,#1a0a0a,#3b1010)", accent:"#f87171" },
-    { key:"access",        icon:<Shield size={22}/>,     label:"Dostęp adminów",  desc:"Grupy, uprawnienia, członkowie", color:"linear-gradient(135deg,#0a1a30,#102040)", accent:"#38bdf8", superadminOnly:true },
-    { key:"articles",      icon:<Newspaper size={22}/>,  label:"Artykuły",        desc:"Zarządzaj artykułami",          color:"linear-gradient(135deg,#071b3b,#0d2d5e)", accent:"#60a5fa" },
-    { key:"petitions",     icon:<Megaphone size={22}/>,  label:"Petycje",         desc:"Zarządzaj petycjami",           color:"linear-gradient(135deg,#2a1200,#4a2000)", accent:"#f59e0b", badge: manualPetitions.filter(p=>p.signature_count>=p.notification_threshold).length||undefined },
-    { key:"videos",        icon:<Video size={22}/>,      label:"Wideo",           desc:"Filmy YouTube",                 color:"linear-gradient(135deg,#1a0505,#3b0a0a)", accent:"#f87171" },
-    { key:"push-stats",    icon:<TrendingUp size={22}/>, label:"Statystyki push",  desc:"Historia i aktywne subskrypcje", color:"linear-gradient(135deg,#042828,#085050)", accent:"#34d399" },
+  // ── Dashboard section tiles — grouped ──
+  type TileDef = { key: Section; icon: React.ReactNode; label: string; desc: string; badge?: number|string; color: string; accent: string; superadminOnly?: boolean };
+  type TileGroup = { label: string; tiles: TileDef[] };
+
+  const tileGroups: TileGroup[] = [
+    {
+      label: "Treści",
+      tiles: [
+        { key:"articles",  icon:<Newspaper size={22}/>,  label:"Artykuły",      desc:"Dodaj i zarządzaj artykułami",   color:"linear-gradient(135deg,#071b3b,#0d2d5e)", accent:"#60a5fa" },
+        { key:"petitions", icon:<Megaphone size={22}/>,  label:"Petycje",       desc:"Kampanie i liczniki podpisów",   color:"linear-gradient(135deg,#2a1200,#4a2000)", accent:"#f59e0b", badge: manualPetitions.filter(p=>p.signature_count>=p.notification_threshold).length||undefined },
+        { key:"videos",    icon:<Video size={22}/>,      label:"Wideo",         desc:"Filmy YouTube, kategorie, tagi", color:"linear-gradient(135deg,#1a0505,#3b0a0a)", accent:"#f87171" },
+        { key:"plinio",    icon:<BookMarked size={22}/>, label:"Myśl na dziś",  desc:"Cytaty Plinia, opis autora",     color:"linear-gradient(135deg,#2a1800,#4a2e00)", accent:"#fbbf24" },
+      ],
+    },
+    {
+      label: "Duchowość",
+      tiles: [
+        { key:"prayers",   icon:<BookMarked size={22}/>, label:"Modlitwy",      desc:"Katalog modlitw i nabożeństw",   color:"linear-gradient(135deg,#332500,#5c4500)", accent:"#facc15", badge:stats?.prayers },
+        { key:"catechism", icon:<BookMarked size={22}/>, label:"Katechizm",     desc:"Q&A — pytania i odpowiedzi",     color:"linear-gradient(135deg,#1a1000,#3a2800)", accent:"#f59e0b" },
+        { key:"civilitas", icon:<BookMarked size={22}/>, label:"De urbanitate", desc:"Wstęp, zakończenie, tytuły",     color:"linear-gradient(135deg,#1a0a2e,#2e1060)", accent:"#c084fc" },
+      ],
+    },
+    {
+      label: "Komunikacja",
+      tiles: [
+        { key:"notifications", icon:<Bell size={22}/>,          label:"Powiadomienia",   desc:"Push natychmiastowy i zaplanowany", color:"linear-gradient(135deg,#3d1a00,#7a3200)", accent:"#fb923c", badge:scheduled.length||undefined },
+        { key:"push-stats",    icon:<TrendingUp size={22}/>,    label:"Statystyki push", desc:"Historia i aktywne subskrypcje",    color:"linear-gradient(135deg,#042828,#085050)", accent:"#34d399" },
+        { key:"messages",      icon:<MessageSquare size={22}/>, label:"Wiadomości",      desc:"Formularz kontaktowy od użytkowników", color:"linear-gradient(135deg,#07203b,#0f3470)", accent:"#60a5fa", badge:unreadCount||undefined },
+        { key:"referral",      icon:<Mail size={22}/>,          label:"Polecanie",       desc:"Treść maila polecającego aplikację", color:"linear-gradient(135deg,#0f2800,#1e4a00)", accent:"#86efac" },
+      ],
+    },
+    {
+      label: "Użytkownicy",
+      tiles: [
+        { key:"users",  icon:<Users size={22}/>,  label:"Użytkownicy",   desc:"Konta, profile, hasła",          color:"linear-gradient(135deg,#052a10,#0a4a1e)", accent:"#4ade80", badge:stats?.users },
+        { key:"access", icon:<Shield size={22}/>, label:"Dostęp adminów", desc:"Grupy, uprawnienia, członkowie", color:"linear-gradient(135deg,#0a1a30,#102040)", accent:"#38bdf8", superadminOnly:true },
+      ],
+    },
+    {
+      label: "Wygląd aplikacji",
+      tiles: [
+        { key:"tiles",   icon:<LayoutGrid size={22}/>, label:"Strona główna", desc:"Kafelki, kolejność, kolory",  color:"linear-gradient(135deg,#1a0a2e,#2e1060)", accent:"#c084fc" },
+        { key:"modules", icon:<LayoutGrid size={22}/>, label:"Moduły",        desc:"Ikony, nazwy, nawigacja",     color:"linear-gradient(135deg,#0a1a2e,#0f2e50)", accent:"#38bdf8" },
+      ],
+    },
+    {
+      label: "System",
+      tiles: [
+        { key:"stats",   icon:<BarChart2 size={22}/>,     label:"Statystyki",      desc:"Wyświetlenia, aktywność",       color:"linear-gradient(135deg,#042828,#074a4a)", accent:"#2dd4bf" },
+        { key:"errors",  icon:<AlertTriangle size={22}/>, label:"Błędy",           desc:"Monitoring produkcji",           color:"linear-gradient(135deg,#3b0909,#6b1111)", accent:"#f87171", badge:stats?.errors24h||undefined },
+        { key:"settings",icon:<Settings2 size={22}/>,     label:"Ustawienia",      desc:"Kontakt, tematy wiadomości",    color:"linear-gradient(135deg,#0f0a28,#1e1550)", accent:"#818cf8" },
+        { key:"login",   icon:<Lock size={22}/>,          label:"Ekran logowania", desc:"Magic Link i opcje rejestracji", color:"linear-gradient(135deg,#1a0a0a,#3b1010)", accent:"#f87171" },
+        { key:"bypass",  icon:<Lock size={22}/>,          label:"Kod dostępu",     desc:"Mój kod do panelu na desktop",  color:"linear-gradient(135deg,#1a1a0a,#3a3a10)", accent:"#facc15" },
+      ],
+    },
   ];
-  const dashTiles = allDashTiles.filter(t => {
-    if (t.superadminOnly) return myRole === "superadmin";
-    if (permLoading) return true; // optimistic: show all while loading
-    return canAccess(t.key as string);
-  });
+
+  // filter each group by permissions, remove empty groups
+  const visibleGroups = tileGroups
+    .map(g => ({
+      ...g,
+      tiles: g.tiles.filter(t => {
+        if (t.superadminOnly) return myRole === "superadmin";
+        if (permLoading) return true;
+        return canAccess(t.key as string);
+      }),
+    }))
+    .filter(g => g.tiles.length > 0);
+
+  // flat list kept for legacy canAccess checks elsewhere
+  const allDashTiles = tileGroups.flatMap(g => g.tiles);
+  const dashTiles = visibleGroups.flatMap(g => g.tiles);
 
   return (
     <AppShell>
@@ -1187,26 +1231,33 @@ export default function AdminPage() {
               {myRole==="superadmin" && <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-900/50 text-emerald-400 border border-emerald-800/50 font-semibold">superadmin</span>}
             </div>
           </div>
-          <div className="px-4 pb-8 grid grid-cols-1 md:grid-cols-3 gap-3">
-            {dashTiles.map(t=>(
-              <button key={t.key} onClick={()=>setSection(t.key)}
-                className="relative rounded-2xl p-4 flex flex-col gap-3 text-left transition-all hover:brightness-110 active:scale-[0.97]"
-                style={{background:t.color, border:`1px solid ${t.accent}22`}}>
-                {t.badge!==undefined && (
-                  <span className="absolute top-2.5 right-2.5 min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center"
-                    style={{background:t.accent,color:"#000"}}>
-                    {t.badge}
-                  </span>
-                )}
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{background:`${t.accent}18`,border:`1px solid ${t.accent}33`,color:t.accent}}>
-                  {t.icon}
+          <div className="px-4 pb-8 space-y-6">
+            {visibleGroups.map(group=>(
+              <div key={group.label}>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2 px-1">{group.label}</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {group.tiles.map(t=>(
+                    <button key={t.key} onClick={()=>setSection(t.key)}
+                      className="relative rounded-2xl p-4 flex flex-col gap-3 text-left transition-all hover:brightness-110 active:scale-[0.97]"
+                      style={{background:t.color, border:`1px solid ${t.accent}22`}}>
+                      {t.badge!==undefined && (
+                        <span className="absolute top-2.5 right-2.5 min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold flex items-center justify-center"
+                          style={{background:t.accent,color:"#000"}}>
+                          {t.badge}
+                        </span>
+                      )}
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                        style={{background:`${t.accent}18`,border:`1px solid ${t.accent}33`,color:t.accent}}>
+                        {t.icon}
+                      </div>
+                      <div>
+                        <p className="text-white font-bold text-sm leading-tight" style={{fontFamily:"Georgia,serif"}}>{t.label}</p>
+                        <p className="text-[11px] mt-0.5 opacity-55" style={{color:"#fff"}}>{t.desc}</p>
+                      </div>
+                    </button>
+                  ))}
                 </div>
-                <div>
-                  <p className="text-white font-bold text-sm leading-tight" style={{fontFamily:"Georgia,serif"}}>{t.label}</p>
-                  <p className="text-[11px] mt-0.5 opacity-55" style={{color:"#fff"}}>{t.desc}</p>
-                </div>
-              </button>
+              </div>
             ))}
           </div>
         </>)}
