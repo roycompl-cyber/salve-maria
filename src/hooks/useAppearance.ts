@@ -2,7 +2,18 @@
 import { useEffect, useRef, useState } from "react";
 
 export type Theme = "dark" | "light";
+export type ColorTheme = "klasyczny" | "morski" | "bordo" | "nocny";
 export type FontSize = "small" | "medium" | "large";
+
+const COLOR_THEME_CLASSES: ColorTheme[] = ["klasyczny", "morski", "bordo", "nocny"];
+
+function applyColorTheme(ct: ColorTheme) {
+  const el = document.documentElement;
+  COLOR_THEME_CLASSES.forEach(c => el.classList.remove(`theme-${c}`));
+  if (ct !== "klasyczny") el.classList.add(`theme-${ct}`);
+  // Klasyczny = domyślny ciemny (brak dodatkowej klasy), light mode off
+  el.classList.remove("theme-light");
+}
 
 const FONT_SIZE_MAP: Record<FontSize, string> = {
   small: "14px",
@@ -55,22 +66,25 @@ function applyTheme(theme: Theme, brightness: number) {
 
 export function useAppearance() {
   const [theme, setThemeState] = useState<Theme>("dark");
+  const [colorTheme, setColorThemeState] = useState<ColorTheme>("klasyczny");
   const [fontSize, setFontSizeState] = useState<FontSize>("medium");
   const [brightness, setBrightnessState] = useState<number>(0);
   const [mounted, setMounted] = useState(false);
-  // śledzi poprzedni motyw żeby odróżnić pierwsze uruchomienie od realnej zmiany
-  const prevThemeRef = useRef<Theme | null>(null);
+  const prevColorThemeRef = useRef<ColorTheme | null>(null);
 
   useEffect(() => {
     const t = load<Theme>("app_theme", "dark");
+    const ct = load<ColorTheme>("app_color_theme", "klasyczny");
     const f = load<FontSize>("app_font_size", "medium");
     const b = load<number>("app_brightness", 0);
     setThemeState(t);
+    setColorThemeState(ct);
     setFontSizeState(f);
     setBrightnessState(b);
-    applyTheme(t, b);
+    applyColorTheme(ct);
+    applyBrightness(b, "dark");
     document.documentElement.style.setProperty("--app-font-size", FONT_SIZE_MAP[f]);
-    prevThemeRef.current = t;
+    prevColorThemeRef.current = ct;
     setMounted(true);
   }, []);
 
@@ -82,26 +96,25 @@ export function useAppearance() {
 
   useEffect(() => {
     if (!mounted) return;
-    applyBrightness(brightness, theme);
+    applyBrightness(brightness, "dark");
     localStorage.setItem("app_brightness", JSON.stringify(brightness));
-  }, [brightness, theme, mounted]);
+  }, [brightness, mounted]);
 
   useEffect(() => {
     if (!mounted) return;
-    // uruchomienie po mount z tym samym motywem — nie resetuj jasności
-    if (prevThemeRef.current === theme) return;
-    prevThemeRef.current = theme;
-    // realna zmiana motywu przez użytkownika → reset brightness
-    const b = 0;
-    setBrightnessState(b);
+    if (prevColorThemeRef.current === colorTheme) return;
+    prevColorThemeRef.current = colorTheme;
+    applyColorTheme(colorTheme);
+    setBrightnessState(0);
     localStorage.setItem("app_brightness", "0");
-    applyTheme(theme, b);
-    localStorage.setItem("app_theme", JSON.stringify(theme));
-  }, [theme, mounted]); // eslint-disable-line react-hooks/exhaustive-deps
+    applyBrightness(0, "dark");
+    localStorage.setItem("app_color_theme", JSON.stringify(colorTheme));
+  }, [colorTheme, mounted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
-    theme, fontSize, brightness,
+    theme, colorTheme, fontSize, brightness,
     setTheme: setThemeState,
+    setColorTheme: setColorThemeState,
     setFontSize: setFontSizeState,
     setBrightness: setBrightnessState,
   };

@@ -80,7 +80,7 @@ export default function SettingsPage() {
   const [pushError, setPushError] = useState("");
   const [activeSection, setActiveSection] = useState<"profile" | "appearance" | "notifications" | "security">("profile");
 
-  const { theme, fontSize, brightness, setTheme, setFontSize, setBrightness } = useAppearance();
+  const { colorTheme, fontSize, brightness, setColorTheme, setFontSize, setBrightness } = useAppearance();
   const isFirstTime = !profile?.profile_complete;
   const initials = `${profile?.first_name?.[0] ?? user?.email?.[0] ?? "S"}${profile?.last_name?.[0] ?? ""}`.toUpperCase();
 
@@ -402,30 +402,58 @@ export default function SettingsPage() {
               <Icon name="palette" size={12} /> Wygląd
             </p>
 
-            {/* Motyw */}
+            {/* Motyw kolorystyczny */}
             <div>
-              <p className="text-slate-300 text-sm mb-2">Motyw</p>
-              <div className="grid grid-cols-2 gap-2">
+              <p className="text-slate-300 text-sm mb-3">Motyw kolorystyczny</p>
+              <div className="grid grid-cols-2 gap-2.5">
                 {([
-                  { key: "dark",  label: "Ciemny" },
-                  { key: "light", label: "Jasny" },
-                ] as { key: "dark" | "light"; label: string }[]).map(({ key, label }) => (
+                  {
+                    key: "klasyczny",
+                    label: "Klasyczny",
+                    desc: "Granatowy + amber",
+                    swatch: ["#0f172a", "#1e293b", "#d97706"],
+                  },
+                  {
+                    key: "morski",
+                    label: "Morski",
+                    desc: "Ocean + błękit",
+                    swatch: ["#041d2e", "#092d47", "#0ea5e9"],
+                  },
+                  {
+                    key: "bordo",
+                    label: "Bordo",
+                    desc: "Wino + róż",
+                    swatch: ["#160710", "#260c1b", "#e11d48"],
+                  },
+                  {
+                    key: "nocny",
+                    label: "Nocny",
+                    desc: "OLED + indygo",
+                    swatch: ["#000000", "#111111", "#818cf8"],
+                  },
+                ] as { key: import("@/hooks/useAppearance").ColorTheme; label: string; desc: string; swatch: string[] }[]).map(({ key, label, desc, swatch }) => (
                   <button
                     key={key}
-                    onClick={() => setTheme(key)}
-                    className={`flex flex-col items-center gap-2 py-3 rounded-xl border-2 transition-all ${
-                      theme === key ? "border-yellow-500" : "border-slate-700"
+                    onClick={() => setColorTheme(key)}
+                    className={`flex flex-col gap-2 p-3 rounded-2xl border-2 transition-all text-left ${
+                      colorTheme === key
+                        ? "border-yellow-500 bg-yellow-500/5"
+                        : "border-slate-700 hover:border-slate-600"
                     }`}
                   >
-                    <span
-                      className="w-8 h-8 rounded-lg border"
-                      style={
-                        key === "dark"
-                          ? { backgroundColor: "#1e293b", borderColor: "#475569" }
-                          : { backgroundColor: "#f5f4f0", borderColor: "#a8a29e" }
-                      }
-                    />
-                    <span className="text-xs font-medium" style={{ color: key === "dark" ? "#94a3b8" : "#374151" }}>{label}</span>
+                    {/* Swatch */}
+                    <div className="flex gap-1 items-center">
+                      <span className="w-7 h-7 rounded-lg flex-shrink-0" style={{ backgroundColor: swatch[0], border: `2px solid ${swatch[2]}33` }}/>
+                      <span className="w-5 h-5 rounded-md flex-shrink-0" style={{ backgroundColor: swatch[1] }}/>
+                      <span className="w-3 h-3 rounded-full flex-shrink-0 ml-0.5" style={{ backgroundColor: swatch[2] }}/>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-white leading-none">{label}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{desc}</p>
+                    </div>
+                    {colorTheme === key && (
+                      <span className="text-[10px] text-yellow-400 font-medium">Aktywny</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -435,8 +463,8 @@ export default function SettingsPage() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-slate-300 text-sm flex items-center gap-1.5">
-                  <span className="text-base">{theme === "dark" ? "☀️" : "🌙"}</span>
-                  {theme === "dark" ? "Rozjaśnienie" : "Przyciemnienie"}
+                  <span className="text-base">☀️</span>
+                  Jasność
                 </p>
                 <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-lg"
                   style={{ background: "rgba(255,255,255,0.08)", color: "#f59e0b" }}>

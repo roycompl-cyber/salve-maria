@@ -18,6 +18,18 @@
 :root {
   --background: #0f172a;
   --foreground: #f5f0e8;
+  /* Zmienne motywu — nadpisywane przez klasy theme-* */
+  --th-bg:        #0f172a;
+  --th-bg2:       #1e293b;
+  --th-bg3:       #334155;
+  --th-text:      #fef5e4;
+  --th-text2:     #d9c49a;
+  --th-text3:     #b39a72;
+  --th-muted:     #7a6650;
+  --th-border:    #334155;
+  --th-accent:    #d97706;
+  --th-accent2:   #f59e0b;
+  --th-card:      rgba(30,41,59,0.85);
 }
 
 body {
@@ -56,9 +68,180 @@ button, input, textarea, select, a {
 
 /* Przyciski/linki z gradientem zawsze mają biały tekst (niezależnie od motywu) */
 .theme-light button[style*="linear-gradient"],
-.theme-light a[style*="linear-gradient"] {
+.theme-light a[style*="linear-gradient"],
+.theme-morski button[style*="linear-gradient"],
+.theme-morski a[style*="linear-gradient"],
+.theme-bordo button[style*="linear-gradient"],
+.theme-bordo a[style*="linear-gradient"],
+.theme-nocny button[style*="linear-gradient"],
+.theme-nocny a[style*="linear-gradient"] {
   color: #ffffff !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   MOTYWY KOLORYSTYCZNE
+   Klasyczny = domyślny (brak klasy) — slate-navy + amber
+   Morski    = .theme-morski — ocean blue
+   Bordo     = .theme-bordo  — burgundy/wine
+   Nocny     = .theme-nocny  — OLED black + indigo
+   Jasny     = .theme-light  — ivory light (legacy)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Morski ───────────────────────────────────────────────────────────── */
+.theme-morski {
+  --background: #041d2e;
+  --foreground: #e0f7ff;
+}
+.theme-morski body { background-color: #041d2e !important; color: #e0f7ff !important; }
+
+.theme-morski .bg-slate-900,
+.theme-morski .bg-slate-900\/97 { background-color: #041d2e !important; }
+.theme-morski .bg-slate-800,
+.theme-morski .bg-slate-800\/50,
+.theme-morski .bg-slate-800\/60,
+.theme-morski .bg-slate-800\/70,
+.theme-morski .bg-slate-800\/95 { background-color: #092d47 !important; }
+.theme-morski .bg-slate-700     { background-color: #0e3d5e !important; }
+
+.theme-morski .text-white       { color: #e0f7ff !important; }
+.theme-morski .text-slate-100   { color: #e0f7ff !important; }
+.theme-morski .text-slate-200   { color: #bae6fd !important; }
+.theme-morski .text-slate-300   { color: #7dd3fc !important; }
+.theme-morski .text-slate-400   { color: #38bdf8 !important; }
+.theme-morski .text-slate-500   { color: #0ea5e9 !important; }
+.theme-morski .text-slate-600   { color: #0284c7 !important; }
+.theme-morski .placeholder-slate-500::placeholder { color: #0369a1 !important; }
+
+.theme-morski .border-slate-700 { border-color: #0e3d5e !important; }
+.theme-morski .border-slate-800 { border-color: #092d47 !important; }
+
+.theme-morski nav.fixed { background-color: #041d2e !important; border-color: #0e3d5e !important; }
+.theme-morski nav.fixed .text-slate-500 { color: #0369a1 !important; }
+
+.theme-morski input:not([type=checkbox]):not([type=radio]),
+.theme-morski textarea,
+.theme-morski select {
+  background-color: #092d47 !important;
+  border-color: #0e3d5e !important;
+  color: #e0f7ff !important;
+}
+.theme-morski input::placeholder,
+.theme-morski textarea::placeholder { color: #0369a1 !important; }
+
+.theme-morski .text-yellow-400,
+.theme-morski .text-amber-400 { color: #38bdf8 !important; }
+.theme-morski ::-webkit-scrollbar-thumb { background: #0c4a6e; }
+
+.theme-morski .home-hero {
+  background: linear-gradient(160deg,#052e46,#064e7b,#073b5c) !important;
+  border: 1px solid #0ea5e944 !important;
+}
+.theme-morski .home-hero p:first-child { color: #e0f7ff !important; }
+.theme-morski .home-hero p:last-child  { color: #7dd3fc !important; }
+
+/* ── Bordo ────────────────────────────────────────────────────────────── */
+.theme-bordo {
+  --background: #160710;
+  --foreground: #fce4ef;
+}
+.theme-bordo body { background-color: #160710 !important; color: #fce4ef !important; }
+
+.theme-bordo .bg-slate-900,
+.theme-bordo .bg-slate-900\/97 { background-color: #160710 !important; }
+.theme-bordo .bg-slate-800,
+.theme-bordo .bg-slate-800\/50,
+.theme-bordo .bg-slate-800\/60,
+.theme-bordo .bg-slate-800\/70,
+.theme-bordo .bg-slate-800\/95 { background-color: #260c1b !important; }
+.theme-bordo .bg-slate-700     { background-color: #3a1127 !important; }
+
+.theme-bordo .text-white       { color: #fce4ef !important; }
+.theme-bordo .text-slate-100   { color: #fce4ef !important; }
+.theme-bordo .text-slate-200   { color: #fda4af !important; }
+.theme-bordo .text-slate-300   { color: #fb7185 !important; }
+.theme-bordo .text-slate-400   { color: #f43f5e !important; }
+.theme-bordo .text-slate-500   { color: #e11d48 !important; }
+.theme-bordo .text-slate-600   { color: #be123c !important; }
+.theme-bordo .placeholder-slate-500::placeholder { color: #9f1239 !important; }
+
+.theme-bordo .border-slate-700 { border-color: #3a1127 !important; }
+.theme-bordo .border-slate-800 { border-color: #260c1b !important; }
+
+.theme-bordo nav.fixed { background-color: #160710 !important; border-color: #3a1127 !important; }
+.theme-bordo nav.fixed .text-slate-500 { color: #9f1239 !important; }
+
+.theme-bordo input:not([type=checkbox]):not([type=radio]),
+.theme-bordo textarea,
+.theme-bordo select {
+  background-color: #260c1b !important;
+  border-color: #3a1127 !important;
+  color: #fce4ef !important;
+}
+.theme-bordo input::placeholder,
+.theme-bordo textarea::placeholder { color: #9f1239 !important; }
+
+.theme-bordo .text-yellow-400,
+.theme-bordo .text-amber-400 { color: #fda4af !important; }
+.theme-bordo ::-webkit-scrollbar-thumb { background: #4c0519; }
+
+.theme-bordo .home-hero {
+  background: linear-gradient(160deg,#260c1b,#3a1127,#1a0815) !important;
+  border: 1px solid #e11d4844 !important;
+}
+.theme-bordo .home-hero p:first-child { color: #fce4ef !important; }
+.theme-bordo .home-hero p:last-child  { color: #fda4af !important; }
+
+/* ── Nocny (OLED) ─────────────────────────────────────────────────────── */
+.theme-nocny {
+  --background: #000000;
+  --foreground: #ffffff;
+}
+.theme-nocny body { background-color: #000000 !important; color: #ffffff !important; }
+
+.theme-nocny .bg-slate-900,
+.theme-nocny .bg-slate-900\/97 { background-color: #000000 !important; }
+.theme-nocny .bg-slate-800,
+.theme-nocny .bg-slate-800\/50,
+.theme-nocny .bg-slate-800\/60,
+.theme-nocny .bg-slate-800\/70,
+.theme-nocny .bg-slate-800\/95 { background-color: #111111 !important; }
+.theme-nocny .bg-slate-700     { background-color: #1c1c1c !important; }
+
+.theme-nocny .text-white       { color: #ffffff !important; }
+.theme-nocny .text-slate-100   { color: #f5f5f5 !important; }
+.theme-nocny .text-slate-200   { color: #e5e5e5 !important; }
+.theme-nocny .text-slate-300   { color: #c4c4c4 !important; }
+.theme-nocny .text-slate-400   { color: #a3a3a3 !important; }
+.theme-nocny .text-slate-500   { color: #737373 !important; }
+.theme-nocny .text-slate-600   { color: #525252 !important; }
+.theme-nocny .placeholder-slate-500::placeholder { color: #525252 !important; }
+
+.theme-nocny .border-slate-700 { border-color: #1c1c1c !important; }
+.theme-nocny .border-slate-800 { border-color: #111111 !important; }
+
+.theme-nocny nav.fixed { background-color: #000000 !important; border-color: #1c1c1c !important; }
+.theme-nocny nav.fixed .text-slate-500 { color: #525252 !important; }
+
+.theme-nocny input:not([type=checkbox]):not([type=radio]),
+.theme-nocny textarea,
+.theme-nocny select {
+  background-color: #111111 !important;
+  border-color: #1c1c1c !important;
+  color: #ffffff !important;
+}
+.theme-nocny input::placeholder,
+.theme-nocny textarea::placeholder { color: #525252 !important; }
+
+.theme-nocny .text-yellow-400,
+.theme-nocny .text-amber-400 { color: #818cf8 !important; }
+.theme-nocny ::-webkit-scrollbar-thumb { background: #1c1c1c; }
+
+.theme-nocny .home-hero {
+  background: linear-gradient(160deg,#0a0a0a,#111111,#080808) !important;
+  border: 1px solid #818cf844 !important;
+}
+.theme-nocny .home-hero p:first-child { color: #ffffff !important; }
+.theme-nocny .home-hero p:last-child  { color: #a5b4fc !important; }
 
 /* ── Jasny motyw ──────────────────────────────────────────────────────── */
 .theme-light {
