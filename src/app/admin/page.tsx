@@ -677,7 +677,7 @@ export default function AdminPage() {
     }
     if (section==="push-stats") {
       setPushStatsLoading(true);
-      fetch("/api/admin/push-stats").then(r=>r.json()).then(d=>setPushStats(d)).finally(()=>setPushStatsLoading(false));
+      fetch("/api/admin/push-stats").then(r=>r.json()).then(d=>{ if(!d.error) setPushStats(d); }).finally(()=>setPushStatsLoading(false));
     }
     if (section==="notifications") {
       // Load cities for geo-segmentation
@@ -2985,9 +2985,9 @@ export default function AdminPage() {
               </div>
               <div>
                 <p className="text-slate-400 text-xs uppercase tracking-wider mb-2">Historia powiadomień</p>
-                {pushStats.history.length===0&&<p className="text-slate-500 text-sm text-center py-6">Brak historii powiadomień</p>}
+                {(pushStats.history?.length??0)===0&&<p className="text-slate-500 text-sm text-center py-6">Brak historii powiadomień</p>}
                 <div className="space-y-2">
-                  {pushStats.history.map(h=>(
+                  {(pushStats.history??[]).map(h=>(
                     <div key={h.id} className={`${CARD} px-4 py-3`}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
