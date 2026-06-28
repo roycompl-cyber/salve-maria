@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
-import { DEFAULT_BASE_URL } from "@/lib/polskakatolicka";
-
-export interface SourceConfig {
-  articles_url: string;
-  petitions_url: string;
-  videos_url: string;
-}
-
-export const DEFAULT_SOURCE_CONFIG: SourceConfig = {
-  articles_url: DEFAULT_BASE_URL,
-  petitions_url: DEFAULT_BASE_URL,
-  videos_url: DEFAULT_BASE_URL,
-};
+import { DEFAULT_SOURCE_CONFIG, type SourceConfig } from "@/lib/source-config";
 
 const CACHE_KEY = "source_config";
 
@@ -63,7 +51,6 @@ export async function PUT(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Invalidate caches so next fetch uses new URLs
   await db.from("content_cache").delete().in("key", ["articles", "petitions", "scraped_videos"]);
 
   return NextResponse.json({ success: true, config: updated });
