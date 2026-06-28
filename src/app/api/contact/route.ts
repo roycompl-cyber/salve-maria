@@ -17,18 +17,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Wypełnij wszystkie pola" }, { status: 400 });
   }
 
+  // Pobierz user_id jeśli zalogowany
+  let user_id: string | null = null;
+  try {
+    const supabaseUser = await createClient();
+    const { data: { user } } = await supabaseUser.auth.getUser();
+    user_id = user?.id ?? null;
+  } catch { /* niezalogowany */ }
+
   const supabase = adminClient();
 
-  // Zapisz wiadomość
   const { error } = await supabase.from("contact_messages").insert({
     name: name.trim(),
     email: email.trim().toLowerCase(),
     topic: topic.trim(),
     message: message.trim(),
+    ...(user_id ? { user_id } : {}),
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Pobierz ustawienia (email, treść podziękowania)
   const { data: settings } = await supabase
     .from("app_settings")
     .select("key, value")
@@ -36,9 +43,6 @@ export async function POST(req: NextRequest) {
 
   const settingsMap = Object.fromEntries((settings ?? []).map((s) => [s.key, s.value]));
   const thanksMsg = settingsMap["contact_thanks_msg"] ?? "Dziękujemy za wiadomość!";
-
-  // TODO: wysłanie e-mail przez Resend/SMTP gdy będzie skonfigurowane
-  // const contactEmail = settingsMap["contact_email"];
 
   return NextResponse.json({ ok: true, thanks: thanksMsg });
 }
@@ -54,7 +58,14 @@ export async function PATCH(req: NextRequest) {
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
   if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { error } = await supabase.from("contact_messages").update({ read: true }).eq("id", id);
+  const body = await req.json().catch(() => ({}));
+  const update: Record<string, unknown> = { read: true };
+  if (typeof body.reply === "string" && body.reply.trim()) {
+    update.admin_reply = body.reply.trim();
+    update.replied_at = new Date().toISOString();
+  }
+
+  const { error } = await adminClient().from("contact_messages").update(update).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
@@ -70,11 +81,12 @@ export async function DELETE(req: NextRequest) {
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
   if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { error } = await supabase.from("contact_messages").delete().eq("id", id);
+  const { error } = await adminClient().from("contact_messages").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
 
+// Admin: wszystkie wiadomości
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -82,7 +94,7 @@ export async function GET() {
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
   if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { data } = await supabase
+  const { data } = await adminClient()
     .from("contact_messages")
     .select("*")
     .order("created_at", { ascending: false });

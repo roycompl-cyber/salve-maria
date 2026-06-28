@@ -41,7 +41,7 @@ interface ScheduledNotif {
 }
 interface ContactMsg {
   id: string; name: string; email: string; topic: string; message: string;
-  read: boolean; created_at: string;
+  read: boolean; created_at: string; admin_reply?: string; replied_at?: string;
 }
 interface AppSettings { [key: string]: string; }
 interface TileOverride {
@@ -413,6 +413,8 @@ export default function AdminPage() {
   const [messages, setMessages] = useState<ContactMsg[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [expandedMsg, setExpandedMsg] = useState<string|null>(null);
+  const [replyText, setReplyText] = useState<Record<string, string>>({});
+  const [replySaving, setReplySaving] = useState<string|null>(null);
 
   // App settings
   const [appSettings, setAppSettings] = useState<AppSettings>({});
@@ -869,7 +871,7 @@ export default function AdminPage() {
 
   // ── Contact messages ──
   async function handleMarkRead(id: string) {
-    await fetch(`/api/contact?id=${id}`,{method:"PATCH"});
+    await fetch(`/api/contact?id=${id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({})});
     setMessages(prev=>prev.map(m=>m.id===id?{...m,read:true}:m));
   }
 
@@ -877,6 +879,18 @@ export default function AdminPage() {
     if (!confirm("Usunąć tę wiadomość?")) return;
     await fetch(`/api/contact?id=${id}`,{method:"DELETE"});
     setMessages(prev=>prev.filter(m=>m.id!==id));
+  }
+
+  async function handleSendReply(id: string) {
+    const reply = replyText[id]?.trim();
+    if (!reply) return;
+    setReplySaving(id);
+    const r = await fetch(`/api/contact?id=${id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({reply})});
+    if (r.ok) {
+      setMessages(prev=>prev.map(m=>m.id===id?{...m,read:true,admin_reply:reply,replied_at:new Date().toISOString()}:m));
+      setReplyText(prev=>({...prev,[id]:""}));
+    }
+    setReplySaving(null);
   }
 
   // ── App settings ──
@@ -1534,13 +1548,37 @@ export default function AdminPage() {
                   </div>
                 </div>
                 {expandedMsg===m.id&&(
-                  <div className="px-4 pb-4 text-slate-300 text-sm border-t border-slate-700 pt-3 leading-relaxed whitespace-pre-wrap">
-                    {m.message}
-                    <div className="mt-3">
-                      <a href={`mailto:${m.email}?subject=Re: ${m.topic}`}
-                        className="inline-flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 transition-colors">
-                        <Mail size={12}/> Odpowiedz na {m.email}
-                      </a>
+                  <div className="px-4 pb-4 border-t border-slate-700 pt-3 space-y-3">
+                    <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">{m.message}</p>
+                    {m.admin_reply && (
+                      <div className="rounded-xl p-3 text-sm" style={{background:"rgba(251,191,36,0.08)",border:"1px solid rgba(251,191,36,0.2)"}}>
+                        <p className="text-amber-400 text-xs font-medium mb-1">Twoja odpowiedź · {m.replied_at ? new Date(m.replied_at).toLocaleDateString("pl-PL") : ""}</p>
+                        <p className="text-slate-200 whitespace-pre-wrap">{m.admin_reply}</p>
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <textarea
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-amber-600 transition-colors resize-none"
+                        rows={3}
+                        placeholder={m.admin_reply ? "Zmień odpowiedź…" : "Napisz odpowiedź widoczną dla użytkownika…"}
+                        value={replyText[m.id]??m.admin_reply??""}
+                        onChange={e=>setReplyText(prev=>({...prev,[m.id]:e.target.value}))}
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={()=>handleSendReply(m.id)}
+                          disabled={replySaving===m.id||!(replyText[m.id]??m.admin_reply)?.trim()}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 transition-all"
+                          style={{background:"linear-gradient(135deg,#1e3a5f,#1e40af)"}}
+                        >
+                          {replySaving===m.id?<Loader2 size={13} className="animate-spin"/>:<Send size={13}/>}
+                          {m.admin_reply ? "Zaktualizuj odpowiedź" : "Wyślij odpowiedź"}
+                        </button>
+                        <a href={`mailto:${m.email}?subject=Re: ${m.topic}`}
+                          className="flex items-center gap-1 text-xs text-slate-500 hover:text-amber-400 transition-colors">
+                          <Mail size={12}/> {m.email}
+                        </a>
+                      </div>
                     </div>
                   </div>
                 )}
