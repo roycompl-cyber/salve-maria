@@ -27,14 +27,24 @@ export async function POST(req: NextRequest) {
 
   const supabase = adminClient();
 
-  const { error } = await supabase.from("contact_messages").insert({
+  // Próba z user_id; jeśli kolumna nie istnieje (migracja nie uruchomiona) — zapis bez niej
+  let insertError = (await supabase.from("contact_messages").insert({
     name: name.trim(),
     email: email.trim().toLowerCase(),
     topic: topic.trim(),
     message: message.trim(),
     ...(user_id ? { user_id } : {}),
-  });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  })).error;
+
+  if (insertError && user_id && insertError.message.includes("user_id")) {
+    insertError = (await supabase.from("contact_messages").insert({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      topic: topic.trim(),
+      message: message.trim(),
+    })).error;
+  }
+  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
 
   const { data: settings } = await supabase
     .from("app_settings")
