@@ -2183,8 +2183,9 @@ export default function AdminPage() {
                     value={bypassInput}
                     onChange={e => { setBypassInput(e.target.value.replace(/\D/g,"").slice(0,6)); setBypassError(""); }}
                     maxLength={6}
+                    type="password"
                     inputMode="numeric"
-                    placeholder="000000"
+                    placeholder="••••••"
                   />
                   <button
                     onClick={handleSaveBypass}
