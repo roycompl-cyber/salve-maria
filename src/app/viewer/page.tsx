@@ -56,61 +56,50 @@ function ViewerContent() {
     );
   }
 
-  const BANNER_H = 48; // px — wysokość bannera
+  const BANNER_H = 56;
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Baner — fixed z najwyższym możliwym z-index, nigdy nie zasłonięty przez treść docelową */}
-      <div
-        style={{ position: "fixed", top: 0, left: 0, right: 0, height: BANNER_H, zIndex: 2147483647 }}
-        className="flex items-center gap-3 px-4 bg-slate-900 border-b border-slate-700 shadow-lg"
-      >
+      {/* Baner — fixed, ponad wszystkim */}
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: BANNER_H, zIndex: 2147483647, background: "#f1f5f9", borderBottom: "1px solid #cbd5e1", boxShadow: "0 2px 8px rgba(0,0,0,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm transition-colors whitespace-nowrap"
+          style={{
+            background: "linear-gradient(180deg,#ffffff 0%,#e2e8f0 100%)",
+            border: "1px solid #94a3b8",
+            borderBottom: "3px solid #64748b",
+            borderRadius: 10,
+            padding: "7px 22px",
+            fontSize: 14,
+            fontWeight: 700,
+            color: "#0f172a",
+            fontFamily: "Georgia, serif",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            boxShadow: "0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.9)",
+            letterSpacing: "0.01em",
+            transition: "transform 0.08s, box-shadow 0.08s",
+          }}
+          onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 2px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.9)"; }}
+          onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = ""; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.9)"; }}
         >
-          <ArrowLeft size={16} />
-          Powróć do Salve Maria
+          <ArrowLeft size={15} strokeWidth={2.5} />
+          Powrót — Salve Maria
         </button>
-        <div className="flex-1 min-w-0">
-          <p className="text-slate-500 text-xs truncate">{url}</p>
-        </div>
-        {!loading && (
-          <button onClick={load} className="text-slate-500 hover:text-slate-300 transition-colors p-1 flex-shrink-0" title="Odśwież">
-            <RefreshCw size={14} />
-          </button>
-        )}
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-slate-500 hover:text-amber-400 transition-colors flex-shrink-0 p-1"
-          title="Otwórz w przeglądarce"
-        >
-          <ExternalLink size={15} />
-        </a>
       </div>
 
-      {/* Spacer żeby treść nie chowała się pod banerem */}
+      {/* Spacer */}
       <div style={{ height: BANNER_H }} />
 
-      {/* CSS który obniża fixed/sticky elementy strony docelowej o wysokość bannera */}
+      {/* Zablokuj fixed/sticky elementom strony docelowej możliwość wyjścia ponad baner */}
       <style>{`
-        .external-page-content *[style*="position: fixed"],
-        .external-page-content *[style*="position:fixed"] {
-          top: ${BANNER_H}px !important;
-        }
-        .external-page-content nav,
-        .external-page-content header,
-        .external-page-content .navbar,
-        .external-page-content .nav-bar,
-        .external-page-content #navbar,
-        .external-page-content #header,
-        .external-page-content [class*="navbar"],
-        .external-page-content [class*="nav-bar"],
-        .external-page-content [class*="header"] {
-          z-index: 1 !important;
-        }
+        .external-page-content [style*="position:fixed"],
+        .external-page-content [style*="position: fixed"] { top: ${BANNER_H}px !important; z-index: 1 !important; }
+        .external-page-content nav, .external-page-content header,
+        .external-page-content [class*="navbar"], .external-page-content [class*="nav-bar"],
+        .external-page-content [id*="navbar"], .external-page-content [id*="header"] { z-index: 1 !important; }
       `}</style>
 
       {loading && (
