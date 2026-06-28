@@ -77,7 +77,7 @@ export default function TopBar() {
             </div>
 
             <a
-              href={`/viewer?url=${encodeURIComponent(wesprzyUrl)}`}
+              href={wesprzyUrl}
               className="flex w-full items-center justify-center rounded-lg border border-yellow-200/50 px-2 py-[5px] hover:brightness-110 transition-[filter]"
               style={{ background: "linear-gradient(135deg, #e3b34f, #f3cf72)" }}
             >

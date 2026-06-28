@@ -91,11 +91,22 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
     window.location.href = `/api/petitions/prefill?${p.toString()}`;
   }
 
+  const DONATE_URL = "https://polskakatolicka.org/pl/wplata-na-kampanie?payment=4631d9866d1c0f17d328b28a50f102";
+
   function handleDonate() {
-    const amount = selectedAmount ? String(selectedAmount) : customAmount;
-    if (!amount || !petition) return;
-    const target = petition.donation_url || petition.source_url;
-    window.location.href = `/viewer?url=${encodeURIComponent(target)}`;
+    if (!petition) return;
+    const p = new URLSearchParams({
+      donation_url: DONATE_URL,
+      name:     profile?.first_name ?? "",
+      surname:  profile?.last_name  ?? "",
+      email:    profile?.email      ?? user?.email ?? "",
+      phone:    profile?.phone      ?? "",
+      address2: profile?.street     ?? "",
+      address3: profile?.house_no   ?? "",
+      postal:   profile?.postal     ?? "",
+      city:     profile?.city       ?? "",
+    });
+    window.location.href = `/api/petitions/donation-prefill?${p.toString()}`;
   }
 
   return (

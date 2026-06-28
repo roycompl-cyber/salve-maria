@@ -8,7 +8,7 @@ export default function DonatePage() {
   const router = useRouter();
 
   useEffect(() => {
-    window.location.href = DONATE_URL;
+    window.location.href = `/viewer?url=${encodeURIComponent(DONATE_URL)}`;
   }, []);
 
   return null;
