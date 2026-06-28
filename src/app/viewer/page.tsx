@@ -130,6 +130,12 @@ function ViewerContent() {
           top: auto !important;
           z-index: 1 !important;
         }
+        .external-page-content input,
+        .external-page-content textarea,
+        .external-page-content select,
+        .external-page-content button {
+          all: revert;
+        }
       `}</style>
 
       {loading && (
