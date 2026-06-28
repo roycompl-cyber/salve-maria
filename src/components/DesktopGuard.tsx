@@ -113,7 +113,7 @@ function ScreenDesktop({ onBypass }: { onBypass: () => void }) {
               <input
                 key={i}
                 ref={refs[i]}
-                type="text"
+                type="password"
                 inputMode="numeric"
                 maxLength={1}
                 value={d}
