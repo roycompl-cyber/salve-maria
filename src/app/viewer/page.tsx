@@ -38,6 +38,11 @@ function ViewerContent() {
   }
 
   useEffect(() => {
+    // Lokalny URL (względny lub tej samej domeny) — przekieruj bezpośrednio
+    if (url && !url.startsWith("http://") && !url.startsWith("https://")) {
+      window.location.href = url;
+      return;
+    }
     if (isPassthrough(url)) {
       // Otwórz od razu w systemowej przeglądarce i wróć
       window.open(url, "_blank", "noopener,noreferrer");
