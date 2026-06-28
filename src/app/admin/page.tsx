@@ -52,7 +52,7 @@ interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConf
 type TilesConfig = Record<string, TileOverride>;
 
 type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "plinio" | "catechism" | "civilitas" | "referral" | "bypass" | "settings" | "stats" | "errors" | "login" | "access" | "articles" | "petitions" | "videos" | "push-stats" | "source-config";
-type NotifType = "news" | "action" | "prayer" | "article" | "petition";
+type NotifType = "news" | "action" | "prayer" | "reminder" | "article" | "petition";
 
 interface ManualArticle {
   id: string; title: string; content: string; excerpt: string;
@@ -231,7 +231,7 @@ function ScheduledForm({ onSave, onCancel, saving }: {
       <div className="grid grid-cols-2 gap-3">
         <div><label className={labelCls}>Typ</label>
           <select className={inputCls} value={type} onChange={e => setType(e.target.value as NotifType)}>
-            <option value="news">Aktualność</option><option value="action">Akcja</option><option value="prayer">Modlitwa</option>
+            <option value="news">Aktualności</option><option value="action">Akcje</option><option value="prayer">Modlitwy</option><option value="reminder">Przypomnienie</option>
           </select>
         </div>
         <div><label className={labelCls}>Link (opcjonalnie)</label>
@@ -1192,8 +1192,9 @@ export default function AdminPage() {
   const unreadCount = messages.filter(m=>!m.read).length;
   const typeOptions = [
     {key:"news" as NotifType,     icon:<Newspaper size={17}/>,   label:"Aktualności",  color:"text-green-400 bg-green-400/10"},
-    {key:"action" as NotifType,   icon:<Megaphone size={17}/>,   label:"Akcja",        color:"text-red-400 bg-red-400/10"},
-    {key:"prayer" as NotifType,   icon:<BookMarked size={17}/>,  label:"Modlitwa",     color:"text-amber-400 bg-amber-400/10"},
+    {key:"action" as NotifType,   icon:<Megaphone size={17}/>,   label:"Akcje",        color:"text-red-400 bg-red-400/10"},
+    {key:"prayer" as NotifType,   icon:<BookMarked size={17}/>,  label:"Modlitwy",     color:"text-amber-400 bg-amber-400/10"},
+    {key:"reminder" as NotifType, icon:<Clock size={17}/>,       label:"Przypomnienie", color:"text-blue-400 bg-blue-400/10"},
     {key:"article" as NotifType,  icon:<Newspaper size={17}/>,   label:"Polecamy",     color:"text-teal-400 bg-teal-400/10"},
     {key:"petition" as NotifType, icon:<Megaphone size={17}/>,   label:"Podpisz petycję", color:"text-pink-400 bg-pink-400/10"},
   ];
