@@ -68,7 +68,7 @@ export function useAppearance() {
   const [theme, setThemeState] = useState<Theme>("dark");
   const [colorTheme, setColorThemeState] = useState<ColorTheme>("klasyczny");
   const [fontSize, setFontSizeState] = useState<FontSize>("medium");
-  const [brightness, setBrightnessState] = useState<number>(0);
+  const [brightness, setBrightnessState] = useState<number>(100);
   const [mounted, setMounted] = useState(false);
   const prevColorThemeRef = useRef<ColorTheme | null>(null);
 
@@ -76,7 +76,7 @@ export function useAppearance() {
     const t = load<Theme>("app_theme", "dark");
     const ct = load<ColorTheme>("app_color_theme", "klasyczny");
     const f = load<FontSize>("app_font_size", "medium");
-    const b = load<number>("app_brightness", 0);
+    const b = load<number>("app_brightness", 100);
     setThemeState(t);
     setColorThemeState(ct);
     setFontSizeState(f);

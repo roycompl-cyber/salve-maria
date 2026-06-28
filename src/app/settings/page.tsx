@@ -81,6 +81,7 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<"profile" | "appearance" | "notifications" | "security">("profile");
 
   const { colorTheme, fontSize, brightness, setColorTheme, setFontSize, setBrightness } = useAppearance();
+  const [appearanceSaved, setAppearanceSaved] = useState(false);
   const isFirstTime = !profile?.profile_complete;
   const initials = `${profile?.first_name?.[0] ?? user?.email?.[0] ?? "S"}${profile?.last_name?.[0] ?? ""}`.toUpperCase();
 
@@ -471,35 +472,25 @@ export default function SettingsPage() {
                   {brightness}%
                 </span>
               </div>
-              {/* Suwak */}
+              {/* Suwak — odwrócony: lewa=najaśniejszy(100), prawa=ciemny(0) */}
               <div className="relative">
                 <input
                   type="range"
                   min={0} max={100} step={5}
-                  value={brightness}
-                  onChange={e => setBrightness(Number(e.target.value))}
+                  value={100 - brightness}
+                  onChange={e => setBrightness(100 - Number(e.target.value))}
                   className="w-full h-2 rounded-full appearance-none cursor-pointer"
                   style={{
-                    background: `linear-gradient(to right, #d97706 0%, #d97706 ${brightness}%, #334155 ${brightness}%, #334155 100%)`,
+                    background: `linear-gradient(to right, #334155 0%, #334155 ${100 - brightness}%, #d97706 ${100 - brightness}%, #d97706 100%)`,
                     WebkitAppearance: "none",
                   }}
                 />
               </div>
               {/* Etykiety osi */}
               <div className="flex justify-between mt-1.5">
-                <span className="text-[10px] text-slate-500">Domyślna</span>
-                {[25, 50, 75].map(v => (
-                  <button key={v} onClick={() => setBrightness(v)}
-                    className="text-[10px] text-slate-500 hover:text-amber-400 transition-colors">{v}%</button>
-                ))}
                 <span className="text-[10px] text-slate-500">Max</span>
+                <span className="text-[10px] text-slate-500">Ciemna</span>
               </div>
-              {brightness > 0 && (
-                <button onClick={() => setBrightness(0)}
-                  className="mt-2 text-xs text-slate-500 hover:text-amber-400 transition-colors underline underline-offset-2">
-                  Przywróć domyślną
-                </button>
-              )}
             </div>
 
             {/* Rozmiar czcionki */}
@@ -523,6 +514,17 @@ export default function SettingsPage() {
                 ))}
               </div>
             </div>
+
+            {/* Zapisz ustawienia wyglądu */}
+            <button
+              onClick={() => { setAppearanceSaved(true); setTimeout(() => setAppearanceSaved(false), 2000); }}
+              className="w-full py-3 rounded-xl font-semibold text-sm transition-all"
+              style={appearanceSaved
+                ? { background: "rgba(34,197,94,0.15)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)" }
+                : { background: "linear-gradient(135deg,#92400e,#d97706)", color: "#fff8e8", border: "none" }}
+            >
+              {appearanceSaved ? "✓ Ustawienia zapisane" : "Zapisz ustawienia"}
+            </button>
           </section>
         )}
 
