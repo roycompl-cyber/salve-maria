@@ -7,7 +7,7 @@ import {
   Bell, RefreshCw, Trash2, Pencil, Plus, X, Loader2, ShieldAlert,
   ChevronDown, ChevronUp, Clock, MessageSquare, Settings2, Calendar,
   Mail, Play, Lock, BarChart2, LayoutGrid, Eye, EyeOff, ArrowLeft,
-  UserPlus, Home, AlertTriangle, Save, Shield, Video, MapPin, TrendingUp,
+  UserPlus, Home, AlertTriangle, Save, Shield, Video, MapPin, TrendingUp, Globe,
 } from "lucide-react";
 import { ALL_TILE_KEYS } from "@/lib/admin-permissions";
 import type { AdminGroup } from "@/lib/admin-permissions";
@@ -51,7 +51,7 @@ interface PageSectionConfig { show?: boolean; title?: string; count?: number; }
 interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; }
 type TilesConfig = Record<string, TileOverride>;
 
-type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "plinio" | "catechism" | "civilitas" | "referral" | "bypass" | "settings" | "stats" | "errors" | "login" | "access" | "articles" | "petitions" | "videos" | "push-stats";
+type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "plinio" | "catechism" | "civilitas" | "referral" | "bypass" | "settings" | "stats" | "errors" | "login" | "access" | "articles" | "petitions" | "videos" | "push-stats" | "source-config";
 type NotifType = "news" | "action" | "prayer" | "article" | "petition";
 
 interface ManualArticle {
@@ -417,6 +417,9 @@ export default function AdminPage() {
   // App settings
   const [appSettings, setAppSettings] = useState<AppSettings>({});
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [sourceConfig, setSourceConfig] = useState({articles_url:"",petitions_url:"",videos_url:""});
+  const [sourceConfigSaving, setSourceConfigSaving] = useState(false);
+  const [sourceConfigMsg, setSourceConfigMsg] = useState("");
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [magicLinkEnabled, setMagicLinkEnabled] = useState(false);
   const [registrationEnabled, setRegistrationEnabled] = useState(false);
@@ -616,6 +619,11 @@ export default function AdminPage() {
     if (section==="messages" && messages.length===0) {
       setMessagesLoading(true);
       fetch("/api/contact").then(r=>r.json()).then(d=>{if(Array.isArray(d))setMessages(d);}).finally(()=>setMessagesLoading(false));
+    }
+    if (section==="source-config" && !sourceConfig.articles_url) {
+      fetch("/api/admin/source-config").then(r=>r.json()).then(d=>{
+        if(d.articles_url) setSourceConfig(d);
+      });
     }
     if (section==="settings" && Object.keys(appSettings).length===0) {
       fetch("/api/admin/settings").then(r=>r.json()).then(d=>setAppSettings(d));
@@ -1225,8 +1233,9 @@ export default function AdminPage() {
       label: "System",
       tiles: [
         { key:"stats",   icon:<BarChart2 size={22}/>,     label:"Statystyki",      desc:"Wyświetlenia, aktywność",       color:"linear-gradient(135deg,#042828,#074a4a)", accent:"#2dd4bf" },
-        { key:"errors",  icon:<AlertTriangle size={22}/>, label:"Błędy",           desc:"Monitoring produkcji",           color:"linear-gradient(135deg,#3b0909,#6b1111)", accent:"#f87171", badge:stats?.errors24h||undefined },
-        { key:"settings",icon:<Settings2 size={22}/>,     label:"Ustawienia",      desc:"Kontakt, tematy wiadomości",    color:"linear-gradient(135deg,#0f0a28,#1e1550)", accent:"#818cf8" },
+        { key:"errors",        icon:<AlertTriangle size={22}/>, label:"Błędy",          desc:"Monitoring produkcji",          color:"linear-gradient(135deg,#3b0909,#6b1111)", accent:"#f87171", badge:stats?.errors24h||undefined },
+        { key:"settings",      icon:<Settings2 size={22}/>,     label:"Ustawienia",     desc:"Kontakt, tematy wiadomości",    color:"linear-gradient(135deg,#0f0a28,#1e1550)", accent:"#818cf8" },
+        { key:"source-config", icon:<Globe size={22}/>,         label:"Źródła danych",  desc:"URL serwisów artykuły/petycje/video", color:"linear-gradient(135deg,#0a1f0a,#163016)", accent:"#4ade80" },
         { key:"login",   icon:<Lock size={22}/>,          label:"Ekran logowania", desc:"Magic Link i opcje rejestracji", color:"linear-gradient(135deg,#1a0a0a,#3b1010)", accent:"#f87171" },
         { key:"bypass",  icon:<Lock size={22}/>,          label:"Kod dostępu",     desc:"Mój kod do panelu na desktop",  color:"linear-gradient(135deg,#1a1a0a,#3a3a10)", accent:"#facc15" },
       ],
@@ -3312,6 +3321,51 @@ export default function AdminPage() {
                 </div>
               </div>
             </>)}
+          </div>
+        </>)}
+
+        {/* ── SOURCE CONFIG ── */}
+        {section==="source-config" && (<>
+          <SectionHeader title="Źródła danych" subtitle="URL serwisów do scrapowania treści" onBack={()=>setSection(null)}/>
+          <div className="px-4 pb-8 space-y-4 mt-2">
+            <div className={`${CARD} p-4`}>
+              <p className="text-slate-400 text-xs mb-1">Po zapisaniu cache zostanie wyczyszczony — nowe dane zostaną pobrane przy kolejnym odwiedzeniu strony.</p>
+            </div>
+            {([
+              { key:"articles_url",  label:"Artykuły — URL serwisu", placeholder:"https://polskakatolicka.org", hint:"Apka pobierze /pl/artykuly z tego adresu" },
+              { key:"petitions_url", label:"Petycje — URL serwisu",   placeholder:"https://polskakatolicka.org", hint:"Apka pobierze /pl/petycje z tego adresu" },
+              { key:"videos_url",    label:"Wideo — URL strony głównej", placeholder:"https://polskakatolicka.org", hint:"Apka szuka linków YouTube na tej stronie" },
+            ] as { key: keyof typeof sourceConfig; label: string; placeholder: string; hint: string }[]).map(({key, label, placeholder, hint})=>(
+              <div key={key} className={`${CARD} p-4 space-y-2`}>
+                <label className={labelCls}>{label}</label>
+                <input
+                  className={inputCls}
+                  value={sourceConfig[key]}
+                  onChange={e=>setSourceConfig(p=>({...p,[key]:e.target.value}))}
+                  placeholder={placeholder}
+                  type="url"
+                />
+                <p className="text-slate-600 text-[10px]">{hint}</p>
+              </div>
+            ))}
+            {sourceConfigMsg && (
+              <div className="flex items-center gap-2 bg-green-900/20 border border-green-700/30 rounded-xl px-3 py-2 text-green-400 text-xs">
+                <CheckCircle2 size={13}/> {sourceConfigMsg}
+              </div>
+            )}
+            <button
+              disabled={sourceConfigSaving}
+              onClick={async()=>{
+                setSourceConfigSaving(true);
+                setSourceConfigMsg("");
+                const r = await fetch("/api/admin/source-config",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(sourceConfig)});
+                const d = await r.json();
+                setSourceConfigSaving(false);
+                if(d.success) { setSourceConfigMsg("Zapisano. Cache wyczyszczony — przy kolejnym odwiedzeniu strony zostaną pobrane dane z nowych URL."); }
+              }}
+              className={`w-full ${BTN_PRIMARY} py-3`} style={{background:"linear-gradient(135deg,#0a1f0a,#163016)"}}>
+              {sourceConfigSaving?<Loader2 size={16} className="animate-spin"/>:<Save size={16}/>} Zapisz i wyczyść cache
+            </button>
           </div>
         </>)}
 

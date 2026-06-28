@@ -34,6 +34,14 @@ function applyMeta(items: Record<string, unknown>[], meta: Meta): Record<string,
   });
 }
 
+async function getSourceUrl(): Promise<string | undefined> {
+  try {
+    const db = adminClient();
+    const { data } = await db.from("content_cache").select("data").eq("key", "source_config").single();
+    return (data?.data as { petitions_url?: string })?.petitions_url;
+  } catch { return undefined; }
+}
+
 export async function GET() {
   const db = adminClient();
 
@@ -52,7 +60,8 @@ export async function GET() {
   }
 
   try {
-    const petitions = await fetchPetitionList();
+    const sourceUrl = await getSourceUrl();
+    const petitions = await fetchPetitionList(sourceUrl);
     await db.from("content_cache").upsert({
       key: CACHE_KEY,
       data: petitions,

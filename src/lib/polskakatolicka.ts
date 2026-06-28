@@ -1,5 +1,6 @@
 // scraper works without Cheerio — regex-based parsing
-const BASE_URL = "http://polskakatolicka.org";
+export const DEFAULT_BASE_URL = "https://polskakatolicka.org";
+const BASE_URL = DEFAULT_BASE_URL;
 
 export interface PKArticle {
   id: string;      // slug
@@ -179,8 +180,9 @@ function parseAuthorDate(firstLine: string): { author: string; published_at: str
   return { author, published_at };
 }
 
-export async function fetchArticleList(): Promise<PKArticle[]> {
-  const res = await fetch(`${BASE_URL}/pl/artykuly`, {
+export async function fetchArticleList(baseUrl?: string): Promise<PKArticle[]> {
+  const base = (baseUrl ?? BASE_URL).replace(/\/$/, "");
+  const res = await fetch(`${base}/pl/artykuly`, {
     next: { revalidate: 3600 },
   });
   const html = await res.text();
@@ -211,7 +213,7 @@ export async function fetchArticleList(): Promise<PKArticle[]> {
     // Image
     const imgM = block.match(/src=["']([^"']+(?:jpg|jpeg|png|webp)[^"']*?)["']/i);
     const raw_img = imgM?.[1] ?? "";
-    const image_url = raw_img.startsWith("http") ? raw_img : raw_img ? `${BASE_URL}${raw_img}` : "";
+    const image_url = raw_img.startsWith("http") ? raw_img : raw_img ? `${base}${raw_img}` : "";
 
     // Excerpt: from <div><span>, <p>, or any text content
     const spanM = block.match(/<span[^>]*>([\s\S]*?)<\/span>/i);
@@ -229,7 +231,7 @@ export async function fetchArticleList(): Promise<PKArticle[]> {
       author: "Redakcja",
       published_at: new Date().toISOString(),
       category: "Artykuły",
-      source_url: `${BASE_URL}/pl/artykuly/${slug}`,
+      source_url: `${base}/pl/artykuly/${slug}`,
     });
   }
 
@@ -304,8 +306,9 @@ export async function fetchArticle(slug: string): Promise<PKArticle | null> {
   }
 }
 
-export async function fetchPetitionList(): Promise<PKPetition[]> {
-  const res = await fetch(`${BASE_URL}/pl/petycje`, {
+export async function fetchPetitionList(baseUrl?: string): Promise<PKPetition[]> {
+  const base = (baseUrl ?? BASE_URL).replace(/\/$/, "");
+  const res = await fetch(`${base}/pl/petycje`, {
     next: { revalidate: 1800 },
   });
   const html = await res.text();
@@ -335,7 +338,7 @@ export async function fetchPetitionList(): Promise<PKPetition[]> {
 
     const imgM = card.match(/src=["']([^"']+(?:jpg|png|webp)[^"']*?)["']/i);
     const raw_img = imgM?.[1] ?? "";
-    const image_url = raw_img.startsWith("http") ? raw_img : raw_img ? `${BASE_URL}${raw_img}` : "";
+    const image_url = raw_img.startsWith("http") ? raw_img : raw_img ? `${base}${raw_img}` : "";
 
     const countM = card.match(/(\d[\d\s]{2,10})\s*podpisan/) || card.match(/petition-count[^>]*>\s*(\d[\d\s]*)/);
     const signature_count = countM ? parseInt(countM[1].replace(/\s/g, ""), 10) : 0;
@@ -351,7 +354,7 @@ export async function fetchPetitionList(): Promise<PKPetition[]> {
       content: "",
       image_url,
       signature_count,
-      source_url: `${BASE_URL}/pl/petycje/${slug}`,
+      source_url: `${base}/pl/petycje/${slug}`,
       active: true,
       donation_url: "",
       donation_amounts: [60, 90, 120, 250, 500, 1200],
@@ -428,8 +431,8 @@ export interface PKVideo {
   thumbnail_url: string;
 }
 
-export async function fetchVideoList(): Promise<PKVideo[]> {
-  const res = await fetch("https://polskakatolicka.org", {
+export async function fetchVideoList(pageUrl?: string): Promise<PKVideo[]> {
+  const res = await fetch(pageUrl ?? DEFAULT_BASE_URL, {
     next: { revalidate: 3600 },
   });
   const html = await res.text();
