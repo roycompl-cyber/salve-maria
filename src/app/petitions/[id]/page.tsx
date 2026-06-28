@@ -94,7 +94,8 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
   function handleDonate() {
     const amount = selectedAmount ? String(selectedAmount) : customAmount;
     if (!amount || !petition) return;
-    window.open(petition.donation_url || petition.source_url, "_blank", "noopener");
+    const target = petition.donation_url || petition.source_url;
+    window.location.href = `/viewer?url=${encodeURIComponent(target)}`;
   }
 
   return (

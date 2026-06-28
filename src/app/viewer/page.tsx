@@ -79,7 +79,7 @@ function ViewerContent() {
             padding: "8px 28px",
             fontSize: 15,
             fontWeight: 700,
-            color: "#1a0a00",
+            color: "#0f172a",
             fontFamily: "Georgia, serif",
             cursor: "pointer",
             display: "flex",
