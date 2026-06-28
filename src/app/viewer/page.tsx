@@ -56,10 +56,15 @@ function ViewerContent() {
     );
   }
 
+  const BANNER_H = 48; // px — wysokość bannera
+
   return (
-    <div className="flex flex-col min-h-screen bg-white">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-slate-900 border-b border-slate-800 flex-shrink-0 sticky top-0 z-50">
+    <div className="min-h-screen bg-white">
+      {/* Baner — fixed z najwyższym możliwym z-index, nigdy nie zasłonięty przez treść docelową */}
+      <div
+        style={{ position: "fixed", top: 0, left: 0, right: 0, height: BANNER_H, zIndex: 2147483647 }}
+        className="flex items-center gap-3 px-4 bg-slate-900 border-b border-slate-700 shadow-lg"
+      >
         <button
           onClick={() => router.back()}
           className="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm transition-colors whitespace-nowrap"
@@ -67,9 +72,11 @@ function ViewerContent() {
           <ArrowLeft size={16} />
           Powróć do Salve Maria
         </button>
-        <div className="flex-1" />
+        <div className="flex-1 min-w-0">
+          <p className="text-slate-500 text-xs truncate">{url}</p>
+        </div>
         {!loading && (
-          <button onClick={load} className="text-slate-500 hover:text-slate-300 transition-colors p-1" title="Odśwież">
+          <button onClick={load} className="text-slate-500 hover:text-slate-300 transition-colors p-1 flex-shrink-0" title="Odśwież">
             <RefreshCw size={14} />
           </button>
         )}
@@ -83,6 +90,28 @@ function ViewerContent() {
           <ExternalLink size={15} />
         </a>
       </div>
+
+      {/* Spacer żeby treść nie chowała się pod banerem */}
+      <div style={{ height: BANNER_H }} />
+
+      {/* CSS który obniża fixed/sticky elementy strony docelowej o wysokość bannera */}
+      <style>{`
+        .external-page-content *[style*="position: fixed"],
+        .external-page-content *[style*="position:fixed"] {
+          top: ${BANNER_H}px !important;
+        }
+        .external-page-content nav,
+        .external-page-content header,
+        .external-page-content .navbar,
+        .external-page-content .nav-bar,
+        .external-page-content #navbar,
+        .external-page-content #header,
+        .external-page-content [class*="navbar"],
+        .external-page-content [class*="nav-bar"],
+        .external-page-content [class*="header"] {
+          z-index: 1 !important;
+        }
+      `}</style>
 
       {loading && (
         <div className="flex items-center justify-center py-24">
