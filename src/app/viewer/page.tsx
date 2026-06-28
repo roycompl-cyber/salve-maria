@@ -132,8 +132,7 @@ function ViewerContent() {
         }
         .external-page-content input,
         .external-page-content textarea,
-        .external-page-content select,
-        .external-page-content button {
+        .external-page-content select {
           all: revert;
         }
       `}</style>
