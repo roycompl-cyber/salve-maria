@@ -65,10 +65,31 @@ export async function GET(req: NextRequest) {
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Georgia, serif; background: #0f172a; color: #e2d5b0; min-height: 100vh; }
 
+  /* ── BANER POWROTU ── */
+  #back-banner {
+    position: fixed; top: 0; left: 0; right: 0; height: 52px; z-index: 2147483647;
+    background: linear-gradient(180deg,#1e3a5f 0%,#152d4a 100%);
+    border-bottom: 3px solid #0ea5e9;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.45);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #back-btn {
+    background: linear-gradient(180deg,#facc15 0%,#d97706 100%);
+    border: none; border-bottom: 3px solid #92400e; border-radius: 8px;
+    padding: 8px 28px; font-size: 15px; font-weight: 700; color: #0f172a;
+    font-family: Georgia, serif; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.4);
+    letter-spacing: 0.02em; user-select: none; -webkit-user-select: none;
+    transition: transform 0.1s;
+    text-decoration: none;
+  }
+  #back-btn:active { transform: translateY(2px); border-bottom-width: 1px; }
+
   /* ── FORM VIEW ── */
   #form-view {
     display: flex; flex-direction: column; align-items: center;
-    padding: 24px 16px 48px; min-height: 100vh;
+    padding: 76px 16px 48px; min-height: 100vh;
   }
   .card { width: 100%; max-width: 480px; background: #1e293b; border-radius: 20px; overflow: hidden; border: 1px solid #334155; }
   .header { background: linear-gradient(135deg,#6b1a1a,#3d0a0a); border-bottom: 2px solid #c8922a; padding: 20px 24px 16px; }
@@ -121,6 +142,11 @@ export async function GET(req: NextRequest) {
 </style>
 </head>
 <body>
+
+  <!-- Baner powrotu -->
+  <div id="back-banner">
+    <a id="back-btn" href="javascript:history.back()">&#8592; Powrót — Salve Maria</a>
+  </div>
 
   <!-- Formularz -->
   <div id="form-view">
