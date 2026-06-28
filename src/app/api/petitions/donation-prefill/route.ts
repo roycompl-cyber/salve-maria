@@ -81,10 +81,8 @@ export async function GET(req: NextRequest) {
     display: flex; align-items: center; gap: 8px;
     box-shadow: 0 3px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.4);
     letter-spacing: 0.02em; user-select: none; -webkit-user-select: none;
-    transition: transform 0.1s;
-    text-decoration: none;
   }
-  #back-btn:active { transform: translateY(2px); border-bottom-width: 1px; }
+  #back-btn:active { transform: translateY(2px); border-bottom-width: 1px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
 
   /* ── FORM VIEW ── */
   #form-view {
@@ -104,48 +102,31 @@ export async function GET(req: NextRequest) {
   input::placeholder { color: #475569; }
   .divider { height: 1px; background: linear-gradient(90deg,transparent,#334155,transparent); margin: 4px 0; }
   .note { font-size: 11px; color: #475569; text-align: center; line-height: 1.6; }
-  button[type=submit] { margin-top: 4px; background: linear-gradient(135deg,#92400e,#c8922a); color: #fff8e8; border: none; border-radius: 13px; padding: 14px; font-family: Georgia, serif; font-size: 15px; font-weight: bold; letter-spacing: 0.05em; cursor: pointer; transition: opacity 0.2s; }
+  button[type=submit] { margin-top: 4px; background: linear-gradient(135deg,#92400e,#c8922a); color: #fff8e8; border: none; border-radius: 13px; padding: 14px; font-family: Georgia, serif; font-size: 15px; font-weight: bold; letter-spacing: 0.05em; cursor: pointer; transition: opacity 0.2s; width: 100%; }
   button[type=submit]:hover { opacity: 0.9; }
 
-  /* ── IFRAME VIEW ── */
-  #iframe-view {
-    display: none; position: fixed; inset: 0; flex-direction: column; background: #0f172a; z-index: 100;
+  /* ── POTWIERDZENIE ── */
+  #done-view {
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    padding: 76px 24px 48px; min-height: 100vh; text-align: center; gap: 16px;
   }
-  #iframe-view.active { display: flex; }
-  .iframe-bar {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 16px;
-    background: linear-gradient(135deg,#6b1a1a,#3d0a0a);
-    border-bottom: 1px solid #c8922a44;
-    flex-shrink: 0;
+  #done-view.active { display: flex; }
+  .done-icon { font-size: 56px; }
+  .done-title { color: #fef3d0; font-size: 20px; font-weight: bold; }
+  .done-sub { color: #94a3b8; font-size: 14px; line-height: 1.6; max-width: 320px; }
+  .open-btn {
+    margin-top: 8px; background: linear-gradient(135deg,#92400e,#c8922a); color: #fff8e8;
+    border: none; border-radius: 13px; padding: 14px 28px; font-family: Georgia, serif;
+    font-size: 15px; font-weight: bold; cursor: pointer; text-decoration: none;
+    display: inline-block;
   }
-  .back-btn {
-    display: flex; align-items: center; gap-6px; padding: 8px 14px;
-    background: rgba(200,146,42,0.15); border: 1px solid rgba(200,146,42,0.35);
-    border-radius: 10px; color: #fef3d0; font-family: Georgia, serif;
-    font-size: 13px; font-weight: bold; cursor: pointer; text-decoration: none;
-    transition: background 0.2s;
-  }
-  .back-btn:hover { background: rgba(200,146,42,0.28); }
-  .iframe-title { color: #c8922a; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; flex: 1; text-align: center; }
-  #ext-frame { flex: 1; border: none; width: 100%; }
-  .loading-overlay {
-    position: absolute; inset: 56px 0 0 0;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: #0f172a; gap: 12px; pointer-events: none;
-    transition: opacity 0.4s;
-  }
-  .loading-overlay.hidden { opacity: 0; }
-  .spinner { width: 32px; height: 32px; border: 3px solid #334155; border-top-color: #c8922a; border-radius: 50%; animation: spin 0.9s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-overlay p { color: #94a3b8; font-size: 13px; }
 </style>
 </head>
 <body>
 
   <!-- Baner powrotu -->
   <div id="back-banner">
-    <a id="back-btn" href="javascript:history.back()">&#8592; Powrót — Salve Maria</a>
+    <button id="back-btn" onclick="history.back()">&#8592; Powrót — Salve Maria</button>
   </div>
 
   <!-- Formularz -->
@@ -183,11 +164,50 @@ export async function GET(req: NextRequest) {
         </div>
 
         <div class="divider"></div>
-        <p class="note">Sprawdź dane i kliknij przycisk, aby przejść do wyboru kwoty i płatności na polskakatolicka.org</p>
+        <p class="note">Sprawdź dane i kliknij przycisk — przejdziesz do wyboru kwoty i płatności.</p>
         <button type="submit" id="submit-btn">Potwierdź i przejdź do płatności →</button>
       </form>
     </div>
   </div>
+
+  <!-- Widok po wysłaniu -->
+  <div id="done-view">
+    <div class="done-icon">🙏</div>
+    <p class="done-title">Dziękujemy!</p>
+    <p class="done-sub">Strona płatności otworzyła się w przeglądarce. Po dokonaniu wpłaty wróć do aplikacji przyciskiem powyżej.</p>
+    <a id="open-link" class="open-btn" href="${esc(safeDonationUrl(meta.action))}" target="_blank" rel="noopener noreferrer">Otwórz płatność ponownie</a>
+  </div>
+
+  <script>
+    document.getElementById('payment-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      // Zbierz dane z formularza
+      var fd = new FormData(this);
+      var action = this.action;
+
+      // Utwórz tymczasowy formularz i wyślij go w nowej karcie
+      var f = document.createElement('form');
+      f.method = 'POST';
+      f.action = action;
+      f.target = '_blank';
+      f.rel = 'noopener noreferrer';
+      fd.forEach(function(v, k) {
+        var inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = k;
+        inp.value = String(v);
+        f.appendChild(inp);
+      });
+      document.body.appendChild(f);
+      f.submit();
+      document.body.removeChild(f);
+
+      // Pokaż widok potwierdzenia (baner zostaje)
+      document.getElementById('form-view').style.display = 'none';
+      document.getElementById('done-view').classList.add('active');
+    });
+  </script>
 
 </body>
 </html>`;
@@ -196,7 +216,7 @@ export async function GET(req: NextRequest) {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
-      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; form-action https://polskakatolicka.org https://www.polskakatolicka.org; base-uri 'none'; frame-ancestors 'self'",
+      "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; form-action https://polskakatolicka.org https://www.polskakatolicka.org; base-uri 'none'; frame-ancestors 'self'",
     },
   });
 }
