@@ -46,7 +46,10 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
       .finally(() => setLoading(false));
   }, [id]);
 
-  const fontSizeClass = { sm: "text-sm", base: "text-base", lg: "text-lg" }[fontSize];
+  const fontSizeClass  = { sm: "text-sm",  base: "text-base", lg: "text-lg"  }[fontSize];
+  const titleSizeClass = { sm: "text-lg",  base: "text-xl",   lg: "text-2xl" }[fontSize];
+  const leadSizeClass  = { sm: "text-xs",  base: "text-sm",   lg: "text-base"}[fontSize];
+  const excerptSizeClass = { sm: "text-sm", base: "text-base", lg: "text-lg" }[fontSize];
 
   function cycleFontSize() {
     const next = fontSize === "sm" ? "base" : fontSize === "base" ? "lg" : "sm";
@@ -132,10 +135,10 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
             </span>
 
             {/* Title */}
-            <h1 className="text-white text-xl font-bold mt-3 leading-tight">{article.title}</h1>
+            <h1 className={`text-white ${titleSizeClass} font-bold mt-3 leading-tight`}>{article.title}</h1>
 
             {/* Meta */}
-            <div className="flex items-center gap-4 mt-3 text-slate-400 text-sm flex-wrap">
+            <div className={`flex items-center gap-4 mt-3 text-slate-400 ${leadSizeClass} flex-wrap`}>
               {article.author && (
                 <span className="flex items-center gap-1.5">
                   <User size={13} />{article.author}
@@ -158,7 +161,7 @@ export default function ArticlePage({ params }: { params: Promise<{ id: string }
             )}
 
             {/* Excerpt */}
-            <p className="text-slate-300 text-base mt-4 font-medium leading-relaxed border-l-2 border-blue-500 pl-3">
+            <p className={`text-slate-300 ${excerptSizeClass} mt-4 font-medium leading-relaxed border-l-2 border-blue-500 pl-3`}>
               {article.excerpt}
             </p>
 

@@ -58,7 +58,9 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
     setAlreadySigned(!!getSignedMap()[id]);
   }, [id]);
 
-  const fontSizeClass = { sm: "text-sm", base: "text-base", lg: "text-lg" }[fontSize];
+  const fontSizeClass    = { sm: "text-sm",  base: "text-base", lg: "text-lg"  }[fontSize];
+  const titleSizeClass   = { sm: "text-lg",  base: "text-xl",   lg: "text-2xl" }[fontSize];
+  const excerptSizeClass = { sm: "text-sm",  base: "text-base", lg: "text-lg"  }[fontSize];
 
   function cycleFontSize() {
     const next = fontSize === "sm" ? "base" : fontSize === "base" ? "lg" : "sm";
@@ -154,7 +156,7 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
                 <PenLine size={11} /> Petycja
               </span>
 
-              <h1 className="text-white text-xl font-bold leading-tight" style={{ fontFamily: "Georgia, serif" }}>
+              <h1 className={`text-white ${titleSizeClass} font-bold leading-tight`} style={{ fontFamily: "Georgia, serif" }}>
                 {petition.title}
               </h1>
 
@@ -173,7 +175,7 @@ export default function PetitionPage({ params }: { params: Promise<{ id: string 
               )}
 
               {petition.excerpt && (
-                <p className="text-slate-300 text-base font-medium leading-relaxed border-l-2 border-amber-600 pl-3">
+                <p className={`text-slate-300 ${excerptSizeClass} font-medium leading-relaxed border-l-2 border-amber-600 pl-3`}>
                   {petition.excerpt}
                 </p>
               )}

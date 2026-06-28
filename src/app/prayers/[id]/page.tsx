@@ -42,7 +42,8 @@ export default function PrayerPage({ params }: { params: Promise<{ id: string }>
   }
 
   const fav = isFav(id);
-  const fontSizeClass = { sm: "text-sm", base: "text-base", lg: "text-lg" }[fontSize];
+  const fontSizeClass  = { sm: "text-sm",  base: "text-base", lg: "text-lg"  }[fontSize];
+  const titleSizeClass = { sm: "text-xl",  base: "text-2xl",  lg: "text-3xl" }[fontSize];
 
   return (
     <AppShell>
@@ -111,7 +112,7 @@ export default function PrayerPage({ params }: { params: Promise<{ id: string }>
               )}
             </div>
 
-            <h1 className="text-white text-2xl font-bold mb-4 leading-tight break-words">{prayer.title}</h1>
+            <h1 className={`text-white ${titleSizeClass} font-bold mb-4 leading-tight break-words`}>{prayer.title}</h1>
 
             <ArticlePlayer title={prayer.title} content={prayer.content} lang={prayer.language === "la" ? "la" : "pl"} />
 
