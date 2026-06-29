@@ -429,6 +429,7 @@ export default function AdminPage() {
   const [campaignCategories, setCampaignCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState("");
   const [categorySaving, setCategorySaving] = useState(false);
+  const [campaignPhotosTab, setCampaignPhotosTab] = useState<"photos"|"categories">("photos");
   const [replySaving, setReplySaving] = useState<string|null>(null);
 
   // App settings
@@ -1649,113 +1650,157 @@ export default function AdminPage() {
         {/* ── CAMPAIGN PHOTOS ── */}
         {section==="campaign-photos" && (()=>{
           const filteredPhotos = campaignPhotos.filter(p => campaignPhotosFilter==="all" || p.status===campaignPhotosFilter);
+          function moveCategory(i: number, dir: -1 | 1) {
+            const j = i + dir;
+            if (j < 0 || j >= campaignCategories.length) return;
+            const updated = [...campaignCategories];
+            [updated[i], updated[j]] = [updated[j], updated[i]];
+            setCampaignCategories(updated);
+            handleCategorySave(updated);
+          }
           return (<>
-            <SectionHeader title="Zdjęcia kampanii" subtitle={`${campaignPhotos.length} zgłoszeń${pendingPhotosCount>0?` · ${pendingPhotosCount} czeka na moderację`:""}`} onBack={()=>setSection(null)}/>
-            <div className="px-4 pb-8 space-y-3">
-              <div className="flex gap-1.5 flex-wrap">
-                {([["pending","Czeka"],["approved","Zatwierdzone"],["rejected","Odrzucone"],["all","Wszystkie"]] as [typeof campaignPhotosFilter,string][]).map(([key,label])=>(
-                  <button key={key} onClick={()=>setCampaignPhotosFilter(key)}
-                    className={`px-3 py-1 rounded-xl text-xs font-medium transition-colors border ${campaignPhotosFilter===key?"border-orange-700 bg-orange-900/30 text-orange-300":"border-slate-700 bg-slate-800 text-slate-400"}`}>
-                    {label}
-                    <span className="ml-1 text-slate-500">
-                      ({key==="all"?campaignPhotos.length:campaignPhotos.filter(p=>p.status===key).length})
-                    </span>
-                  </button>
-                ))}
+            <SectionHeader title="Zdjęcia kampanii" subtitle={`${campaignPhotos.length} zgłoszeń${pendingPhotosCount>0?` · ${pendingPhotosCount} czeka`:""}`} onBack={()=>setSection(null)}/>
+
+            {/* Tab switcher */}
+            <div className="px-4 mb-3">
+              <div className="flex gap-1 bg-slate-800/60 rounded-2xl p-1">
+                <button onClick={()=>setCampaignPhotosTab("photos")}
+                  className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${campaignPhotosTab==="photos"?"bg-orange-900/60 text-orange-300":"text-slate-400 hover:text-white"}`}>
+                  Zdjęcia {pendingPhotosCount>0&&<span className="ml-1 px-1.5 py-0.5 rounded-full bg-orange-600 text-white text-[10px]">{pendingPhotosCount}</span>}
+                </button>
+                <button onClick={()=>setCampaignPhotosTab("categories")}
+                  className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-all ${campaignPhotosTab==="categories"?"bg-orange-900/60 text-orange-300":"text-slate-400 hover:text-white"}`}>
+                  Kategorie ({campaignCategories.length})
+                </button>
               </div>
+            </div>
 
-              {campaignPhotosLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-orange-400 animate-spin"/></div>}
+            <div className="px-4 pb-8 space-y-3">
+              {/* ── TAB: PHOTOS ── */}
+              {campaignPhotosTab==="photos" && (<>
+                <div className="flex gap-1.5 flex-wrap">
+                  {([["pending","Czeka"],["approved","Zatwierdzone"],["rejected","Odrzucone"],["all","Wszystkie"]] as [typeof campaignPhotosFilter,string][]).map(([key,label])=>(
+                    <button key={key} onClick={()=>setCampaignPhotosFilter(key)}
+                      className={`px-3 py-1 rounded-xl text-xs font-medium transition-colors border ${campaignPhotosFilter===key?"border-orange-700 bg-orange-900/30 text-orange-300":"border-slate-700 bg-slate-800 text-slate-400"}`}>
+                      {label}
+                      <span className="ml-1 text-slate-500">({key==="all"?campaignPhotos.length:campaignPhotos.filter(p=>p.status===key).length})</span>
+                    </button>
+                  ))}
+                </div>
 
-              {/* Photo grid */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {filteredPhotos.map(p=>(
-                  <div key={p.id} className={`${CARD} overflow-hidden`}>
-                    <div className="aspect-square bg-slate-900 relative group">
-                      {p.image_url && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.image_url} alt="" className="w-full h-full object-cover"/>
-                      )}
-                      {/* Download overlay */}
-                      {p.image_url && (
-                        <a href={p.image_url} download
-                          target="_blank" rel="noopener noreferrer"
-                          className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-all opacity-0 group-hover:opacity-100"
-                          title="Pobierz zdjęcie"
-                          onClick={e=>e.stopPropagation()}>
-                          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 text-white text-xs font-semibold border border-white/20">
-                            <ArrowLeft size={12} className="rotate-[-90deg]"/> Pobierz
-                          </span>
-                        </a>
-                      )}
-                    </div>
-                    <div className="p-2.5 space-y-1.5">
-                      <p className="text-white text-xs font-semibold truncate">{p.submitter_name ?? "Anonim"}</p>
-                      <p className="text-slate-500 text-[11px]">{p.category} · {new Date(p.created_at).toLocaleDateString("pl-PL")}</p>
-                      {p.caption && <p className="text-slate-400 text-[11px] line-clamp-2">{p.caption}</p>}
-                      <div className="flex items-center gap-1 pt-1">
-                        {p.status!=="approved" && (
-                          <button onClick={()=>handleCampaignPhotoReview(p.id,"approved")} disabled={campaignPhotoActing===p.id}
-                            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold text-white disabled:opacity-40 transition-colors"
-                            style={{background:"#15803d"}}>
-                            <Check size={11}/> Zatwierdź
-                          </button>
-                        )}
-                        {p.status!=="rejected" && (
-                          <button onClick={()=>handleCampaignPhotoReview(p.id,"rejected")} disabled={campaignPhotoActing===p.id}
-                            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold text-white disabled:opacity-40 transition-colors"
-                            style={{background:"#b91c1c"}}>
-                            <X size={11}/> Odrzuć
-                          </button>
+                {campaignPhotosLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-orange-400 animate-spin"/></div>}
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {filteredPhotos.map(p=>(
+                    <div key={p.id} className={`${CARD} overflow-hidden`}>
+                      <div className="aspect-square bg-slate-900 relative group">
+                        {p.image_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.image_url} alt="" className="w-full h-full object-cover"/>
                         )}
                         {p.image_url && (
                           <a href={p.image_url} download target="_blank" rel="noopener noreferrer"
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-orange-400 hover:bg-slate-700 transition-colors" title="Pobierz">
-                            <ArrowLeft size={13} className="rotate-[-90deg]"/>
+                            className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-all opacity-0 group-hover:opacity-100"
+                            onClick={e=>e.stopPropagation()}>
+                            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 text-white text-xs font-semibold border border-white/20">
+                              <ArrowLeft size={12} className="rotate-[-90deg]"/> Pobierz
+                            </span>
                           </a>
                         )}
-                        <button onClick={()=>handleCampaignPhotoDelete(p.id)} disabled={campaignPhotoActing===p.id}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-700 transition-colors" title="Usuń">
-                          <Trash2 size={13}/>
-                        </button>
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {!campaignPhotosLoading&&filteredPhotos.length===0&&<p className="text-slate-500 text-sm text-center py-8">Brak zgłoszeń w tej kategorii.</p>}
-
-              {/* Categories management */}
-              <div className={`${CARD} p-4 space-y-3 mt-2`}>
-                <p className="text-white text-sm font-semibold" style={{fontFamily:"Georgia,serif"}}>Zarządzanie kategoriami</p>
-                <div className="space-y-1.5">
-                  {campaignCategories.map((cat,i)=>(
-                    <div key={cat} className="flex items-center gap-2">
-                      <span className="flex-1 text-slate-300 text-sm px-3 py-1.5 bg-slate-900 rounded-lg border border-slate-700">{cat}</span>
-                      <button onClick={()=>{const updated=campaignCategories.filter((_,j)=>j!==i);setCampaignCategories(updated);handleCategorySave(updated);}}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-700 transition-colors" title="Usuń kategorię">
-                        <X size={14}/>
-                      </button>
+                      <div className="p-2.5 space-y-1.5">
+                        <p className="text-white text-xs font-semibold truncate">{p.submitter_name ?? "Anonim"}</p>
+                        <p className="text-slate-500 text-[11px]">{p.category} · {new Date(p.created_at).toLocaleDateString("pl-PL")}</p>
+                        {p.caption && <p className="text-slate-400 text-[11px] line-clamp-2">{p.caption}</p>}
+                        <div className="flex items-center gap-1 pt-1">
+                          {p.status!=="approved" && (
+                            <button onClick={()=>handleCampaignPhotoReview(p.id,"approved")} disabled={campaignPhotoActing===p.id}
+                              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold text-white disabled:opacity-40 transition-colors"
+                              style={{background:"#15803d"}}>
+                              <Check size={11}/> Zatwierdź
+                            </button>
+                          )}
+                          {p.status!=="rejected" && (
+                            <button onClick={()=>handleCampaignPhotoReview(p.id,"rejected")} disabled={campaignPhotoActing===p.id}
+                              className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold text-white disabled:opacity-40 transition-colors"
+                              style={{background:"#b91c1c"}}>
+                              <X size={11}/> Odrzuć
+                            </button>
+                          )}
+                          {p.image_url && (
+                            <a href={p.image_url} download target="_blank" rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-orange-400 hover:bg-slate-700 transition-colors" title="Pobierz">
+                              <ArrowLeft size={13} className="rotate-[-90deg]"/>
+                            </a>
+                          )}
+                          <button onClick={()=>handleCampaignPhotoDelete(p.id)} disabled={campaignPhotoActing===p.id}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-700 transition-colors" title="Usuń">
+                            <Trash2 size={13}/>
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
-                <div className="flex gap-2">
-                  <input
-                    className={inputCls+" flex-1"}
-                    placeholder="Nazwa nowej kategorii…"
-                    value={newCategory}
-                    onChange={e=>setNewCategory(e.target.value)}
-                    onKeyDown={e=>{if(e.key==="Enter"&&newCategory.trim()){const updated=[...campaignCategories,newCategory.trim()];setCampaignCategories(updated);handleCategorySave(updated);setNewCategory("");}}}
-                  />
-                  <button
-                    disabled={!newCategory.trim()||categorySaving}
-                    onClick={()=>{if(!newCategory.trim())return;const updated=[...campaignCategories,newCategory.trim()];setCampaignCategories(updated);handleCategorySave(updated);setNewCategory("");}}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 transition-all"
-                    style={{background:"linear-gradient(135deg,#7c2d12,#c2410c)"}}>
-                    {categorySaving?<Loader2 size={14} className="animate-spin"/>:<Plus size={14}/>} Dodaj
-                  </button>
+                {!campaignPhotosLoading&&filteredPhotos.length===0&&<p className="text-slate-500 text-sm text-center py-8">Brak zgłoszeń w tej kategorii.</p>}
+              </>)}
+
+              {/* ── TAB: CATEGORIES ── */}
+              {campaignPhotosTab==="categories" && (
+                <div className={`${CARD} p-4 space-y-3`}>
+                  <div className="space-y-1.5">
+                    {campaignCategories.map((cat,i)=>(
+                      <div key={cat} className="flex items-center gap-2 bg-slate-900 rounded-xl border border-slate-700 px-3 py-2">
+                        {/* Order arrows */}
+                        <div className="flex flex-col gap-0.5">
+                          <button onClick={()=>moveCategory(i,-1)} disabled={i===0}
+                            className="p-0.5 rounded text-slate-600 hover:text-slate-300 disabled:opacity-20 transition-colors">
+                            <ChevronUp size={13}/>
+                          </button>
+                          <button onClick={()=>moveCategory(i,1)} disabled={i===campaignCategories.length-1}
+                            className="p-0.5 rounded text-slate-600 hover:text-slate-300 disabled:opacity-20 transition-colors">
+                            <ChevronDown size={13}/>
+                          </button>
+                        </div>
+                        <span className="flex-1 text-slate-300 text-sm">{cat}</span>
+                        <span className="text-slate-600 text-xs tabular-nums">{campaignPhotos.filter(p=>p.category===cat).length} zdjęć</span>
+                        <button onClick={()=>{const updated=campaignCategories.filter((_,j)=>j!==i);setCampaignCategories(updated);handleCategorySave(updated);}}
+                          className="p-1 rounded-lg text-slate-600 hover:text-red-400 hover:bg-slate-700 transition-colors" title="Usuń kategorię">
+                          <X size={14}/>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add new */}
+                  <div className="flex gap-2 pt-1">
+                    <input
+                      className={inputCls+" flex-1"}
+                      placeholder="Nazwa nowej kategorii…"
+                      value={newCategory}
+                      onChange={e=>setNewCategory(e.target.value)}
+                      onKeyDown={e=>{
+                        if(e.key==="Enter"&&newCategory.trim()){
+                          const updated=[...campaignCategories,newCategory.trim()];
+                          setCampaignCategories(updated);handleCategorySave(updated);setNewCategory("");
+                        }
+                      }}
+                    />
+                    <button
+                      disabled={!newCategory.trim()||categorySaving}
+                      onClick={()=>{
+                        if(!newCategory.trim())return;
+                        const updated=[...campaignCategories,newCategory.trim()];
+                        setCampaignCategories(updated);handleCategorySave(updated);setNewCategory("");
+                      }}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 transition-all"
+                      style={{background:"linear-gradient(135deg,#7c2d12,#c2410c)"}}>
+                      {categorySaving?<Loader2 size={14} className="animate-spin"/>:<Plus size={14}/>} Dodaj
+                    </button>
+                  </div>
+                  <p className="text-slate-500 text-xs">Kolejność i nazwy widoczne w formularzu wysyłania zdjęć przez userów.</p>
                 </div>
-                <p className="text-slate-500 text-xs">Kategorie widoczne w formularzu wysyłania zdjęć przez userów.</p>
-              </div>
+              )}
             </div>
           </>);
         })()}
