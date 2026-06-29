@@ -23,6 +23,7 @@ const MOD_DEFAULTS: Record<string, { href: string; icon: IconName; label: string
 
 const DEFAULT_NAV_KEYS = ["articles", "gospel", "petitions", "prayers", "announcements"];
 const STORAGE_KEY = "salve_tiles_config";
+const SEEN_REPLIES_KEY = "salve_contact_seen_replies";
 const CACHE_TTL_MS = 120_000;
 
 // ── Module-level fetch cache ─────────────────────────────────────────────────
@@ -38,9 +39,15 @@ function getTilesConfig(): Promise<Record<string, unknown>> {
   return _fetchPromise;
 }
 
+function getSeenReplyIds(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(SEEN_REPLIES_KEY) ?? "[]")); }
+  catch { return new Set(); }
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 export default function BottomNav() {
   const pathname = usePathname();
+  const [unreadReplies, setUnreadReplies] = useState(0);
 
   const [navKeys, setNavKeys] = useState<string[]>(() => {
     if (typeof window === "undefined") return DEFAULT_NAV_KEYS;
@@ -72,10 +79,17 @@ export default function BottomNav() {
         setNavKeys(DEFAULT_NAV_KEYS);
       }
     });
+
+    fetch("/api/contact/unread-replies").then(r => r.json()).then(d => {
+      if (d.ids) {
+        const seen = getSeenReplyIds();
+        setUnreadReplies((d.ids as string[]).filter((id: string) => !seen.has(id)).length);
+      }
+    }).catch(() => {});
   }, []);
 
   // Build nav items: home + up to 5 mod slots
-  const navItems: { href: string; icon: IconName; label: string }[] = [
+  const navItems: { href: string; icon: IconName; label: string; mod?: string }[] = [
     { href: "/", icon: "home", label: "START" },
   ];
 
@@ -88,14 +102,16 @@ export default function BottomNav() {
       href: def.href,
       icon: (ov?.icon as IconName | undefined) ?? def.icon,
       label: ov?.label ?? def.label,
+      mod: key,
     });
   }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/97 backdrop-blur-md border-t border-red-900/40 safe-area-bottom">
       <div className="flex justify-around items-center h-16 max-w-lg md:max-w-3xl mx-auto px-1 md:px-8">
-        {navItems.map(({ href, icon, label }) => {
+        {navItems.map(({ href, icon, label, mod }) => {
           const active = pathname === href || (href !== "/" && pathname.startsWith(href));
+          const badge = mod === "chat" && unreadReplies > 0 ? unreadReplies : 0;
           return (
             <Link
               key={href}
@@ -105,12 +121,19 @@ export default function BottomNav() {
                 active ? "text-yellow-400" : "text-slate-500 hover:text-slate-300"
               )}
             >
-              <Icon
-                name={icon}
-                size={20}
-                strokeWidth={active ? 2 : 1.4}
-                className={cn("transition-all", active && "drop-shadow-[0_0_6px_rgba(250,204,21,0.5)]")}
-              />
+              <span className="relative">
+                <Icon
+                  name={icon}
+                  size={20}
+                  strokeWidth={active ? 2 : 1.4}
+                  className={cn("transition-all", active && "drop-shadow-[0_0_6px_rgba(250,204,21,0.5)]")}
+                />
+                {badge > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 rounded-full bg-red-600 text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
+                    {badge}
+                  </span>
+                )}
+              </span>
               <span className="text-[10px] font-medium truncate" style={{ fontFamily: "Georgia, serif" }}>
                 {label}
               </span>

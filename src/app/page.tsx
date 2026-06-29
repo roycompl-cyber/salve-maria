@@ -71,6 +71,13 @@ function SectionTitle({ title, href, linkLabel = "Zobacz wszystkie" }: { title: 
 interface PageSectionConfig { show?: boolean; title?: string; count?: number; }
 interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; }
 
+const SEEN_REPLIES_KEY = "salve_contact_seen_replies";
+
+function getSeenReplyIds(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(SEEN_REPLIES_KEY) ?? "[]")); }
+  catch { return new Set(); }
+}
+
 export default function Home2Page() {
   const [articles, setArticles] = useState<PKArticle[]>([]);
   const [petitions, setPetitions] = useState<PKPetition[]>([]);
@@ -78,6 +85,7 @@ export default function Home2Page() {
     if (typeof window === "undefined") return {};
     return loadCachedConfig();
   });
+  const [unreadReplies, setUnreadReplies] = useState(0);
 
   useEffect(() => {
     Promise.all([
@@ -93,6 +101,15 @@ export default function Home2Page() {
       if (tilesData && typeof tilesData === "object" && !tilesData.error) {
         setTilesConfig(tilesData as TilesConfig);
         localStorage.setItem(TILES_CONFIG_KEY, JSON.stringify(tilesData));
+      }
+    }).catch(() => {});
+
+    // Check for unread replies (only for logged-in users)
+    fetch("/api/contact/unread-replies").then(r => r.json()).then(d => {
+      if (d.ids) {
+        const seen = getSeenReplyIds();
+        const unseen = (d.ids as string[]).filter(id => !seen.has(id));
+        setUnreadReplies(unseen.length);
       }
     }).catch(() => {});
   }, []);
@@ -204,12 +221,19 @@ export default function Home2Page() {
                 const accent = (cfg?.colorPreset && COLOR_PRESETS[cfg.colorPreset]) ?? shortcut.accent;
                 return (
                   <Link key={shortcut.mod ?? shortcut.href} href={shortcut.href} target={shortcut.external ? "_blank" : undefined} rel={shortcut.external ? "noopener noreferrer" : undefined} className="flex items-center gap-3 rounded-2xl border border-slate-700/70 bg-slate-800/45 p-3 hover:bg-slate-800 transition-colors">
-                    <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ color: accent, background: `${accent}12`, border: `1px solid ${accent}25` }}>
+                    <span className="relative w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ color: accent, background: `${accent}12`, border: `1px solid ${accent}25` }}>
                       <Icon name={shortcut.icon} size={18} />
+                      {shortcut.mod === "chat" && unreadReplies > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center px-0.5 leading-none">{unreadReplies}</span>
+                      )}
                     </span>
-                    <span className="min-w-0">
+                    <span className="min-w-0 flex-1">
                       <span className="block text-sm font-bold text-white truncate">{label}</span>
-                      <span className="block text-[10px] text-slate-500 truncate">{detail}</span>
+                      <span className="block text-[10px] text-slate-500 truncate">
+                        {shortcut.mod === "chat" && unreadReplies > 0
+                          ? <span className="text-amber-400">Masz {unreadReplies} {unreadReplies === 1 ? "nową odpowiedź" : "nowe odpowiedzi"}</span>
+                          : detail}
+                      </span>
                     </span>
                   </Link>
                 );

@@ -64,7 +64,19 @@ export default function ContactPage() {
   async function loadHistory() {
     setHistoryLoading(true);
     const r = await fetch("/api/contact/my-messages");
-    if (r.ok) setMyMessages(await r.json());
+    if (r.ok) {
+      const data: MyMessage[] = await r.json();
+      setMyMessages(data);
+      // Mark all replied messages as seen in localStorage
+      const repliedIds = data.filter(m => m.admin_reply).map(m => m.id);
+      if (repliedIds.length > 0) {
+        try {
+          const seen: string[] = JSON.parse(localStorage.getItem("salve_contact_seen_replies") ?? "[]");
+          const merged = Array.from(new Set([...seen, ...repliedIds]));
+          localStorage.setItem("salve_contact_seen_replies", JSON.stringify(merged));
+        } catch {}
+      }
+    }
     setHistoryLoading(false);
   }
 

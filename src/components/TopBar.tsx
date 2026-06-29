@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import Icon from "@/components/Icon";
@@ -30,6 +31,14 @@ function buildDonationUrl(
 export default function TopBar() {
   const { user, signOut } = useAuth();
   const { profile } = useProfile();
+  const [adminUnread, setAdminUnread] = useState(0);
+
+  useEffect(() => {
+    if (!user || profile?.role !== "admin") return;
+    fetch("/api/contact").then(r => r.json()).then(d => {
+      if (Array.isArray(d)) setAdminUnread(d.filter((m: { read: boolean }) => !m.read).length);
+    }).catch(() => {});
+  }, [user, profile?.role]);
 
   const now = new Date();
   const dateStr = `${DAYS_PL[now.getDay()]}, ${now.getDate()} ${MONTHS_PL[now.getMonth()]} ${now.getFullYear()}`;
@@ -64,8 +73,13 @@ export default function TopBar() {
                       <Icon name="user" size={17} />
                     </Link>
                     {profile?.role === "admin" && (
-                      <Link href="/admin" className="text-red-300 hover:text-yellow-200 p-1.5 rounded-lg hover:bg-red-900 transition-colors" title="Admin">
+                      <Link href="/admin" className="relative text-red-300 hover:text-yellow-200 p-1.5 rounded-lg hover:bg-red-900 transition-colors" title="Admin">
                         <Icon name="settings" size={17} />
+                        {adminUnread > 0 && (
+                          <span className="absolute top-0.5 right-0.5 min-w-[14px] h-3.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
+                            {adminUnread}
+                          </span>
+                        )}
                       </Link>
                     )}
                     <button onClick={signOut} title="Wyloguj" className="text-red-300 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-900 transition-colors">
