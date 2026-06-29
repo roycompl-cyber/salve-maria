@@ -16,8 +16,8 @@ import { CIVILITAS_SECTIONS, blocksToText } from "@/lib/civilitas-sections";
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface UserRow {
   id: string; email: string; first_name: string | null; last_name: string | null;
-  phone: string | null; city: string | null; role: string;
-  profile_complete: boolean; has_push: boolean; created_at: string; last_sign_in_at: string | null;
+  phone: string | null; city: string | null; street: string | null; house_no: string | null; postal: string | null;
+  role: string; profile_complete: boolean; has_push: boolean; created_at: string; last_sign_in_at: string | null;
 }
 interface Prayer {
   id: string; title: string; content: string; category: string;
@@ -1693,6 +1693,18 @@ export default function AdminPage() {
                             <div>
                               <span className="text-slate-500 block mb-0.5">Telefon</span>
                               <span className="text-slate-200">{u.phone||<span className="text-slate-600">—</span>}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block mb-0.5">Ulica</span>
+                              <span className="text-slate-200">{u.street||<span className="text-slate-600">—</span>}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block mb-0.5">Nr domu / mieszkania</span>
+                              <span className="text-slate-200">{u.house_no||<span className="text-slate-600">—</span>}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block mb-0.5">Kod pocztowy</span>
+                              <span className="text-slate-200">{u.postal||<span className="text-slate-600">—</span>}</span>
                             </div>
                             <div>
                               <span className="text-slate-500 block mb-0.5">Miasto</span>

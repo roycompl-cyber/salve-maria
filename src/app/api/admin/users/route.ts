@@ -27,7 +27,7 @@ export async function GET() {
 
   // Pobierz profile i push subscriptions równolegle
   const [{ data: profiles }, { data: pushSubs }] = await Promise.all([
-    adminClient.from("profiles").select("id, first_name, last_name, phone, city, role, profile_complete, created_at"),
+    adminClient.from("profiles").select("id, first_name, last_name, phone, city, street, house_no, postal, role, profile_complete, created_at"),
     adminClient.from("push_subscriptions").select("user_id"),
   ]);
 
@@ -43,6 +43,9 @@ export async function GET() {
       last_name: p.last_name ?? null,
       phone: p.phone ?? null,
       city: p.city ?? null,
+      street: p.street ?? null,
+      house_no: p.house_no ?? null,
+      postal: p.postal ?? null,
       role: p.role ?? "donor",
       profile_complete: p.profile_complete ?? false,
       has_push: pushUserIds.has(u.id),
