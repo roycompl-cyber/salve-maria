@@ -76,8 +76,8 @@ const GLOBAL_KEY = "salve_reminders_global_v1";
 export interface GlobalReminderSettings {
   /** ile razy powtórzyć fanfarę przy alarmie (1–3) */
   fanfareRepeats: number;
-  /** wybrana melodia: 0 = pentatonika (G-A-C-A-E), 1 = melodia G-dur */
-  melody: 0 | 1;
+  /** wybrana melodia: 0 = pentatonika, 1 = G-dur, 2 = D-dur */
+  melody: 0 | 1 | 2;
 }
 
 export function loadGlobal(): GlobalReminderSettings {
@@ -85,7 +85,7 @@ export function loadGlobal(): GlobalReminderSettings {
     const g = JSON.parse(localStorage.getItem(GLOBAL_KEY) ?? "{}");
     return {
       fanfareRepeats: Math.min(3, Math.max(1, g.fanfareRepeats ?? 1)),
-      melody: g.melody === 1 ? 1 : 0,
+      melody: ([0, 1, 2] as const).includes(g.melody) ? g.melody as 0 | 1 | 2 : 0,
     };
   } catch { return { fanfareRepeats: 1, melody: 0 }; }
 }
@@ -278,14 +278,60 @@ function playChime1(): (() => void) | null {
   return playNotes(notes, 30 * S + 0.3);
 }
 
+/**
+ * Melodia 2 — D-dur, ~9.2 s
+ * | D4  F#4  A4 | F#4  A4  G4 | F#4  E4  D4 |
+ * | E4  D4  C#4 | D4   -   -   |
+ * | D4  F#4  A4 | A4  G4  F#4 | E4  D4  C#4 |
+ * | B3  D4  F#4 | D4   -   -   |
+ */
+function playChime2(): (() => void) | null {
+  const S = 0.30;
+  const D = 0.26;
+  const seq: [number, number][] = [
+    [293.7,  0], // D4
+    [370.0,  1], // F#4
+    [440.0,  2], // A4
+    [370.0,  3], // F#4
+    [440.0,  4], // A4
+    [392.0,  5], // G4
+    [370.0,  6], // F#4
+    [329.6,  7], // E4
+    [293.7,  8], // D4
+    [329.6,  9], // E4
+    [293.7, 10], // D4
+    [277.2, 11], // C#4
+    // D4 trzymane (beat 12–14)
+    [293.7, 15], // D4
+    [370.0, 16], // F#4
+    [440.0, 17], // A4
+    [440.0, 18], // A4
+    [392.0, 19], // G4
+    [370.0, 20], // F#4
+    [329.6, 21], // E4
+    [293.7, 22], // D4
+    [277.2, 23], // C#4
+    [246.9, 24], // B3
+    [293.7, 25], // D4
+    [370.0, 26], // F#4
+    // D4 trzymane końcowe (beat 27–29)
+  ];
+  const notes: [number, number, number][] = seq.map(([hz, beat]) => [hz, beat * S, D]);
+  notes.push([293.7, 12 * S, 3 * S - 0.04]); // D4 hold
+  notes.push([293.7, 27 * S, 3 * S - 0.02]); // D4 końcowe
+  return playNotes(notes, 30 * S + 0.3);
+}
+
 /** Odtwarza melodię (z powtórzeniami ustawionymi globalnie) */
 export function playFanfare() {
   if (typeof window === "undefined") return;
   stopFanfare();
 
   const { fanfareRepeats, melody } = loadGlobal();
-  const chime = melody === 1 ? playChime1 : playChime0;
-  const chimeDuration = melody === 1 ? 9.2 : 3.2;
+  const chimes = [playChime0, playChime1, playChime2];
+  const durations = [3.2, 9.2, 9.2];
+  const chime = chimes[melody] ?? playChime0;
+  const chimeDuration = durations[melody] ?? 3.2;
   let played = 0;
 
   function play() {

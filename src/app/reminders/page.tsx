@@ -52,7 +52,7 @@ export default function RemindersPage() {
   const [loaded, setLoaded] = useState(false);
   const [notifPerm, setNotifPerm] = useState<NotificationPermission | "unsupported">("default");
   const [repeats, setRepeats] = useState(1);
-  const [melody, setMelody] = useState<0 | 1>(0);
+  const [melody, setMelody] = useState<0 | 1 | 2>(0);
   const [pushReady, setPushReady] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
@@ -75,7 +75,7 @@ export default function RemindersPage() {
     saveGlobal({ fanfareRepeats: n, melody });
   }
 
-  function updateMelody(m: 0 | 1) {
+  function updateMelody(m: 0 | 1 | 2) {
     setMelody(m);
     saveGlobal({ fanfareRepeats: repeats, melody: m });
   }
@@ -179,14 +179,12 @@ export default function RemindersPage() {
               Melodia powiadomienia
             </p>
             <div className="flex gap-2">
-              <button onClick={() => updateMelody(0)}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${melody === 0 ? "bg-amber-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"}`}>
-                Melodia 1
-              </button>
-              <button onClick={() => updateMelody(1)}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${melody === 1 ? "bg-amber-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"}`}>
-                Melodia 2
-              </button>
+              {([0, 1, 2] as const).map(m => (
+                <button key={m} onClick={() => updateMelody(m)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${melody === m ? "bg-amber-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"}`}>
+                  Melodia {m + 1}
+                </button>
+              ))}
             </div>
           </div>
           <div>
