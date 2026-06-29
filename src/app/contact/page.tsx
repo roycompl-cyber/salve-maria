@@ -3,9 +3,16 @@ import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
-import { MessageCircle, Send, CheckCircle2, Loader2, ChevronDown, Inbox, ChevronUp, MessageSquareReply } from "lucide-react";
+import { MessageCircle, Send, CheckCircle2, Loader2, ChevronDown, Inbox, ChevronUp, MessageSquareReply, Camera, ImagePlus, Clock, Check, X } from "lucide-react";
 
 const DEFAULT_TOPICS = ["Pytanie ogólne","Wsparcie finansowe","Petycje","Modlitwa wstawiennicza","Inne"];
+
+const PHOTO_CATEGORIES = [
+  { value: "billboard", label: "Billboard kampanii" },
+  { value: "wolontariat", label: "Nasi wolontariusze" },
+  { value: "demonstracja", label: "Demonstracja / pikieta" },
+  { value: "inne", label: "Inne" },
+];
 
 interface MyMessage {
   id: string;
@@ -17,11 +24,20 @@ interface MyMessage {
   read: boolean;
 }
 
+interface CampaignPhoto {
+  id: string;
+  image_url: string | null;
+  category: string;
+  caption: string | null;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+}
+
 export default function ContactPage() {
   const { user } = useAuth();
   const { profile } = useProfile();
 
-  const [tab, setTab] = useState<"form" | "history">("form");
+  const [tab, setTab] = useState<"form" | "history" | "photos">("form");
 
   // Formularz
   const [topics, setTopics] = useState<string[]>(DEFAULT_TOPICS);
@@ -38,6 +54,17 @@ export default function ContactPage() {
   const [myMessages, setMyMessages] = useState<MyMessage[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  // Zdjęcia z kampanii
+  const [photos, setPhotos] = useState<CampaignPhoto[]>([]);
+  const [photosLoading, setPhotosLoading] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoCategory, setPhotoCategory] = useState("billboard");
+  const [photoCaption, setPhotoCaption] = useState("");
+  const [photoSending, setPhotoSending] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+  const [photoSent, setPhotoSent] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/settings")
@@ -59,7 +86,45 @@ export default function ContactPage() {
 
   useEffect(() => {
     if (tab === "history" && user) loadHistory();
-  }, [tab, user]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (tab === "photos" && user) loadPhotos();
+  }, [tab, user]);
+
+  async function loadPhotos() {
+    setPhotosLoading(true);
+    const r = await fetch("/api/campaign-photos");
+    if (r.ok) setPhotos(await r.json());
+    setPhotosLoading(false);
+  }
+
+  function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setPhotoFile(f);
+    setPhotoError("");
+    const url = URL.createObjectURL(f);
+    setPhotoPreview(url);
+  }
+
+  async function handlePhotoSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!photoFile) { setPhotoError("Wybierz zdjęcie."); return; }
+    setPhotoSending(true); setPhotoError("");
+    const fd = new FormData();
+    fd.append("file", photoFile);
+    fd.append("category", photoCategory);
+    fd.append("caption", photoCaption);
+    const res = await fetch("/api/campaign-photos", { method: "POST", body: fd });
+    setPhotoSending(false);
+    if (res.ok) {
+      setPhotoSent(true);
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      setPhotoCaption("");
+    } else {
+      const d = await res.json().catch(() => ({}));
+      setPhotoError(d.error ?? "Błąd wysyłania zdjęcia.");
+    }
+  }
 
   async function loadHistory() {
     setHistoryLoading(true);
@@ -129,6 +194,12 @@ export default function ContactPage() {
                   {unreadReplies}
                 </span>
               )}
+            </button>
+            <button
+              onClick={() => setTab("photos")}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${tab === "photos" ? "bg-red-950 text-white" : "text-slate-400 hover:text-white"}`}
+            >
+              <Camera size={14} /> Zdjęcia
             </button>
           </div>
         )}
@@ -281,6 +352,129 @@ export default function ContactPage() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ── ZDJĘCIA Z KAMPANII ── */}
+        {tab === "photos" && (
+          <div className="space-y-5">
+            {photoSent ? (
+              <div className="flex flex-col items-center py-16 gap-4 text-center">
+                <CheckCircle2 size={48} className="text-green-400" />
+                <p className="text-white font-bold text-lg" style={{ fontFamily: "Georgia, serif" }}>Zdjęcie wysłane!</p>
+                <p className="text-slate-400 text-sm max-w-xs">Dziękujemy! Zdjęcie zostanie opublikowane po sprawdzeniu przez moderatora.</p>
+                <div className="flex gap-3 mt-2">
+                  <button
+                    onClick={() => { setPhotoSent(false); loadPhotos(); }}
+                    className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+                    style={{ background: "linear-gradient(135deg,#7f1d1d,#991b1b)" }}
+                  >
+                    Wyślij kolejne
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handlePhotoSubmit} className="space-y-4">
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Widziałeś nasz billboard, wolontariuszy w akcji albo byłeś na naszej demonstracji? Wyślij zdjęcie — najlepsze opublikujemy!
+                </p>
+
+                <label className="block">
+                  <div className="aspect-video rounded-2xl border-2 border-dashed border-slate-700 bg-slate-800/60 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-red-600/50 transition-colors overflow-hidden">
+                    {photoPreview ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={photoPreview} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <>
+                        <ImagePlus size={28} className="text-slate-500" />
+                        <span className="text-slate-500 text-sm">Dotknij, aby wybrać zdjęcie</span>
+                      </>
+                    )}
+                  </div>
+                  <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={onPickPhoto} />
+                </label>
+
+                <div>
+                  <label className={labelCls}>Kategoria *</label>
+                  <div className="relative">
+                    <select
+                      className={inputCls + " appearance-none pr-8"}
+                      value={photoCategory}
+                      onChange={e => setPhotoCategory(e.target.value)}
+                    >
+                      {PHOTO_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
+                    <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelCls}>Opis (opcjonalnie)</label>
+                  <textarea
+                    className={inputCls}
+                    rows={2}
+                    value={photoCaption}
+                    onChange={e => setPhotoCaption(e.target.value)}
+                    placeholder="Gdzie i kiedy zrobiono zdjęcie…"
+                    maxLength={500}
+                  />
+                </div>
+
+                {photoError && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2.5 text-red-400 text-sm">{photoError}</div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={photoSending}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-white disabled:opacity-50 transition-all"
+                  style={{ background: "linear-gradient(135deg,#7f1d1d,#991b1b)" }}
+                >
+                  {photoSending ? <Loader2 size={18} className="animate-spin" /> : <Camera size={18} />}
+                  {photoSending ? "Wysyłanie…" : "Wyślij zdjęcie"}
+                </button>
+              </form>
+            )}
+
+            {!photoSent && (
+              <div className="space-y-2.5 pt-2 border-t border-slate-800">
+                <p className="text-slate-500 text-xs font-medium uppercase tracking-wider pt-3">Twoje zgłoszenia</p>
+                {photosLoading && (
+                  <div className="flex justify-center py-8">
+                    <Loader2 size={20} className="text-red-400 animate-spin" />
+                  </div>
+                )}
+                {!photosLoading && photos.length === 0 && (
+                  <p className="text-slate-500 text-sm text-center py-6">Nie wysłałeś jeszcze żadnego zdjęcia.</p>
+                )}
+                <div className="grid grid-cols-2 gap-2.5">
+                  {photos.map(p => (
+                    <div key={p.id} className="relative rounded-xl overflow-hidden bg-slate-800 border border-slate-700/60">
+                      <div className="aspect-square bg-slate-900">
+                        {p.image_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.image_url} alt="" className="w-full h-full object-cover" />
+                        )}
+                      </div>
+                      <span
+                        className="absolute top-1.5 right-1.5 flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                        style={
+                          p.status === "approved" ? { background: "rgba(34,197,94,0.15)", color: "#4ade80" } :
+                          p.status === "rejected" ? { background: "rgba(239,68,68,0.15)", color: "#f87171" } :
+                          { background: "rgba(251,191,36,0.15)", color: "#fbbf24" }
+                        }
+                      >
+                        {p.status === "approved" ? <Check size={10} /> : p.status === "rejected" ? <X size={10} /> : <Clock size={10} />}
+                        {p.status === "approved" ? "Zatwierdzone" : p.status === "rejected" ? "Odrzucone" : "Czeka"}
+                      </span>
+                      {p.caption && (
+                        <p className="text-slate-400 text-[11px] px-2 py-1.5 line-clamp-2">{p.caption}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

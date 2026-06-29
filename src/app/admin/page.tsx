@@ -8,6 +8,7 @@ import {
   ChevronDown, ChevronUp, Clock, MessageSquare, Settings2, Calendar,
   Mail, Play, Lock, BarChart2, LayoutGrid, Eye, EyeOff, ArrowLeft,
   UserPlus, Home, AlertTriangle, Save, Shield, Video, MapPin, TrendingUp, Globe,
+  Camera, Check,
 } from "lucide-react";
 import { ALL_TILE_KEYS } from "@/lib/admin-permissions";
 import type { AdminGroup } from "@/lib/admin-permissions";
@@ -43,6 +44,10 @@ interface ContactMsg {
   id: string; name: string; email: string; topic: string; message: string;
   read: boolean; created_at: string; admin_reply?: string; replied_at?: string;
 }
+interface CampaignPhotoAdmin {
+  id: string; image_url: string | null; category: string; caption: string | null;
+  status: "pending" | "approved" | "rejected"; created_at: string; submitter_name: string | null;
+}
 interface AppSettings { [key: string]: string; }
 interface TileOverride {
   label?: string; sublabel?: string; hidden?: boolean; order?: number; colorPreset?: string; icon?: string;
@@ -52,7 +57,7 @@ interface SliderConfig { effect?: "slide" | "fade" | "zoom"; interval?: number; 
 interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; slider?: SliderConfig; }
 type TilesConfig = Record<string, TileOverride>;
 
-type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "plinio" | "catechism" | "civilitas" | "referral" | "bypass" | "settings" | "stats" | "errors" | "login" | "access" | "articles" | "petitions" | "videos" | "push-stats" | "source-config";
+type Section = null | "notifications" | "messages" | "campaign-photos" | "users" | "prayers" | "tiles" | "modules" | "plinio" | "catechism" | "civilitas" | "referral" | "bypass" | "settings" | "stats" | "errors" | "login" | "access" | "articles" | "petitions" | "videos" | "push-stats" | "source-config";
 type NotifType = "news" | "action" | "prayer" | "reminder" | "article" | "petition";
 
 interface ManualArticle {
@@ -415,6 +420,12 @@ export default function AdminPage() {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [expandedMsg, setExpandedMsg] = useState<string|null>(null);
   const [replyText, setReplyText] = useState<Record<string, string>>({});
+
+  // Campaign photos (user-submitted)
+  const [campaignPhotos, setCampaignPhotos] = useState<CampaignPhotoAdmin[]>([]);
+  const [campaignPhotosLoading, setCampaignPhotosLoading] = useState(false);
+  const [campaignPhotosFilter, setCampaignPhotosFilter] = useState<"pending"|"approved"|"rejected"|"all">("pending");
+  const [campaignPhotoActing, setCampaignPhotoActing] = useState<string|null>(null);
   const [replySaving, setReplySaving] = useState<string|null>(null);
 
   // App settings
@@ -628,6 +639,10 @@ export default function AdminPage() {
       setMessagesLoading(true);
       fetch("/api/contact").then(r=>r.json()).then(d=>{if(Array.isArray(d))setMessages(d);}).finally(()=>setMessagesLoading(false));
     }
+    if (section==="campaign-photos" && campaignPhotos.length===0) {
+      setCampaignPhotosLoading(true);
+      fetch("/api/admin/campaign-photos").then(r=>r.json()).then(d=>{if(Array.isArray(d))setCampaignPhotos(d);}).finally(()=>setCampaignPhotosLoading(false));
+    }
     if (section==="source-config" && !sourceConfig.articles_url) {
       fetch("/api/admin/source-config").then(r=>r.json()).then(d=>{
         if(d.articles_url) setSourceConfig(d);
@@ -684,6 +699,9 @@ export default function AdminPage() {
     }
     if (section===null && messages.length===0) {
       fetch("/api/contact").then(r=>r.json()).then(d=>{if(Array.isArray(d))setMessages(d);});
+    }
+    if (section===null && campaignPhotos.length===0) {
+      fetch("/api/admin/campaign-photos").then(r=>r.json()).then(d=>{if(Array.isArray(d))setCampaignPhotos(d);});
     }
     if (section==="access") {
       loadGroups();
@@ -897,6 +915,22 @@ export default function AdminPage() {
       setReplyText(prev=>({...prev,[id]:""}));
     }
     setReplySaving(null);
+  }
+
+  // ── Campaign photos ──
+  async function handleCampaignPhotoReview(id: string, status: "approved" | "rejected") {
+    setCampaignPhotoActing(id);
+    const r = await fetch(`/api/admin/campaign-photos/${id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({status})});
+    if (r.ok) setCampaignPhotos(prev=>prev.map(p=>p.id===id?{...p,status}:p));
+    setCampaignPhotoActing(null);
+  }
+
+  async function handleCampaignPhotoDelete(id: string) {
+    if (!confirm("Usunąć to zdjęcie?")) return;
+    setCampaignPhotoActing(id);
+    const r = await fetch(`/api/admin/campaign-photos/${id}`,{method:"DELETE"});
+    if (r.ok) setCampaignPhotos(prev=>prev.filter(p=>p.id!==id));
+    setCampaignPhotoActing(null);
   }
 
   // ── App settings ──
@@ -1196,6 +1230,7 @@ export default function AdminPage() {
   );
 
   const unreadCount = messages.filter(m=>!m.read).length;
+  const pendingPhotosCount = campaignPhotos.filter(p=>p.status==="pending").length;
   const typeOptions = [
     {key:"news" as NotifType,     icon:<Newspaper size={17}/>,   label:"Aktualności",  color:"text-green-400 bg-green-400/10"},
     {key:"action" as NotifType,   icon:<Megaphone size={17}/>,   label:"Akcje",        color:"text-red-400 bg-red-400/10"},
@@ -1233,6 +1268,7 @@ export default function AdminPage() {
         { key:"notifications", icon:<Bell size={22}/>,          label:"Powiadomienia",   desc:"Push natychmiastowy i zaplanowany", color:"linear-gradient(135deg,#3d1a00,#7a3200)", accent:"#fb923c", badge:scheduled.length||undefined },
         { key:"push-stats",    icon:<TrendingUp size={22}/>,    label:"Statystyki push", desc:"Historia i aktywne subskrypcje",    color:"linear-gradient(135deg,#042828,#085050)", accent:"#34d399" },
         { key:"messages",      icon:<MessageSquare size={22}/>, label:"Wiadomości",      desc:"Formularz kontaktowy od użytkowników", color:"linear-gradient(135deg,#07203b,#0f3470)", accent:"#60a5fa", badge:unreadCount||undefined },
+        { key:"campaign-photos", icon:<Camera size={22}/>, label:"Zdjęcia kampanii", desc:"Zgłoszenia zdjęć od userów", color:"linear-gradient(135deg,#2b1505,#5a2c0a)", accent:"#fb923c", badge:pendingPhotosCount||undefined },
         { key:"referral",      icon:<Mail size={22}/>,          label:"Polecanie",       desc:"Treść maila polecającego aplikację", color:"linear-gradient(135deg,#0f2800,#1e4a00)", accent:"#86efac" },
       ],
     },
@@ -1594,6 +1630,68 @@ export default function AdminPage() {
             {!messagesLoading&&messages.length===0&&<p className="text-slate-500 text-sm text-center py-8">Brak wiadomości.</p>}
           </div>
         </>)}
+
+        {/* ── CAMPAIGN PHOTOS ── */}
+        {section==="campaign-photos" && (()=>{
+          const filteredPhotos = campaignPhotos.filter(p => campaignPhotosFilter==="all" || p.status===campaignPhotosFilter);
+          return (<>
+            <SectionHeader title="Zdjęcia kampanii" subtitle={`${campaignPhotos.length} zgłoszeń${pendingPhotosCount>0?` · ${pendingPhotosCount} czeka na moderację`:""}`} onBack={()=>setSection(null)}/>
+            <div className="px-4 pb-8 space-y-3">
+              <div className="flex gap-1.5 flex-wrap">
+                {([["pending","Czeka"],["approved","Zatwierdzone"],["rejected","Odrzucone"],["all","Wszystkie"]] as [typeof campaignPhotosFilter,string][]).map(([key,label])=>(
+                  <button key={key} onClick={()=>setCampaignPhotosFilter(key)}
+                    className={`px-3 py-1 rounded-xl text-xs font-medium transition-colors border ${campaignPhotosFilter===key?"border-orange-700 bg-orange-900/30 text-orange-300":"border-slate-700 bg-slate-800 text-slate-400"}`}>
+                    {label}
+                    <span className="ml-1 text-slate-500">
+                      ({key==="all"?campaignPhotos.length:campaignPhotos.filter(p=>p.status===key).length})
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {campaignPhotosLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-orange-400 animate-spin"/></div>}
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {filteredPhotos.map(p=>(
+                  <div key={p.id} className={`${CARD} overflow-hidden`}>
+                    <div className="aspect-square bg-slate-900">
+                      {p.image_url && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.image_url} alt="" className="w-full h-full object-cover"/>
+                      )}
+                    </div>
+                    <div className="p-2.5 space-y-1.5">
+                      <p className="text-white text-xs font-semibold truncate">{p.submitter_name ?? "Anonim"}</p>
+                      <p className="text-slate-500 text-[11px]">{p.category} · {new Date(p.created_at).toLocaleDateString("pl-PL")}</p>
+                      {p.caption && <p className="text-slate-400 text-[11px] line-clamp-2">{p.caption}</p>}
+                      <div className="flex items-center gap-1 pt-1">
+                        {p.status!=="approved" && (
+                          <button onClick={()=>handleCampaignPhotoReview(p.id,"approved")} disabled={campaignPhotoActing===p.id}
+                            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold text-white disabled:opacity-40 transition-colors"
+                            style={{background:"#15803d"}}>
+                            <Check size={11}/> Zatwierdź
+                          </button>
+                        )}
+                        {p.status!=="rejected" && (
+                          <button onClick={()=>handleCampaignPhotoReview(p.id,"rejected")} disabled={campaignPhotoActing===p.id}
+                            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[11px] font-semibold text-white disabled:opacity-40 transition-colors"
+                            style={{background:"#b91c1c"}}>
+                            <X size={11}/> Odrzuć
+                          </button>
+                        )}
+                        <button onClick={()=>handleCampaignPhotoDelete(p.id)} disabled={campaignPhotoActing===p.id}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-700 transition-colors" title="Usuń">
+                          <Trash2 size={13}/>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {!campaignPhotosLoading&&filteredPhotos.length===0&&<p className="text-slate-500 text-sm text-center py-8">Brak zgłoszeń w tej kategorii.</p>}
+            </div>
+          </>);
+        })()}
 
         {/* ── USERS ── */}
         {section==="users" && (()=>{const filteredUsers = users.filter(u => {
