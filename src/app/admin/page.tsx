@@ -1611,14 +1611,15 @@ export default function AdminPage() {
                 {editingUser?.id===u.id ? (
                   <UserEditForm user={u} onSave={handleSaveUser} onCancel={()=>{setEditingUser(null);setUserSaveError("");}} saving={userSaving} saveError={userSaveError}/>
                 ) : (
-                  <div className={`${CARD} p-4`}>
+                  <div className={`${CARD} p-4 space-y-3`}>
+                    {/* Header row */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-white font-semibold text-sm">
-                            {u.first_name||u.last_name?`${u.first_name??""} ${u.last_name??""}`.trim():"—"}
+                            {u.first_name||u.last_name?`${u.first_name??""} ${u.last_name??""}`.trim():"(brak imienia i nazwiska)"}
                           </p>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${u.role==="admin"?"bg-red-900/40 text-red-400":"bg-slate-700/80 text-slate-400"}`}>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${u.role==="admin"?"bg-red-900/40 text-red-400":"bg-slate-700/80 text-slate-400"}`}>
                             {u.role}
                           </span>
                           {u.profile_complete
@@ -1627,25 +1628,6 @@ export default function AdminPage() {
                           {u.has_push
                             ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-900/30 text-blue-400">✓ push</span>
                             : <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-700/50 text-slate-500">✗ push</span>}
-                        </div>
-                        <p className="text-slate-400 text-xs mt-0.5 truncate">{u.email}</p>
-                        <div className="flex items-center gap-3 mt-1 text-slate-500 text-xs flex-wrap">
-                          {u.phone&&<span>{u.phone}</span>}
-                          {u.city&&<span>{u.city}</span>}
-                          <span>rejestracja: {new Date(u.created_at).toLocaleDateString("pl-PL")}</span>
-                        </div>
-                        <div className="mt-0.5 text-xs">
-                          {u.last_sign_in_at ? (
-                            <span className="text-slate-500">
-                              ostatnie logowanie:{" "}
-                              <span className="text-slate-400">
-                                {new Date(u.last_sign_in_at).toLocaleDateString("pl-PL")}{" "}
-                                {new Date(u.last_sign_in_at).toLocaleTimeString("pl-PL", {hour:"2-digit",minute:"2-digit"})}
-                              </span>
-                            </span>
-                          ) : (
-                            <span className="text-slate-600">nie logował się</span>
-                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
@@ -1657,6 +1639,49 @@ export default function AdminPage() {
                           const res=await fetch(`/api/admin/users/${u.id}`,{method:"DELETE"});
                           if(res.ok)setUsers(prev=>prev.filter(x=>x.id!==u.id));
                         }} title="Usuń konto" className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-700 transition-colors"><Trash2 size={13}/></button>
+                      </div>
+                    </div>
+                    {/* All fields */}
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs border-t border-slate-700/50 pt-3">
+                      <div>
+                        <span className="text-slate-500 block">Email</span>
+                        <span className="text-slate-300 break-all">{u.email}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block">Telefon</span>
+                        <span className="text-slate-300">{u.phone || <span className="text-slate-600">—</span>}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block">Imię</span>
+                        <span className="text-slate-300">{u.first_name || <span className="text-slate-600">—</span>}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block">Nazwisko</span>
+                        <span className="text-slate-300">{u.last_name || <span className="text-slate-600">—</span>}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block">Miasto</span>
+                        <span className="text-slate-300">{u.city || <span className="text-slate-600">—</span>}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block">Rola</span>
+                        <span className={u.role==="admin"?"text-red-400":"text-slate-300"}>{u.role}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block">Rejestracja</span>
+                        <span className="text-slate-300">{new Date(u.created_at).toLocaleDateString("pl-PL")}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block">Ostatnie logowanie</span>
+                        <span className="text-slate-300">
+                          {u.last_sign_in_at
+                            ? `${new Date(u.last_sign_in_at).toLocaleDateString("pl-PL")} ${new Date(u.last_sign_in_at).toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}`
+                            : <span className="text-slate-600">nigdy</span>}
+                        </span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-slate-500 block">ID</span>
+                        <span className="text-slate-600 font-mono text-[10px] break-all">{u.id}</span>
                       </div>
                     </div>
                   </div>
