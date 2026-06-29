@@ -58,123 +58,174 @@ function loadCachedConfig(): TilesConfig {
 // ── Article slider ────────────────────────────────────────────────────────────
 type SliderEffect = "slide" | "fade" | "zoom";
 
-function ArticleSlider({
-  articles, effect = "slide", intervalSec = 4,
-}: {
+function SlideCard({ art, deltaXRef }: { art: PKArticle; deltaXRef: React.RefObject<number> }) {
+  return (
+    <Link href={`/articles/${art.slug}`} draggable={false}
+      onClick={e => { if (Math.abs(deltaXRef.current ?? 0) > 8) e.preventDefault(); }}
+      className="block w-full h-full">
+      <div className="relative w-full h-full bg-slate-800">
+        {art.image_url
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={art.image_url} alt="" referrerPolicy="no-referrer" draggable={false} className="w-full h-full object-cover" />
+          : null}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 p-5">
+          {art.category && <p className="text-[10px] text-amber-400 uppercase tracking-widest mb-1">{art.category}</p>}
+          <h3 className="text-xl md:text-2xl font-bold text-white leading-tight line-clamp-3" style={{ fontFamily: "Georgia, serif" }}>{art.title}</h3>
+          {art.excerpt && <p className="text-slate-300/75 text-sm mt-1.5 line-clamp-2">{art.excerpt}</p>}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function ArticleSlider({ articles, effect = "slide", intervalSec = 4 }: {
   articles: PKArticle[];
   effect?: SliderEffect;
   intervalSec?: number;
 }) {
+  const total = articles.length;
   const [idx, setIdx] = useState(0);
-  const [prev, setPrev] = useState<number | null>(null);
-  const [dir, setDir] = useState<1 | -1>(1);       // 1=forward, -1=backward
-  const [animating, setAnimating] = useState(false);
-  const [dragging, setDragging] = useState(false);
+  const busyRef = useRef(false);
+  const dragging = useRef(false);
   const startX = useRef(0);
   const deltaX = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const total = articles.length;
 
-  const go = useCallback((n: number, d: 1 | -1 = 1) => {
-    const next = ((n % total) + total) % total;
-    if (next === idx || animating) return;
-    setDir(d);
-    setPrev(idx);
-    setIdx(next);
-    setAnimating(true);
-    setTimeout(() => { setPrev(null); setAnimating(false); }, 420);
-  }, [idx, total, animating]);
+  // Refs to DOM nodes for imperative animation
+  const stripRef = useRef<HTMLDivElement>(null);   // slide effect
+  const curRef   = useRef<HTMLDivElement>(null);   // fade/zoom current
+  const nxtRef   = useRef<HTMLDivElement>(null);   // fade/zoom next
 
-  useEffect(() => {
-    if (dragging || animating) return;
-    timerRef.current = setTimeout(() => go(idx + 1, 1), intervalSec * 1000);
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [idx, dragging, animating, go, intervalSec]);
+  const resetTimer = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => advance(1), intervalSec * 1000);
+  }, [intervalSec]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { resetTimer(); return () => { if (timerRef.current) clearTimeout(timerRef.current); }; }, [resetTimer]);
+
+  function advance(dir: 1 | -1, to?: number) {
+    if (busyRef.current || total < 2) return;
+    const next = to !== undefined ? to : ((idx + dir + total) % total);
+    if (next === idx) return;
+    busyRef.current = true;
+    resetTimer();
+
+    if (effect === "slide") {
+      const strip = stripRef.current;
+      if (!strip) { setIdx(next); busyRef.current = false; return; }
+      // Snap strip to show "next" without transition
+      const fromPct = -idx * 100;
+      const toPct   = -next * 100;
+      strip.style.transition = "none";
+      strip.style.transform  = `translateX(${fromPct}%)`;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        strip.style.transition = "transform 0.45s cubic-bezier(.4,0,.2,1)";
+        strip.style.transform  = `translateX(${toPct}%)`;
+        setTimeout(() => { setIdx(next); busyRef.current = false; }, 460);
+      }));
+    } else {
+      // fade / zoom — imperatively animate nxtRef in, curRef out
+      const cur = curRef.current;
+      const nxt = nxtRef.current;
+      if (!cur || !nxt) { setIdx(next); busyRef.current = false; return; }
+
+      // Prepare next slide (hidden)
+      nxt.dataset.artIdx = String(next);
+      nxt.style.transition = "none";
+      nxt.style.opacity    = "0";
+      nxt.style.transform  = effect === "zoom" ? "scale(1.06)" : "scale(1)";
+      nxt.style.zIndex     = "2";
+      cur.style.zIndex     = "1";
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const T = "opacity 0.42s ease, transform 0.42s ease";
+        nxt.style.transition = T;
+        nxt.style.opacity    = "1";
+        nxt.style.transform  = "scale(1)";
+        cur.style.transition = T;
+        cur.style.opacity    = "0";
+        cur.style.transform  = effect === "zoom" ? "scale(0.95)" : "scale(1)";
+        setTimeout(() => {
+          setIdx(next);
+          // reset after React re-renders
+          requestAnimationFrame(() => {
+            if (cur) { cur.style.opacity = "1"; cur.style.transform = "scale(1)"; cur.style.transition = "none"; cur.style.zIndex = ""; }
+            if (nxt) { nxt.style.opacity = "0"; nxt.style.transform = effect === "zoom" ? "scale(1.06)" : "scale(1)"; nxt.style.transition = "none"; nxt.style.zIndex = ""; }
+          });
+          busyRef.current = false;
+        }, 450);
+      }));
+    }
+  }
 
   function onPointerDown(e: React.PointerEvent) {
-    startX.current = e.clientX; deltaX.current = 0; setDragging(true);
+    startX.current = e.clientX; deltaX.current = 0; dragging.current = true;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
   function onPointerMove(e: React.PointerEvent) {
-    if (!dragging) return;
+    if (!dragging.current) return;
     deltaX.current = e.clientX - startX.current;
   }
   function onPointerUp() {
-    if (!dragging) return;
-    setDragging(false);
-    if (deltaX.current < -40) go(idx + 1, 1);
-    else if (deltaX.current > 40) go(idx - 1, -1);
+    if (!dragging.current) return;
+    dragging.current = false;
+    const d = deltaX.current;
     deltaX.current = 0;
+    if (d < -40) advance(1);
+    else if (d > 40) advance(-1);
   }
 
   if (!articles.length) return <div className="h-56 rounded-3xl bg-slate-800/60 animate-pulse" />;
 
-  // ── CSS per effect ──
-  function enterStyle(): React.CSSProperties {
-    if (effect === "fade")   return { opacity: animating ? 0 : 1, transition: "opacity 0.4s ease" };
-    if (effect === "zoom")   return { opacity: animating ? 0 : 1, transform: animating ? "scale(1.06)" : "scale(1)", transition: "opacity 0.4s ease, transform 0.4s ease" };
-    // slide
-    return { transform: animating ? `translateX(${dir * 100}%)` : "translateX(0)", transition: animating ? "none" : "transform 0.4s cubic-bezier(.4,0,.2,1)" };
-  }
-  function leaveStyle(): React.CSSProperties {
-    if (effect === "fade")   return { opacity: 0, transition: "opacity 0.4s ease" };
-    if (effect === "zoom")   return { opacity: 0, transform: "scale(0.96)", transition: "opacity 0.4s ease, transform 0.4s ease" };
-    // slide
-    return { transform: `translateX(${-dir * 100}%)`, transition: "transform 0.4s cubic-bezier(.4,0,.2,1)" };
-  }
-
-  function SlideContent({ art, style }: { art: PKArticle; style: React.CSSProperties }) {
-    return (
-      <div className="absolute inset-0" style={style}>
-        <Link href={`/articles/${art.slug}`} draggable={false}
-          onClick={e => { if (Math.abs(deltaX.current) > 8) e.preventDefault(); }}>
-          <div className="relative h-full bg-slate-800 overflow-hidden">
-            {art.image_url
-              ? <img key={art.slug} src={art.image_url} alt="" referrerPolicy="no-referrer" draggable={false} // eslint-disable-line @next/next/no-img-element
-                  className="w-full h-full object-cover" />
-              : <div className="w-full h-full bg-slate-800" />}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 p-5">
-              {art.category && <p className="text-[10px] text-amber-400 uppercase tracking-widest mb-1">{art.category}</p>}
-              <h3 className="text-xl md:text-2xl font-bold text-white leading-tight line-clamp-3" style={{ fontFamily: "Georgia, serif" }}>{art.title}</h3>
-              {art.excerpt && <p className="text-slate-300/75 text-sm mt-1.5 line-clamp-2">{art.excerpt}</p>}
-            </div>
-          </div>
-        </Link>
-      </div>
-    );
-  }
+  // Next slide index for fade/zoom overlay (peek ahead)
+  const nextIdx = (idx + 1) % total;
 
   return (
     <div className="relative select-none touch-pan-y">
-      {/* Viewport */}
-      <div
-        className="rounded-3xl overflow-hidden border border-slate-700 bg-slate-900 cursor-grab active:cursor-grabbing"
+      <div className="rounded-3xl overflow-hidden border border-slate-700 bg-slate-900 cursor-grab active:cursor-grabbing"
         style={{ height: 224 }}
         onPointerDown={onPointerDown} onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
-      >
-        <div className="relative w-full h-full">
-          {/* Leaving slide */}
-          {prev !== null && <SlideContent art={articles[prev]} style={leaveStyle()} />}
-          {/* Entering slide */}
-          <SlideContent art={articles[idx]} style={enterStyle()} />
-        </div>
+        onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
+
+        {effect === "slide" ? (
+          /* ── SLIDE: horizontal strip ── */
+          <div ref={stripRef} className="flex h-full"
+            style={{ width: `${total * 100}%`, transform: `translateX(-${idx * 100 / total}%)`, willChange: "transform" }}>
+            {articles.map(art => (
+              <div key={art.slug} style={{ width: `${100 / total}%`, flexShrink: 0 }} className="h-full">
+                <SlideCard art={art} deltaXRef={deltaX} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* ── FADE / ZOOM: two layers ── */
+          <div className="relative w-full h-full">
+            {/* current */}
+            <div ref={curRef} className="absolute inset-0" style={{ willChange: "opacity, transform" }}>
+              <SlideCard art={articles[idx]} deltaXRef={deltaX} />
+            </div>
+            {/* next (preloaded, invisible) */}
+            <div ref={nxtRef} className="absolute inset-0" style={{ opacity: 0, willChange: "opacity, transform" }}>
+              <SlideCard art={articles[nextIdx]} deltaXRef={deltaX} />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Counter */}
-      <span className="absolute top-3 right-3 text-[10px] font-bold text-white/70 bg-slate-900/60 px-2 py-0.5 rounded-full tabular-nums z-10 pointer-events-none">
+      <span className="absolute top-3 right-3 text-[10px] font-bold text-white/70 bg-slate-900/60 px-2 py-0.5 rounded-full tabular-nums z-20 pointer-events-none">
         {idx + 1} / {total}
       </span>
 
       {/* Prev / Next (desktop) */}
-      <button onClick={() => go(idx - 1, -1)}
-        className="hidden md:flex absolute left-3 top-[104px] -translate-y-1/2 items-center justify-center w-9 h-9 rounded-full bg-slate-900/75 text-white hover:bg-slate-800 transition-colors border border-slate-700/50 z-10"
+      <button onClick={() => advance(-1)}
+        className="hidden md:flex absolute left-3 top-[104px] -translate-y-1/2 items-center justify-center w-9 h-9 rounded-full bg-slate-900/75 text-white hover:bg-slate-800 transition-colors border border-slate-700/50 z-20"
         aria-label="Poprzedni">
         <Icon name="chevron-right" size={16} className="rotate-180" />
       </button>
-      <button onClick={() => go(idx + 1, 1)}
-        className="hidden md:flex absolute right-3 top-[104px] -translate-y-1/2 items-center justify-center w-9 h-9 rounded-full bg-slate-900/75 text-white hover:bg-slate-800 transition-colors border border-slate-700/50 z-10"
+      <button onClick={() => advance(1)}
+        className="hidden md:flex absolute right-3 top-[104px] -translate-y-1/2 items-center justify-center w-9 h-9 rounded-full bg-slate-900/75 text-white hover:bg-slate-800 transition-colors border border-slate-700/50 z-20"
         aria-label="Następny">
         <Icon name="chevron-right" size={16} />
       </button>
@@ -182,7 +233,7 @@ function ArticleSlider({
       {/* Dots */}
       <div className="flex justify-center items-center gap-1.5 mt-3">
         {articles.map((_, i) => (
-          <button key={i} onClick={() => go(i, i > idx ? 1 : -1)}
+          <button key={i} onClick={() => advance(i > idx ? 1 : -1, i)}
             className="transition-all duration-300 rounded-full"
             style={{ width: i === idx ? 20 : 6, height: 6, background: i === idx ? "#d97706" : "rgba(148,163,184,0.35)" }}
             aria-label={`Slajd ${i + 1}`} />
