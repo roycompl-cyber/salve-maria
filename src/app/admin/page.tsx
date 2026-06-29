@@ -574,6 +574,11 @@ export default function AdminPage() {
   const [pushSelectedCities, setPushSelectedCities] = useState<string[]>([]);
   const [pushCityFilter, setPushCityFilter] = useState(false);
 
+  // ── Users list UI state ──
+  const [userSearch, setUserSearch] = useState("");
+  const [userGroup, setUserGroup] = useState<"all"|"admin"|"donor"|"no-profile"|"no-push">("all");
+  const [expandedUser, setExpandedUser] = useState<string|null>(null);
+
   // ── Auth check ──
   useEffect(() => {
     fetch("/api/admin/check").then(r => r.json()).then(d => {
@@ -1590,107 +1595,166 @@ export default function AdminPage() {
         </>)}
 
         {/* ── USERS ── */}
-        {section==="users" && (<>
-          <SectionHeader title="Użytkownicy" subtitle={`${users.length} zarejestrowanych kont`} onBack={()=>setSection(null)}/>
-          <div className="px-4 pb-2 flex justify-end">
-            {!addingUser && !editingUser && (
-              <button onClick={()=>setAddingUser(true)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white`}
-                style={{background:"linear-gradient(135deg,#14532d,#166534)"}}>
-                <UserPlus size={15}/> Dodaj użytkownika
-              </button>
-            )}
-          </div>
-          <div className="px-4 pb-8 space-y-2 mt-2">
-            {usersLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-red-400 animate-spin"/></div>}
-            {addingUser && (
-              <AddUserForm onSave={handleAddUser} onCancel={()=>{setAddingUser(false);setAddUserError("");}} saving={addUserSaving} saveError={addUserError}/>
-            )}
-            {users.map(u=>(
-              <div key={u.id}>
-                {editingUser?.id===u.id ? (
-                  <UserEditForm user={u} onSave={handleSaveUser} onCancel={()=>{setEditingUser(null);setUserSaveError("");}} saving={userSaving} saveError={userSaveError}/>
-                ) : (
-                  <div className={`${CARD} p-4 space-y-3`}>
-                    {/* Header row */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-white font-semibold text-sm">
-                            {u.first_name||u.last_name?`${u.first_name??""} ${u.last_name??""}`.trim():"(brak imienia i nazwiska)"}
-                          </p>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${u.role==="admin"?"bg-red-900/40 text-red-400":"bg-slate-700/80 text-slate-400"}`}>
-                            {u.role}
-                          </span>
-                          {u.profile_complete
-                            ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-900/30 text-green-400">✓ profil</span>
-                            : <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-900/30 text-red-400">✗ profil</span>}
-                          {u.has_push
-                            ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-900/30 text-blue-400">✓ push</span>
-                            : <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-700/50 text-slate-500">✗ push</span>}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <button onClick={()=>setEditingUser(u)} title="Edytuj" className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-700 transition-colors"><Pencil size={13}/></button>
-                        <button onClick={async()=>{if(!confirm(`Wysłać link resetowania hasła do ${u.email}?`))return;await fetch("/api/admin/users/reset-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:u.email})});}}
-                          title="Resetuj hasło" className="p-1.5 rounded-lg text-slate-500 hover:text-amber-400 hover:bg-slate-700 transition-colors"><Lock size={13}/></button>
-                        <button onClick={async()=>{
-                          if(!confirm(`Trwale usunąć konto ${u.email}? Tej operacji nie można cofnąć.`))return;
-                          const res=await fetch(`/api/admin/users/${u.id}`,{method:"DELETE"});
-                          if(res.ok)setUsers(prev=>prev.filter(x=>x.id!==u.id));
-                        }} title="Usuń konto" className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-700 transition-colors"><Trash2 size={13}/></button>
-                      </div>
-                    </div>
-                    {/* All fields */}
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs border-t border-slate-700/50 pt-3">
-                      <div>
-                        <span className="text-slate-500 block">Email</span>
-                        <span className="text-slate-300 break-all">{u.email}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Telefon</span>
-                        <span className="text-slate-300">{u.phone || <span className="text-slate-600">—</span>}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Imię</span>
-                        <span className="text-slate-300">{u.first_name || <span className="text-slate-600">—</span>}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Nazwisko</span>
-                        <span className="text-slate-300">{u.last_name || <span className="text-slate-600">—</span>}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Miasto</span>
-                        <span className="text-slate-300">{u.city || <span className="text-slate-600">—</span>}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Rola</span>
-                        <span className={u.role==="admin"?"text-red-400":"text-slate-300"}>{u.role}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Rejestracja</span>
-                        <span className="text-slate-300">{new Date(u.created_at).toLocaleDateString("pl-PL")}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Ostatnie logowanie</span>
-                        <span className="text-slate-300">
-                          {u.last_sign_in_at
-                            ? `${new Date(u.last_sign_in_at).toLocaleDateString("pl-PL")} ${new Date(u.last_sign_in_at).toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}`
-                            : <span className="text-slate-600">nigdy</span>}
-                        </span>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="text-slate-500 block">ID</span>
-                        <span className="text-slate-600 font-mono text-[10px] break-all">{u.id}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+        {section==="users" && (()=>{const filteredUsers = users.filter(u => {
+            if (userGroup==="admin" && u.role!=="admin") return false;
+            if (userGroup==="donor" && u.role!=="donor") return false;
+            if (userGroup==="no-profile" && u.profile_complete) return false;
+            if (userGroup==="no-push" && u.has_push) return false;
+            if (!userSearch) return true;
+            const q = userSearch.toLowerCase();
+            return (u.first_name??"").toLowerCase().includes(q)
+              || (u.last_name??"").toLowerCase().includes(q)
+              || (u.email??"").toLowerCase().includes(q)
+              || (u.city??"").toLowerCase().includes(q)
+              || (u.phone??"").toLowerCase().includes(q);
+          });
+          return (<>
+            <SectionHeader title="Użytkownicy" subtitle={`${users.length} kont`} onBack={()=>setSection(null)}/>
+            <div className="px-4 space-y-2 pb-2">
+              {/* Search */}
+              <input
+                className={inputCls}
+                placeholder="Szukaj po imieniu, emailu, mieście…"
+                value={userSearch}
+                onChange={e=>setUserSearch(e.target.value)}
+              />
+              {/* Group filter */}
+              <div className="flex gap-1.5 flex-wrap">
+                {([["all","Wszyscy"],["admin","Adminowie"],["donor","Darczyńcy"],["no-profile","Brak profilu"],["no-push","Brak push"]] as [typeof userGroup, string][]).map(([key,label])=>(
+                  <button key={key} onClick={()=>setUserGroup(key)}
+                    className={`px-3 py-1 rounded-xl text-xs font-medium transition-colors border ${userGroup===key?"border-red-700 bg-red-900/30 text-red-300":"border-slate-700 bg-slate-800 text-slate-400"}`}>
+                    {label}
+                    {key==="all"&&<span className="ml-1 text-slate-500">({users.length})</span>}
+                    {key==="admin"&&<span className="ml-1 text-slate-500">({users.filter(u=>u.role==="admin").length})</span>}
+                    {key==="donor"&&<span className="ml-1 text-slate-500">({users.filter(u=>u.role==="donor").length})</span>}
+                    {key==="no-profile"&&<span className="ml-1 text-slate-500">({users.filter(u=>!u.profile_complete).length})</span>}
+                    {key==="no-push"&&<span className="ml-1 text-slate-500">({users.filter(u=>!u.has_push).length})</span>}
+                  </button>
+                ))}
               </div>
-            ))}
-            {!usersLoading&&users.length===0&&<p className="text-slate-500 text-sm text-center py-8">Brak użytkowników.</p>}
-          </div>
-        </>)}
+              {/* Add button */}
+              {!addingUser && !editingUser && (
+                <div className="flex justify-end">
+                  <button onClick={()=>setAddingUser(true)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+                    style={{background:"linear-gradient(135deg,#14532d,#166534)"}}>
+                    <UserPlus size={15}/> Dodaj użytkownika
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="px-4 pb-8 space-y-2 mt-1">
+              {usersLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-red-400 animate-spin"/></div>}
+              {addingUser && (
+                <AddUserForm onSave={handleAddUser} onCancel={()=>{setAddingUser(false);setAddUserError("");}} saving={addUserSaving} saveError={addUserError}/>
+              )}
+              {filteredUsers.map(u=>(
+                <div key={u.id}>
+                  {editingUser?.id===u.id ? (
+                    <UserEditForm user={u} onSave={handleSaveUser} onCancel={()=>{setEditingUser(null);setUserSaveError("");}} saving={userSaving} saveError={userSaveError}/>
+                  ) : (
+                    <div className={CARD}>
+                      {/* Collapsed row — always visible */}
+                      <button
+                        className="w-full flex items-center gap-3 px-4 py-3 text-left"
+                        onClick={()=>setExpandedUser(expandedUser===u.id?null:u.id)}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-white font-semibold text-sm">
+                              {u.first_name||u.last_name?`${u.first_name??""} ${u.last_name??""}`.trim():<span className="text-slate-500 italic">brak danych</span>}
+                            </span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${u.role==="admin"?"bg-red-900/40 text-red-400":"bg-slate-700/60 text-slate-400"}`}>{u.role}</span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500 flex-wrap">
+                            {u.city&&<span>{u.city}</span>}
+                            <span className={u.has_push?"text-blue-400":"text-slate-600"}>{u.has_push?"● push":"○ push"}</span>
+                            <span>{u.last_sign_in_at?new Date(u.last_sign_in_at).toLocaleDateString("pl-PL"):"nie logował się"}</span>
+                          </div>
+                        </div>
+                        {expandedUser===u.id?<ChevronUp size={14} className="text-slate-500 flex-shrink-0"/>:<ChevronDown size={14} className="text-slate-500 flex-shrink-0"/>}
+                      </button>
+                      {/* Expanded details */}
+                      {expandedUser===u.id&&(
+                        <div className="border-t border-slate-700/50 px-4 py-4 space-y-4">
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                            <div>
+                              <span className="text-slate-500 block mb-0.5">Imię</span>
+                              <span className="text-slate-200">{u.first_name||<span className="text-slate-600">—</span>}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block mb-0.5">Nazwisko</span>
+                              <span className="text-slate-200">{u.last_name||<span className="text-slate-600">—</span>}</span>
+                            </div>
+                            <div className="col-span-2">
+                              <span className="text-slate-500 block mb-0.5">Email</span>
+                              <span className="text-slate-200 break-all">{u.email}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block mb-0.5">Telefon</span>
+                              <span className="text-slate-200">{u.phone||<span className="text-slate-600">—</span>}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block mb-0.5">Miasto</span>
+                              <span className="text-slate-200">{u.city||<span className="text-slate-600">—</span>}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block mb-0.5">Rola</span>
+                              <span className={u.role==="admin"?"text-red-400":"text-slate-200"}>{u.role}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block mb-0.5">Profil</span>
+                              <span className={u.profile_complete?"text-green-400":"text-red-400"}>{u.profile_complete?"kompletny":"niekompletny"}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block mb-0.5">Push</span>
+                              <span className={u.has_push?"text-blue-400":"text-slate-500"}>{u.has_push?"włączony":"wyłączony"}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block mb-0.5">Rejestracja</span>
+                              <span className="text-slate-200">{new Date(u.created_at).toLocaleDateString("pl-PL")}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block mb-0.5">Ostatnie logowanie</span>
+                              <span className="text-slate-200">
+                                {u.last_sign_in_at
+                                  ?`${new Date(u.last_sign_in_at).toLocaleDateString("pl-PL")} ${new Date(u.last_sign_in_at).toLocaleTimeString("pl-PL",{hour:"2-digit",minute:"2-digit"})}`
+                                  :<span className="text-slate-600">nigdy</span>}
+                              </span>
+                            </div>
+                            <div className="col-span-2">
+                              <span className="text-slate-500 block mb-0.5">ID</span>
+                              <span className="text-slate-600 font-mono text-[10px] break-all">{u.id}</span>
+                            </div>
+                          </div>
+                          {/* Action buttons */}
+                          <div className="flex gap-2 pt-1 border-t border-slate-700/50">
+                            <button onClick={()=>{setEditingUser(u);setExpandedUser(null);}}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-amber-300 bg-amber-900/20 hover:bg-amber-900/40 border border-amber-800/40 transition-colors">
+                              <Pencil size={12}/> Edytuj
+                            </button>
+                            <button onClick={async()=>{if(!confirm(`Wysłać link resetowania hasła do ${u.email}?`))return;await fetch("/api/admin/users/reset-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:u.email})});}}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 bg-slate-700/40 hover:bg-slate-700 border border-slate-600/40 transition-colors">
+                              <Lock size={12}/> Reset hasła
+                            </button>
+                            <button onClick={async()=>{
+                              if(!confirm(`Trwale usunąć konto ${u.email}? Tej operacji nie można cofnąć.`))return;
+                              const res=await fetch(`/api/admin/users/${u.id}`,{method:"DELETE"});
+                              if(res.ok){setUsers(prev=>prev.filter(x=>x.id!==u.id));setExpandedUser(null);}
+                            }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-red-400 bg-red-900/20 hover:bg-red-900/40 border border-red-800/40 transition-colors ml-auto">
+                              <Trash2 size={12}/> Usuń
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {!usersLoading&&filteredUsers.length===0&&<p className="text-slate-500 text-sm text-center py-8">{userSearch?"Brak wyników dla tej frazy.":"Brak użytkowników."}</p>}
+            </div>
+          </>);
+        })()}
 
         {/* ── PRAYERS ── */}
         {section==="prayers" && (<>
