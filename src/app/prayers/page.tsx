@@ -4,7 +4,6 @@ import AppShell from "@/components/AppShell";
 import { useLocale } from "@/hooks/useLocale";
 import { useFavorites } from "@/hooks/useFavorites";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { Search, ChevronRight, Heart, Loader2 } from "lucide-react";
 
 interface Prayer {
@@ -53,19 +52,11 @@ function PrayerRow({ prayer, isFav, onToggleFav }: {
 
 function PrayersContent() {
   const { t } = useLocale();
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [prayers, setPrayers] = useState<Prayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const activeCategory = searchParams.get("cat") ?? "Mój modlitewnik";
+  const [activeCategory, setActiveCategory] = useState("Mój modlitewnik");
   const { toggle, isFav, mounted } = useFavorites();
-
-  function setActiveCategory(cat: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("cat", cat);
-    router.replace(`/prayers?${params.toString()}`, { scroll: false });
-  }
 
   useEffect(() => {
     fetch("/api/admin/prayers")
