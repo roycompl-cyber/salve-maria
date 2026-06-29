@@ -3,7 +3,10 @@ import { useEffect, useState } from "react";
 import { Bell, X } from "lucide-react";
 import { urlBase64ToUint8Array } from "@/lib/utils";
 
-const STORAGE_KEY = "salve_push_onboard_v1";
+// localStorage: trwałe (denied / granted)
+// sessionStorage: tymczasowe (later) — reset przy każdej nowej sesji przeglądarki
+const LS_KEY = "salve_push_perm_v1";   // "granted" | "denied"
+const SS_KEY = "salve_push_later_v1";  // "later"
 
 export default function PushOnboardingBanner({ userId }: { userId: string | undefined }) {
   const [visible, setVisible] = useState(false);
@@ -15,46 +18,55 @@ export default function PushOnboardingBanner({ userId }: { userId: string | unde
     if (typeof window === "undefined") return;
     if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
-    // Już odpowiedziano
-    if (localStorage.getItem(STORAGE_KEY)) return;
-
-    // Jeśli zgoda już udzielona — subskrybuj cicho bez banera
-    if (Notification.permission === "granted") {
-      silentSubscribe();
-      localStorage.setItem(STORAGE_KEY, "auto");
-      return;
-    }
-
-    // Zgoda odrzucona przez system — nie pokazuj banera
+    // Jeśli OS odmówił wcześniej — nie pytaj
+    if (localStorage.getItem(LS_KEY) === "denied") return;
     if (Notification.permission === "denied") {
-      localStorage.setItem(STORAGE_KEY, "denied");
+      localStorage.setItem(LS_KEY, "denied");
       return;
     }
 
-    // Pokaż baner z opóźnieniem (niech strona się załaduje)
+    // Jeśli OS już ma zgodę — sprawdź czy mamy aktywną subskrypcję w przeglądarce
+    if (Notification.permission === "granted") {
+      checkAndSubscribe();
+      return;
+    }
+
+    // Użytkownik kliknął "Może później" w tej sesji — nie pokazuj ponownie
+    if (sessionStorage.getItem(SS_KEY)) return;
+
+    // Pokaż baner z opóźnieniem
     const t = setTimeout(() => setVisible(true), 2500);
     return () => clearTimeout(t);
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function silentSubscribe() {
+  async function checkAndSubscribe() {
     try {
       const regs = await navigator.serviceWorker.getRegistrations();
       const reg = regs[0];
       if (!reg) return;
       const existing = await reg.pushManager.getSubscription();
-      const sub = existing ?? await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
-      });
-      await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subscription: sub,
-          settings: { news_notifications: true, action_notifications: true, prayer_reminder_enabled: false, prayer_reminder_time: "07:00" },
-        }),
-      });
+      if (existing) {
+        // Już subskrybowany — upewnij się że jest w bazie
+        await saveSubscription(existing);
+        localStorage.setItem(LS_KEY, "granted");
+      } else {
+        // Zgoda OS jest ale brak subskrypcji — odsubskrybowano ręcznie lub wygasła
+        // Pokaż baner żeby ponownie włączyć
+        sessionStorage.removeItem(SS_KEY);
+        setTimeout(() => setVisible(true), 2500);
+      }
     } catch { /* push opcjonalny */ }
+  }
+
+  async function saveSubscription(sub: PushSubscription) {
+    await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subscription: sub,
+        settings: { news_notifications: true, action_notifications: true, prayer_reminder_enabled: false, prayer_reminder_time: "07:00" },
+      }),
+    });
   }
 
   async function handleEnable() {
@@ -62,13 +74,22 @@ export default function PushOnboardingBanner({ userId }: { userId: string | unde
     try {
       const perm = await Notification.requestPermission();
       if (perm === "granted") {
-        await silentSubscribe();
+        const regs = await navigator.serviceWorker.getRegistrations();
+        const reg = regs[0];
+        if (reg) {
+          const sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+          });
+          await saveSubscription(sub);
+        }
+        localStorage.setItem(LS_KEY, "granted");
         setDone(true);
         setTimeout(() => setVisible(false), 1800);
       } else {
+        localStorage.setItem(LS_KEY, "denied");
         setVisible(false);
       }
-      localStorage.setItem(STORAGE_KEY, perm);
     } catch {
       setVisible(false);
     }
@@ -76,7 +97,8 @@ export default function PushOnboardingBanner({ userId }: { userId: string | unde
   }
 
   function handleDismiss() {
-    localStorage.setItem(STORAGE_KEY, "later");
+    // Zapamiętaj tylko w ramach sesji — przy kolejnym logowaniu banner wróci
+    sessionStorage.setItem(SS_KEY, "later");
     setVisible(false);
   }
 

@@ -17,7 +17,7 @@ import { CIVILITAS_SECTIONS, blocksToText } from "@/lib/civilitas-sections";
 interface UserRow {
   id: string; email: string; first_name: string | null; last_name: string | null;
   phone: string | null; city: string | null; role: string;
-  profile_complete: boolean; created_at: string; last_sign_in_at: string | null;
+  profile_complete: boolean; has_push: boolean; created_at: string; last_sign_in_at: string | null;
 }
 interface Prayer {
   id: string; title: string; content: string; category: string;
@@ -1621,7 +1621,12 @@ export default function AdminPage() {
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${u.role==="admin"?"bg-red-900/40 text-red-400":"bg-slate-700/80 text-slate-400"}`}>
                             {u.role}
                           </span>
-                          {u.profile_complete&&<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-900/30 text-green-400">✓ profil</span>}
+                          {u.profile_complete
+                            ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-900/30 text-green-400">✓ profil</span>
+                            : <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-900/30 text-red-400">✗ profil</span>}
+                          {u.has_push
+                            ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-900/30 text-blue-400">✓ push</span>
+                            : <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-700/50 text-slate-500">✗ push</span>}
                         </div>
                         <p className="text-slate-400 text-xs mt-0.5 truncate">{u.email}</p>
                         <div className="flex items-center gap-3 mt-1 text-slate-500 text-xs flex-wrap">

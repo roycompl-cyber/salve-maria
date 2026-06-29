@@ -25,12 +25,14 @@ export async function GET() {
   const { data: authData, error: authError } = await adminClient.auth.admin.listUsers();
   if (authError) return NextResponse.json({ error: authError.message }, { status: 500 });
 
-  // Pobierz profile (adminClient omija RLS)
-  const { data: profiles } = await adminClient
-    .from("profiles")
-    .select("id, first_name, last_name, phone, city, role, profile_complete, created_at");
+  // Pobierz profile i push subscriptions równolegle
+  const [{ data: profiles }, { data: pushSubs }] = await Promise.all([
+    adminClient.from("profiles").select("id, first_name, last_name, phone, city, role, profile_complete, created_at"),
+    adminClient.from("push_subscriptions").select("user_id"),
+  ]);
 
   const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]));
+  const pushUserIds = new Set((pushSubs ?? []).map((s: { user_id: string }) => s.user_id));
 
   const users = authData.users.map(u => {
     const p = profileMap[u.id] ?? {};
@@ -43,6 +45,7 @@ export async function GET() {
       city: p.city ?? null,
       role: p.role ?? "donor",
       profile_complete: p.profile_complete ?? false,
+      has_push: pushUserIds.has(u.id),
       created_at: u.created_at,
       last_sign_in_at: u.last_sign_in_at ?? null,
     };
