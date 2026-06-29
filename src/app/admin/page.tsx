@@ -48,7 +48,8 @@ interface TileOverride {
   label?: string; sublabel?: string; hidden?: boolean; order?: number; colorPreset?: string; icon?: string;
 }
 interface PageSectionConfig { show?: boolean; title?: string; count?: number; }
-interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; }
+interface SliderConfig { effect?: "slide" | "fade" | "zoom"; interval?: number; count?: number; show?: boolean; }
+interface PageConfig { articles?: PageSectionConfig; petitions?: PageSectionConfig; slider?: SliderConfig; }
 type TilesConfig = Record<string, TileOverride>;
 
 type Section = null | "notifications" | "messages" | "users" | "prayers" | "tiles" | "modules" | "plinio" | "catechism" | "civilitas" | "referral" | "bypass" | "settings" | "stats" | "errors" | "login" | "access" | "articles" | "petitions" | "videos" | "push-stats" | "source-config";
@@ -1958,6 +1959,62 @@ export default function AdminPage() {
                 <p className="text-slate-400 text-xs leading-relaxed">
                   Kontroluj widoczność i treść sekcji wyświetlanych nad kafelkami na stronie START.
                 </p>
+                {/* ── Slider artykułów ── */}
+                {(()=>{
+                  const sc = pageConfig.slider ?? {};
+                  const sliderOn = sc.show !== false;
+                  return (
+                    <div className={`${CARD} p-4 space-y-4`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-slate-400"><LayoutGrid size={16}/></span>
+                          <p className="text-white font-semibold text-sm">Slider artykułów</p>
+                        </div>
+                        <button onClick={()=>setPageConfig(p=>({...p,slider:{...sc,show:!sliderOn}}))}
+                          className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${sliderOn?"bg-purple-700":"bg-slate-700"}`}>
+                          <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${sliderOn?"left-6":"left-0.5"}`}/>
+                        </button>
+                      </div>
+                      <div className={`space-y-4 transition-opacity ${!sliderOn?"opacity-30 pointer-events-none":""}`}>
+                        <div>
+                          <label className={labelCls}>Liczba slajdów</label>
+                          <div className="flex gap-2">
+                            {[3,4,5].map(n=>(
+                              <button key={n} onClick={()=>setPageConfig(p=>({...p,slider:{...sc,count:n}}))}
+                                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${(sc.count??5)===n?"bg-purple-700 text-white":"bg-slate-700 text-slate-300 hover:bg-slate-600"}`}>
+                                {n}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className={labelCls}>Efekt przejścia</label>
+                          <div className="flex gap-2">
+                            {([["slide","Przesunięcie"],["fade","Przenikanie"],["zoom","Zoom"]] as const).map(([v,lbl])=>(
+                              <button key={v} onClick={()=>setPageConfig(p=>({...p,slider:{...sc,effect:v}}))}
+                                className={`flex-1 py-2 rounded-xl text-xs font-medium transition-colors ${(sc.effect??"slide")===v?"bg-purple-700 text-white":"bg-slate-700 text-slate-300 hover:bg-slate-600"}`}>
+                                {lbl}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className={labelCls}>Czas auto-play</label>
+                          <div className="flex gap-2">
+                            {([3,4,6,8] as const).map(s=>(
+                              <button key={s} onClick={()=>setPageConfig(p=>({...p,slider:{...sc,interval:s}}))}
+                                className={`flex-1 py-2 rounded-xl text-xs font-medium transition-colors ${(sc.interval??4)===s?"bg-purple-700 text-white":"bg-slate-700 text-slate-300 hover:bg-slate-600"}`}>
+                                {s}s
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* ── Sekcje artykuły / petycje ── */}
                 {([
                   {key:"articles" as const, label:"Sekcja Artykułów / Publikacji", defaultTitle:"Publikacje", defaultCount:4, icon:<Newspaper size={16}/>},
                   {key:"petitions" as const, label:"Sekcja Petycji", defaultTitle:"Podejmij działanie", defaultCount:3, icon:<Megaphone size={16}/>},
