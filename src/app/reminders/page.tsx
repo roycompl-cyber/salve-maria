@@ -52,12 +52,15 @@ export default function RemindersPage() {
   const [loaded, setLoaded] = useState(false);
   const [notifPerm, setNotifPerm] = useState<NotificationPermission | "unsupported">("default");
   const [repeats, setRepeats] = useState(1);
+  const [melody, setMelody] = useState<0 | 1>(0);
   const [pushReady, setPushReady] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     setCfg(loadConfig());
-    setRepeats(loadGlobal().fanfareRepeats);
+    const g = loadGlobal();
+    setRepeats(g.fanfareRepeats);
+    setMelody(g.melody);
     setLoaded(true);
     if ("Notification" in window) {
       setNotifPerm(Notification.permission);
@@ -69,7 +72,12 @@ export default function RemindersPage() {
 
   function updateRepeats(n: number) {
     setRepeats(n);
-    saveGlobal({ fanfareRepeats: n });
+    saveGlobal({ fanfareRepeats: n, melody });
+  }
+
+  function updateMelody(m: 0 | 1) {
+    setMelody(m);
+    saveGlobal({ fanfareRepeats: repeats, melody: m });
   }
 
   function testAlarm() {
@@ -164,20 +172,37 @@ export default function RemindersPage() {
           </div>
         )}
 
-        {/* Powtórzenia melodii */}
-        <div className="rounded-2xl bg-slate-800 border border-slate-700/50 px-4 py-3.5 mb-4">
-          <p className="text-white text-sm font-semibold mb-2.5" style={{ fontFamily: "Georgia, serif" }}>
-            Powtórzenia melodii
-          </p>
-          <div className="flex items-center gap-2">
-            {[1, 2, 3].map(n => (
-              <button key={n} onClick={() => updateRepeats(n)}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${repeats === n ? "bg-amber-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"}`}>
-                {n}×
+        {/* Wybór melodii + powtórzenia */}
+        <div className="rounded-2xl bg-slate-800 border border-slate-700/50 px-4 py-3.5 mb-4 space-y-4">
+          <div>
+            <p className="text-white text-sm font-semibold mb-2.5" style={{ fontFamily: "Georgia, serif" }}>
+              Melodia powiadomienia
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => updateMelody(0)}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${melody === 0 ? "bg-amber-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"}`}>
+                Melodia 1
               </button>
-            ))}
+              <button onClick={() => updateMelody(1)}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${melody === 1 ? "bg-amber-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"}`}>
+                Melodia 2
+              </button>
+            </div>
           </div>
-          <p className="text-slate-500 text-xs mt-2">Dotyczy dźwięku w aplikacji. Push wyśle powiadomienie jednorazowo.</p>
+          <div>
+            <p className="text-white text-sm font-semibold mb-2.5" style={{ fontFamily: "Georgia, serif" }}>
+              Powtórzenia melodii
+            </p>
+            <div className="flex items-center gap-2">
+              {[1, 2, 3].map(n => (
+                <button key={n} onClick={() => updateRepeats(n)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${repeats === n ? "bg-amber-600 text-white" : "bg-slate-700 text-slate-300 hover:bg-slate-600"}`}>
+                  {n}×
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="text-slate-500 text-xs">Dotyczy dźwięku w aplikacji. Push wyśle powiadomienie jednorazowo.</p>
         </div>
 
         {/* Testy */}

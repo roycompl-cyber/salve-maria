@@ -76,13 +76,18 @@ const GLOBAL_KEY = "salve_reminders_global_v1";
 export interface GlobalReminderSettings {
   /** ile razy powtórzyć fanfarę przy alarmie (1–3) */
   fanfareRepeats: number;
+  /** wybrana melodia: 0 = pentatonika (G-A-C-A-E), 1 = melodia G-dur */
+  melody: 0 | 1;
 }
 
 export function loadGlobal(): GlobalReminderSettings {
   try {
     const g = JSON.parse(localStorage.getItem(GLOBAL_KEY) ?? "{}");
-    return { fanfareRepeats: Math.min(3, Math.max(1, g.fanfareRepeats ?? 1)) };
-  } catch { return { fanfareRepeats: 1 }; }
+    return {
+      fanfareRepeats: Math.min(3, Math.max(1, g.fanfareRepeats ?? 1)),
+      melody: g.melody === 1 ? 1 : 0,
+    };
+  } catch { return { fanfareRepeats: 1, melody: 0 }; }
 }
 
 export function saveGlobal(g: GlobalReminderSettings) {
@@ -166,7 +171,7 @@ let fanfareTimer: ReturnType<typeof setTimeout> | null = null;
 let stopCurrent: (() => void) | null = null;
 
 /** Czas trwania jednej melodii w sekundach */
-export const FANFARE_SECONDS = 3.2;
+export const FANFARE_SECONDS = 9.2;
 
 /** Wycisza i zatrzymuje melodię */
 export function stopFanfare() {
@@ -175,23 +180,10 @@ export function stopFanfare() {
   stopCurrent = null;
 }
 
-/**
- * Gra spokojną melodię modlitewną przez Web Audio API.
- * Sekwencja nut: G4 – A4 – C5 – A4 – E4 (pentatonika, łagodna fala sinus).
- * Żadnych zewnętrznych plików ani uprawnień.
- */
-function playChime(): (() => void) | null {
+/** Wspólna funkcja odtwarzania sekwencji nut przez Web Audio API */
+function playNotes(notes: [number, number, number][], totalSeconds: number): (() => void) | null {
   const ctx = getAudioContext();
   if (!ctx) return null;
-
-  // Nuty: [częstotliwość Hz, start s, czas trwania s]
-  const notes: [number, number, number][] = [
-    [392.0, 0.00, 0.55],  // G4
-    [440.0, 0.45, 0.55],  // A4
-    [523.3, 0.90, 0.70],  // C5
-    [440.0, 1.50, 0.55],  // A4
-    [329.6, 2.00, 1.10],  // E4  — końcowa
-  ];
 
   const master = ctx.createGain();
   master.gain.setValueAtTime(0.38, ctx.currentTime);
@@ -202,17 +194,13 @@ function playChime(): (() => void) | null {
   for (const [freq, start, dur] of notes) {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-
     osc.type = "sine";
     osc.frequency.setValueAtTime(freq, ctx.currentTime);
-
     const t0 = ctx.currentTime + start;
-    // Łagodne wejście i wyjście (fade-in 40 ms, fade-out ostatnie 30%)
     gain.gain.setValueAtTime(0, t0);
     gain.gain.linearRampToValueAtTime(1, t0 + 0.04);
-    gain.gain.setValueAtTime(1, t0 + dur * 0.7);
+    gain.gain.setValueAtTime(1, t0 + dur * 0.72);
     gain.gain.linearRampToValueAtTime(0, t0 + dur);
-
     osc.connect(gain);
     gain.connect(master);
     osc.start(t0);
@@ -221,9 +209,7 @@ function playChime(): (() => void) | null {
   }
 
   const ctxClose = () => { try { ctx.close(); } catch { /* ok */ } };
-  const lastEnd = ctx.currentTime + 3.2;
-  const tid = setTimeout(ctxClose, (lastEnd - ctx.currentTime + 0.5) * 1000);
-
+  const tid = setTimeout(ctxClose, (totalSeconds + 0.5) * 1000);
   return () => {
     clearTimeout(tid);
     oscs.forEach(o => { try { o.stop(); } catch { /* ok */ } });
@@ -231,20 +217,83 @@ function playChime(): (() => void) | null {
   };
 }
 
+/**
+ * Melodia 0 — pentatonika (G4–A4–C5–A4–E4), ~3.2 s
+ */
+function playChime0(): (() => void) | null {
+  // [Hz, start s, dur s]
+  return playNotes([
+    [392.0, 0.00, 0.55],  // G4
+    [440.0, 0.45, 0.55],  // A4
+    [523.3, 0.90, 0.70],  // C5
+    [440.0, 1.50, 0.55],  // A4
+    [329.6, 2.00, 1.10],  // E4
+  ], 3.2);
+}
+
+/**
+ * Melodia 1 — melodia G-dur, ~9.2 s
+ * | D4  G4  B4 | G4  B4  A4 | G4  E4  D4 |
+ * | B3  A3  G3 | D4  -   -   |
+ * | G4  B4  G4 | B4  A4  G4 | E4  D4  B3 |
+ * | A3  G3  D4 | G4  -   -   |
+ */
+function playChime1(): (() => void) | null {
+  const S = 0.30; // krok (beat)
+  const D = 0.26; // czas trwania pojedynczej nuty
+  // nuty ze zwykłym czasem trwania
+  const seq: [number, number][] = [
+    [293.7,  0], // D4
+    [392.0,  1], // G4
+    [493.9,  2], // B4
+    [392.0,  3], // G4
+    [493.9,  4], // B4
+    [440.0,  5], // A4
+    [392.0,  6], // G4
+    [329.6,  7], // E4
+    [293.7,  8], // D4
+    [246.9,  9], // B3
+    [220.0, 10], // A3
+    [196.0, 11], // G3
+    // D4 trzymane przez 3 beaty (12–14)
+    [392.0, 15], // G4
+    [493.9, 16], // B4
+    [392.0, 17], // G4
+    [493.9, 18], // B4
+    [440.0, 19], // A4
+    [392.0, 20], // G4
+    [329.6, 21], // E4
+    [293.7, 22], // D4
+    [246.9, 23], // B3
+    [220.0, 24], // A3
+    [196.0, 25], // G3
+    [293.7, 26], // D4
+    // G4 trzymane przez 3 beaty (27–29)
+  ];
+  const notes: [number, number, number][] = seq.map(([hz, beat]) => [hz, beat * S, D]);
+  // D4 trzymane (beat 12–14)
+  notes.push([293.7, 12 * S, 3 * S - 0.04]);
+  // G4 trzymane końcowe (beat 27–29)
+  notes.push([392.0, 27 * S, 3 * S - 0.02]);
+  return playNotes(notes, 30 * S + 0.3);
+}
+
 /** Odtwarza melodię (z powtórzeniami ustawionymi globalnie) */
 export function playFanfare() {
   if (typeof window === "undefined") return;
   stopFanfare();
 
-  const { fanfareRepeats } = loadGlobal();
+  const { fanfareRepeats, melody } = loadGlobal();
+  const chime = melody === 1 ? playChime1 : playChime0;
+  const chimeDuration = melody === 1 ? 9.2 : 3.2;
   let played = 0;
 
   function play() {
     stopCurrent?.();
-    stopCurrent = playChime() ?? null;
+    stopCurrent = chime() ?? null;
     played++;
     if (played < fanfareRepeats) {
-      fanfareTimer = setTimeout(play, (FANFARE_SECONDS + 0.8) * 1000);
+      fanfareTimer = setTimeout(play, (chimeDuration + 0.8) * 1000);
     }
   }
 
