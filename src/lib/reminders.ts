@@ -151,74 +151,125 @@ export function dueReminder(cfg: ReminderConfig, now = new Date()): { preset: Re
   return null;
 }
 
-/* ── Fanfara maryjna — plik WAV (/public/fanfare.wav) ──────────────────── */
+/* ── Melodia powiadomienia — Web Audio API (bez plików, bez pluginów) ─────── */
 
-let fanfareAudio: HTMLAudioElement | null = null;
-let fanfareTimer: ReturnType<typeof setTimeout> | null = null;
-
-/** Wstępnie ładuje plik fanfary, by odtworzyć bez opóźnienia */
-export function preloadFanfare() {
-  if (typeof window === "undefined") return;
-  if (!fanfareAudio) {
-    fanfareAudio = new Audio("/fanfare.wav");
-    fanfareAudio.preload = "auto";
-    fanfareAudio.load();
-  }
+type AC = typeof AudioContext;
+function getAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext: AC }).webkitAudioContext;
+    return new Ctor();
+  } catch { return null; }
 }
 
-/** Czas trwania jednej fanfary w sekundach */
-export const FANFARE_SECONDS = 4;
+let fanfareTimer: ReturnType<typeof setTimeout> | null = null;
+let stopCurrent: (() => void) | null = null;
 
-/** Wycisza i zatrzymuje fanfarę */
+/** Czas trwania jednej melodii w sekundach */
+export const FANFARE_SECONDS = 3.2;
+
+/** Wycisza i zatrzymuje melodię */
 export function stopFanfare() {
   if (fanfareTimer) { clearTimeout(fanfareTimer); fanfareTimer = null; }
-  if (fanfareAudio) {
-    try { fanfareAudio.pause(); fanfareAudio.currentTime = 0; } catch { /* ignoruj */ }
-  }
+  stopCurrent?.();
+  stopCurrent = null;
 }
 
-/** Odtwarza fanfarę (z powtórzeniami ustawionymi globalnie) */
+/**
+ * Gra spokojną melodię modlitewną przez Web Audio API.
+ * Sekwencja nut: G4 – A4 – C5 – A4 – E4 (pentatonika, łagodna fala sinus).
+ * Żadnych zewnętrznych plików ani uprawnień.
+ */
+function playChime(): (() => void) | null {
+  const ctx = getAudioContext();
+  if (!ctx) return null;
+
+  // Nuty: [częstotliwość Hz, start s, czas trwania s]
+  const notes: [number, number, number][] = [
+    [392.0, 0.00, 0.55],  // G4
+    [440.0, 0.45, 0.55],  // A4
+    [523.3, 0.90, 0.70],  // C5
+    [440.0, 1.50, 0.55],  // A4
+    [329.6, 2.00, 1.10],  // E4  — końcowa
+  ];
+
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0.38, ctx.currentTime);
+  master.connect(ctx.destination);
+
+  const oscs: OscillatorNode[] = [];
+
+  for (const [freq, start, dur] of notes) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+    const t0 = ctx.currentTime + start;
+    // Łagodne wejście i wyjście (fade-in 40 ms, fade-out ostatnie 30%)
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(1, t0 + 0.04);
+    gain.gain.setValueAtTime(1, t0 + dur * 0.7);
+    gain.gain.linearRampToValueAtTime(0, t0 + dur);
+
+    osc.connect(gain);
+    gain.connect(master);
+    osc.start(t0);
+    osc.stop(t0 + dur);
+    oscs.push(osc);
+  }
+
+  const ctxClose = () => { try { ctx.close(); } catch { /* ok */ } };
+  const lastEnd = ctx.currentTime + 3.2;
+  const tid = setTimeout(ctxClose, (lastEnd - ctx.currentTime + 0.5) * 1000);
+
+  return () => {
+    clearTimeout(tid);
+    oscs.forEach(o => { try { o.stop(); } catch { /* ok */ } });
+    ctxClose();
+  };
+}
+
+/** Odtwarza melodię (z powtórzeniami ustawionymi globalnie) */
 export function playFanfare() {
   if (typeof window === "undefined") return;
-  preloadFanfare();
+  stopFanfare();
 
   const { fanfareRepeats } = loadGlobal();
   let played = 0;
 
   function play() {
-    if (!fanfareAudio) return;
-    try {
-      fanfareAudio.currentTime = 0;
-      const p = fanfareAudio.play();
-      if (p) p.catch(() => { /* autoplay zablokowany — brak gestu */ });
-    } catch { /* ignoruj */ }
+    stopCurrent?.();
+    stopCurrent = playChime() ?? null;
     played++;
     if (played < fanfareRepeats) {
       fanfareTimer = setTimeout(play, (FANFARE_SECONDS + 0.8) * 1000);
     }
   }
 
-  stopFanfare();
   play();
 }
 
+/** Nie jest już potrzebna (brak pliku do preładowania), zachowana dla kompatybilności */
+export function preloadFanfare() { /* no-op */ }
+
 let audioUnlocked = false;
 
-/** Odblokowuje audio przy pierwszym geście — używa AudioContext (nie tworzy media session w OS) */
+/** Odblokowuje AudioContext przy pierwszym geście użytkownika */
 export function unlockAudio() {
   if (audioUnlocked || typeof window === "undefined") return;
   try {
-    // Cichy oscylator przez AudioContext — nie wywołuje kontrolek odtwarzania w systemie
-    const ctx = new (window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const ctx = getAudioContext();
+    if (!ctx) return;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0, ctx.currentTime); // całkowita cisza
+    gain.gain.setValueAtTime(0, ctx.currentTime);
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime + 0.001);
     osc.addEventListener("ended", () => { ctx.close(); });
     audioUnlocked = true;
-    preloadFanfare();
   } catch { /* przeglądarka bez Web Audio */ }
 }
