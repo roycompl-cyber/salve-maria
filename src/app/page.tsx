@@ -86,78 +86,89 @@ function ArticleSlider({ articles, effect = "slide", intervalSec = 4 }: {
 }) {
   const total = articles.length;
   const [idx, setIdx] = useState(0);
-  const busyRef = useRef(false);
-  const dragging = useRef(false);
-  const startX = useRef(0);
-  const deltaX = useRef(0);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Refs to DOM nodes for imperative animation
-  const stripRef = useRef<HTMLDivElement>(null);   // slide effect
-  const curRef   = useRef<HTMLDivElement>(null);   // fade/zoom current
-  const nxtRef   = useRef<HTMLDivElement>(null);   // fade/zoom next
+  // Refs that hold "live" values readable inside async callbacks without stale closures
+  const idxRef      = useRef(0);
+  const effectRef   = useRef(effect);
+  const totalRef    = useRef(total);
+  const busyRef     = useRef(false);
+  const dragging    = useRef(false);
+  const startX      = useRef(0);
+  const deltaX      = useRef(0);
+  const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stripRef    = useRef<HTMLDivElement>(null);
+  const curRef      = useRef<HTMLDivElement>(null);
+  const nxtRef      = useRef<HTMLDivElement>(null);
 
-  const resetTimer = useCallback(() => {
+  // Keep refs in sync with props/state
+  useEffect(() => { idxRef.current = idx; }, [idx]);
+  useEffect(() => { effectRef.current = effect; }, [effect]);
+  useEffect(() => { totalRef.current = total; }, [total]);
+
+  // advance is stable (useCallback with empty deps) — reads live values through refs
+  const advance = useCallback((dir: 1 | -1, to?: number) => {
+    const cur_idx   = idxRef.current;
+    const cur_eff   = effectRef.current;
+    const cur_total = totalRef.current;
+    if (busyRef.current || cur_total < 2) return;
+    const next = to !== undefined ? to : ((cur_idx + dir + cur_total) % cur_total);
+    if (next === cur_idx) return;
+
+    busyRef.current = true;
+
+    // Reset auto-advance timer
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => advance(1), intervalSec * 1000);
-  }, [intervalSec]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { resetTimer(); return () => { if (timerRef.current) clearTimeout(timerRef.current); }; }, [resetTimer]);
-
-  function advance(dir: 1 | -1, to?: number) {
-    if (busyRef.current || total < 2) return;
-    const next = to !== undefined ? to : ((idx + dir + total) % total);
-    if (next === idx) return;
-    busyRef.current = true;
-    resetTimer();
-
-    if (effect === "slide") {
+    if (cur_eff === "slide") {
       const strip = stripRef.current;
       if (!strip) { setIdx(next); busyRef.current = false; return; }
-      // Snap strip to show "next" without transition
-      const fromPct = -idx * 100;
-      const toPct   = -next * 100;
+      const toPct = -(next * 100) / cur_total;
       strip.style.transition = "none";
-      strip.style.transform  = `translateX(${fromPct}%)`;
+      strip.style.transform  = `translateX(${-(cur_idx * 100) / cur_total}%)`;
       requestAnimationFrame(() => requestAnimationFrame(() => {
         strip.style.transition = "transform 0.45s cubic-bezier(.4,0,.2,1)";
         strip.style.transform  = `translateX(${toPct}%)`;
         setTimeout(() => { setIdx(next); busyRef.current = false; }, 460);
       }));
     } else {
-      // fade / zoom — imperatively animate nxtRef in, curRef out
-      const cur = curRef.current;
-      const nxt = nxtRef.current;
-      if (!cur || !nxt) { setIdx(next); busyRef.current = false; return; }
+      const curEl = curRef.current;
+      const nxtEl = nxtRef.current;
+      if (!curEl || !nxtEl) { setIdx(next); busyRef.current = false; return; }
 
-      // Prepare next slide (hidden)
-      nxt.dataset.artIdx = String(next);
-      nxt.style.transition = "none";
-      nxt.style.opacity    = "0";
-      nxt.style.transform  = effect === "zoom" ? "scale(1.06)" : "scale(1)";
-      nxt.style.zIndex     = "2";
-      cur.style.zIndex     = "1";
+      nxtEl.style.transition = "none";
+      nxtEl.style.opacity    = "0";
+      nxtEl.style.transform  = cur_eff === "zoom" ? "scale(1.06)" : "scale(1)";
+      nxtEl.style.zIndex     = "2";
+      curEl.style.zIndex     = "1";
 
       requestAnimationFrame(() => requestAnimationFrame(() => {
         const T = "opacity 0.42s ease, transform 0.42s ease";
-        nxt.style.transition = T;
-        nxt.style.opacity    = "1";
-        nxt.style.transform  = "scale(1)";
-        cur.style.transition = T;
-        cur.style.opacity    = "0";
-        cur.style.transform  = effect === "zoom" ? "scale(0.95)" : "scale(1)";
+        nxtEl.style.transition = T;
+        nxtEl.style.opacity    = "1";
+        nxtEl.style.transform  = "scale(1)";
+        curEl.style.transition = T;
+        curEl.style.opacity    = "0";
+        curEl.style.transform  = cur_eff === "zoom" ? "scale(0.95)" : "scale(1)";
         setTimeout(() => {
           setIdx(next);
-          // reset after React re-renders
           requestAnimationFrame(() => {
-            if (cur) { cur.style.opacity = "1"; cur.style.transform = "scale(1)"; cur.style.transition = "none"; cur.style.zIndex = ""; }
-            if (nxt) { nxt.style.opacity = "0"; nxt.style.transform = effect === "zoom" ? "scale(1.06)" : "scale(1)"; nxt.style.transition = "none"; nxt.style.zIndex = ""; }
+            curEl.style.opacity = "1"; curEl.style.transform = "scale(1)";
+            curEl.style.transition = "none"; curEl.style.zIndex = "";
+            nxtEl.style.opacity = "0"; nxtEl.style.transform = cur_eff === "zoom" ? "scale(1.06)" : "scale(1)";
+            nxtEl.style.transition = "none"; nxtEl.style.zIndex = "";
           });
           busyRef.current = false;
         }, 450);
       }));
     }
-  }
+  }, [intervalSec]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-advance on mount (advance is stable so this effect runs once)
+  useEffect(() => {
+    timerRef.current = setTimeout(() => advance(1), intervalSec * 1000);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [advance, intervalSec]);
 
   function onPointerDown(e: React.PointerEvent) {
     startX.current = e.clientX; deltaX.current = 0; dragging.current = true;
@@ -178,7 +189,6 @@ function ArticleSlider({ articles, effect = "slide", intervalSec = 4 }: {
 
   if (!articles.length) return <div className="h-56 rounded-3xl bg-slate-800/60 animate-pulse" />;
 
-  // Next slide index for fade/zoom overlay (peek ahead)
   const nextIdx = (idx + 1) % total;
 
   return (
@@ -189,7 +199,6 @@ function ArticleSlider({ articles, effect = "slide", intervalSec = 4 }: {
         onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
 
         {effect === "slide" ? (
-          /* ── SLIDE: horizontal strip ── */
           <div ref={stripRef} className="flex h-full"
             style={{ width: `${total * 100}%`, transform: `translateX(-${idx * 100 / total}%)`, willChange: "transform" }}>
             {articles.map(art => (
@@ -199,13 +208,10 @@ function ArticleSlider({ articles, effect = "slide", intervalSec = 4 }: {
             ))}
           </div>
         ) : (
-          /* ── FADE / ZOOM: two layers ── */
           <div className="relative w-full h-full">
-            {/* current */}
             <div ref={curRef} className="absolute inset-0" style={{ willChange: "opacity, transform" }}>
               <SlideCard art={articles[idx]} deltaXRef={deltaX} />
             </div>
-            {/* next (preloaded, invisible) */}
             <div ref={nxtRef} className="absolute inset-0" style={{ opacity: 0, willChange: "opacity, transform" }}>
               <SlideCard art={articles[nextIdx]} deltaXRef={deltaX} />
             </div>
@@ -213,12 +219,10 @@ function ArticleSlider({ articles, effect = "slide", intervalSec = 4 }: {
         )}
       </div>
 
-      {/* Counter */}
       <span className="absolute top-3 right-3 text-[10px] font-bold text-white/70 bg-slate-900/60 px-2 py-0.5 rounded-full tabular-nums z-20 pointer-events-none">
         {idx + 1} / {total}
       </span>
 
-      {/* Prev / Next (desktop) */}
       <button onClick={() => advance(-1)}
         className="hidden md:flex absolute left-3 top-[104px] -translate-y-1/2 items-center justify-center w-9 h-9 rounded-full bg-slate-900/75 text-white hover:bg-slate-800 transition-colors border border-slate-700/50 z-20"
         aria-label="Poprzedni">
@@ -230,7 +234,6 @@ function ArticleSlider({ articles, effect = "slide", intervalSec = 4 }: {
         <Icon name="chevron-right" size={16} />
       </button>
 
-      {/* Dots */}
       <div className="flex justify-center items-center gap-1.5 mt-3">
         {articles.map((_, i) => (
           <button key={i} onClick={() => advance(i > idx ? 1 : -1, i)}
