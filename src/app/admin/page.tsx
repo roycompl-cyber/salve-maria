@@ -426,6 +426,9 @@ export default function AdminPage() {
   const [campaignPhotosLoading, setCampaignPhotosLoading] = useState(false);
   const [campaignPhotosFilter, setCampaignPhotosFilter] = useState<"pending"|"approved"|"rejected"|"all">("pending");
   const [campaignPhotoActing, setCampaignPhotoActing] = useState<string|null>(null);
+  const [campaignCategories, setCampaignCategories] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState("");
+  const [categorySaving, setCategorySaving] = useState(false);
   const [replySaving, setReplySaving] = useState<string|null>(null);
 
   // App settings
@@ -639,9 +642,14 @@ export default function AdminPage() {
       setMessagesLoading(true);
       fetch("/api/contact").then(r=>r.json()).then(d=>{if(Array.isArray(d))setMessages(d);}).finally(()=>setMessagesLoading(false));
     }
-    if (section==="campaign-photos" && campaignPhotos.length===0) {
-      setCampaignPhotosLoading(true);
-      fetch("/api/admin/campaign-photos").then(r=>r.json()).then(d=>{if(Array.isArray(d))setCampaignPhotos(d);}).finally(()=>setCampaignPhotosLoading(false));
+    if (section==="campaign-photos") {
+      if (campaignPhotos.length===0) {
+        setCampaignPhotosLoading(true);
+        fetch("/api/admin/campaign-photos").then(r=>r.json()).then(d=>{if(Array.isArray(d))setCampaignPhotos(d);}).finally(()=>setCampaignPhotosLoading(false));
+      }
+      if (campaignCategories.length===0) {
+        fetch("/api/campaign-photos/categories").then(r=>r.json()).then(d=>{if(Array.isArray(d))setCampaignCategories(d);});
+      }
     }
     if (section==="source-config" && !sourceConfig.articles_url) {
       fetch("/api/admin/source-config").then(r=>r.json()).then(d=>{
@@ -923,6 +931,13 @@ export default function AdminPage() {
     const r = await fetch(`/api/admin/campaign-photos/${id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({status})});
     if (r.ok) setCampaignPhotos(prev=>prev.map(p=>p.id===id?{...p,status}:p));
     setCampaignPhotoActing(null);
+  }
+
+  async function handleCategorySave(cats: string[]) {
+    setCategorySaving(true);
+    const r = await fetch("/api/campaign-photos/categories",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cats)});
+    if (r.ok) { const d = await r.json(); setCampaignCategories(d.categories ?? cats); }
+    setCategorySaving(false);
   }
 
   async function handleCampaignPhotoDelete(id: string) {
@@ -1651,13 +1666,26 @@ export default function AdminPage() {
 
               {campaignPhotosLoading && <div className="flex justify-center py-12"><Loader2 size={24} className="text-orange-400 animate-spin"/></div>}
 
+              {/* Photo grid */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {filteredPhotos.map(p=>(
                   <div key={p.id} className={`${CARD} overflow-hidden`}>
-                    <div className="aspect-square bg-slate-900">
+                    <div className="aspect-square bg-slate-900 relative group">
                       {p.image_url && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={p.image_url} alt="" className="w-full h-full object-cover"/>
+                      )}
+                      {/* Download overlay */}
+                      {p.image_url && (
+                        <a href={p.image_url} download
+                          target="_blank" rel="noopener noreferrer"
+                          className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/40 transition-all opacity-0 group-hover:opacity-100"
+                          title="Pobierz zdjęcie"
+                          onClick={e=>e.stopPropagation()}>
+                          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 text-white text-xs font-semibold border border-white/20">
+                            <ArrowLeft size={12} className="rotate-[-90deg]"/> Pobierz
+                          </span>
+                        </a>
                       )}
                     </div>
                     <div className="p-2.5 space-y-1.5">
@@ -1679,6 +1707,12 @@ export default function AdminPage() {
                             <X size={11}/> Odrzuć
                           </button>
                         )}
+                        {p.image_url && (
+                          <a href={p.image_url} download target="_blank" rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-orange-400 hover:bg-slate-700 transition-colors" title="Pobierz">
+                            <ArrowLeft size={13} className="rotate-[-90deg]"/>
+                          </a>
+                        )}
                         <button onClick={()=>handleCampaignPhotoDelete(p.id)} disabled={campaignPhotoActing===p.id}
                           className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-700 transition-colors" title="Usuń">
                           <Trash2 size={13}/>
@@ -1689,6 +1723,39 @@ export default function AdminPage() {
                 ))}
               </div>
               {!campaignPhotosLoading&&filteredPhotos.length===0&&<p className="text-slate-500 text-sm text-center py-8">Brak zgłoszeń w tej kategorii.</p>}
+
+              {/* Categories management */}
+              <div className={`${CARD} p-4 space-y-3 mt-2`}>
+                <p className="text-white text-sm font-semibold" style={{fontFamily:"Georgia,serif"}}>Zarządzanie kategoriami</p>
+                <div className="space-y-1.5">
+                  {campaignCategories.map((cat,i)=>(
+                    <div key={cat} className="flex items-center gap-2">
+                      <span className="flex-1 text-slate-300 text-sm px-3 py-1.5 bg-slate-900 rounded-lg border border-slate-700">{cat}</span>
+                      <button onClick={()=>{const updated=campaignCategories.filter((_,j)=>j!==i);setCampaignCategories(updated);handleCategorySave(updated);}}
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-slate-700 transition-colors" title="Usuń kategorię">
+                        <X size={14}/>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    className={inputCls+" flex-1"}
+                    placeholder="Nazwa nowej kategorii…"
+                    value={newCategory}
+                    onChange={e=>setNewCategory(e.target.value)}
+                    onKeyDown={e=>{if(e.key==="Enter"&&newCategory.trim()){const updated=[...campaignCategories,newCategory.trim()];setCampaignCategories(updated);handleCategorySave(updated);setNewCategory("");}}}
+                  />
+                  <button
+                    disabled={!newCategory.trim()||categorySaving}
+                    onClick={()=>{if(!newCategory.trim())return;const updated=[...campaignCategories,newCategory.trim()];setCampaignCategories(updated);handleCategorySave(updated);setNewCategory("");}}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 transition-all"
+                    style={{background:"linear-gradient(135deg,#7c2d12,#c2410c)"}}>
+                    {categorySaving?<Loader2 size={14} className="animate-spin"/>:<Plus size={14}/>} Dodaj
+                  </button>
+                </div>
+                <p className="text-slate-500 text-xs">Kategorie widoczne w formularzu wysyłania zdjęć przez userów.</p>
+              </div>
             </div>
           </>);
         })()}

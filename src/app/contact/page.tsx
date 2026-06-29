@@ -1,18 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
+import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { MessageCircle, Send, CheckCircle2, Loader2, ChevronDown, Inbox, ChevronUp, MessageSquareReply, Camera, ImagePlus, Clock, Check, X } from "lucide-react";
 
 const DEFAULT_TOPICS = ["Pytanie ogólne","Wsparcie finansowe","Petycje","Modlitwa wstawiennicza","Inne"];
 
-const PHOTO_CATEGORIES = [
-  { value: "billboard", label: "Billboard kampanii" },
-  { value: "wolontariat", label: "Nasi wolontariusze" },
-  { value: "demonstracja", label: "Demonstracja / pikieta" },
-  { value: "inne", label: "Inne" },
-];
+const DEFAULT_PHOTO_CATEGORIES = ["billboard", "wolontariat", "demonstracja", "inne"];
 
 interface MyMessage {
   id: string;
@@ -58,6 +54,7 @@ export default function ContactPage() {
   // Zdjęcia z kampanii
   const [photos, setPhotos] = useState<CampaignPhoto[]>([]);
   const [photosLoading, setPhotosLoading] = useState(false);
+  const [photoCategories, setPhotoCategories] = useState<string[]>(DEFAULT_PHOTO_CATEGORIES);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoCategory, setPhotoCategory] = useState("billboard");
@@ -91,8 +88,12 @@ export default function ContactPage() {
 
   async function loadPhotos() {
     setPhotosLoading(true);
-    const r = await fetch("/api/campaign-photos");
-    if (r.ok) setPhotos(await r.json());
+    const [photosRes, catsRes] = await Promise.all([
+      fetch("/api/campaign-photos"),
+      fetch("/api/campaign-photos/categories"),
+    ]);
+    if (photosRes.ok) setPhotos(await photosRes.json());
+    if (catsRes.ok) { const cats = await catsRes.json(); if (Array.isArray(cats) && cats.length) setPhotoCategories(cats); }
     setPhotosLoading(false);
   }
 
@@ -375,9 +376,14 @@ export default function ContactPage() {
               </div>
             ) : (
               <form onSubmit={handlePhotoSubmit} className="space-y-4">
-                <p className="text-slate-400 text-sm leading-relaxed">
-                  Widziałeś nasz billboard, wolontariuszy w akcji albo byłeś na naszej demonstracji? Wyślij zdjęcie — najlepsze opublikujemy!
-                </p>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-slate-400 text-sm leading-relaxed">
+                    Widziałeś nasz billboard, wolontariuszy w akcji albo byłeś na naszej demonstracji? Wyślij zdjęcie — najlepsze opublikujemy!
+                  </p>
+                  <Link href="/campaign-photos" className="flex-shrink-0 text-xs text-orange-400 hover:text-orange-300 underline underline-offset-2 transition-colors whitespace-nowrap">
+                    Zobacz galerię →
+                  </Link>
+                </div>
 
                 <label className="block">
                   <div className="aspect-video rounded-2xl border-2 border-dashed border-slate-700 bg-slate-800/60 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-red-600/50 transition-colors overflow-hidden">
@@ -402,7 +408,7 @@ export default function ContactPage() {
                       value={photoCategory}
                       onChange={e => setPhotoCategory(e.target.value)}
                     >
-                      {PHOTO_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                      {photoCategories.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
                     </select>
                     <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   </div>
